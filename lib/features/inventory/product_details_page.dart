@@ -95,7 +95,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final invoiceNo = TextEditingController();
     final note = TextEditingController();
     String? supplierId;
-    String purchaseCurrency = "LBP";
+    String purchaseCurrency = item.purchaseCurrency;
     bool registerDebt = false;
 
     final result = await showDialog<Map<String, dynamic>>(
@@ -326,7 +326,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 _detailRow(c.isArabic ? "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0631\u0639\u064a" : "Subcategory", _product!.subcategory, theme),
                                 _detailRow(c.t("sku"), _product!.sku.isEmpty ? "-" : _product!.sku, theme),
                                 if (!_product!.hasVariants) ...[
-                                  _detailRow(c.t("purchasePrice"), money(_product!.purchasePrice, _product!.currency), theme),
+                                  _detailRow(c.t("purchasePrice"), money(_product!.purchasePrice, _product!.purchaseCurrency), theme),
                                   _detailRow(c.t("sellingPrice"), money(_product!.sellingPrice, _product!.currency), theme, valueColor: theme.colorScheme.primary),
                                   _detailRow(c.t("quantity"), "${_product!.quantity.toStringAsFixed(0)} ${_product!.unit}", theme),
                                   const SizedBox(height: 20),
@@ -364,6 +364,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                               children: [
                                                 Text(v.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                                                 Text("${c.t("sellingPrice")}: ${money(v.sellingPrice, v.currency)}", style: theme.textTheme.bodySmall),
+                                                Text("${c.t("purchasePrice")}: ${money(v.purchasePrice, v.purchaseCurrency)}", style: theme.textTheme.bodySmall),
                                               ],
                                             ),
                                           ),

@@ -4,6 +4,7 @@
   final String sku;
   final String imageUrl;
   final double purchasePrice;
+  final String purchaseCurrency;
   final double sellingPrice;
   final double quantity;
   final double minStock;
@@ -16,6 +17,7 @@
     required this.sku,
     required this.imageUrl,
     required this.purchasePrice,
+    required this.purchaseCurrency,
     required this.sellingPrice,
     required this.quantity,
     required this.minStock,
@@ -32,6 +34,7 @@
       sku: (json["sku"] ?? "").toString(),
       imageUrl: (json["imageUrl"] ?? "").toString(),
       purchasePrice: _num(json["purchasePrice"]),
+      purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP").toString(),
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
       minStock: _num(json["minStock"]),
@@ -50,6 +53,7 @@ class Product {
   final String imageUrl;
   final bool hasVariants;
   final double purchasePrice;
+  final String purchaseCurrency;
   final double sellingPrice;
   final double quantity;
   final double minStock;
@@ -66,6 +70,7 @@ class Product {
     required this.imageUrl,
     required this.hasVariants,
     required this.purchasePrice,
+    required this.purchaseCurrency,
     required this.sellingPrice,
     required this.quantity,
     required this.minStock,
@@ -87,6 +92,7 @@ class Product {
       imageUrl: (json["imageUrl"] ?? "").toString(),
       hasVariants: json["hasVariants"] == true,
       purchasePrice: _num(json["purchasePrice"]),
+      purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP").toString(),
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
       minStock: _num(json["minStock"]),

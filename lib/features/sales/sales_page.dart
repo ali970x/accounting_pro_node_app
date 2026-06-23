@@ -125,6 +125,7 @@ class _SalesPageState extends State<SalesPage> {
 
   Future<void> _createSale() async {
     if (_activeChoice == null) return _showError("Select product");
+    final isAr = AppScope.of(context).isArabic;
     final q = double.tryParse(_quantity.text) ?? 0;
     final price = double.tryParse(_unitPrice.text) ?? 0;
     if (q <= 0) return _showError("Invalid quantity");
@@ -133,6 +134,9 @@ class _SalesPageState extends State<SalesPage> {
     final typedCustomer = _manualCustomerName.text.trim();
     final selectedMatchesText = selectedCustomer != null && selectedCustomer.name == typedCustomer;
     final custName = typedCustomer.isEmpty ? (selectedCustomer?.name ?? "Walk-in") : typedCustomer;
+    if (_registerDebt && !(selectedMatchesText && _selectedCustomerId != null)) {
+      return _showError(isAr ? "اختار الزبون من القائمة قبل تسجيل الدين" : "Select the customer from the list before registering debt");
+    }
 
     try {
       await widget.api.post("/sales", {

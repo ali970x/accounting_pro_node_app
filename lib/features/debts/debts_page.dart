@@ -74,7 +74,7 @@ class _DebtsPageState extends State<DebtsPage> {
   Future<void> _addPayment(Map<String, dynamic> debt) async {
     final body = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => _PaymentDialog(currency: (debt["currency"] ?? "USD").toString()),
+      builder: (_) => _PaymentDialog(currency: (debt["currency"] ?? "LBP").toString()),
     );
     if (body == null) return;
 
@@ -208,7 +208,7 @@ class _DebtsPageState extends State<DebtsPage> {
   String _moneyByCurrency(String type) {
     final totals = <String, double>{};
     for (final debt in _debts.where((d) => (d["type"] ?? "").toString() == type)) {
-      final currency = (debt["currency"] ?? "USD").toString();
+      final currency = (debt["currency"] ?? "LBP").toString();
       totals[currency] = (totals[currency] ?? 0) + _num(debt["remainingAmount"]);
     }
     if (totals.isEmpty) return "${money(0, "LBP")}\n${money(0, "USD")}";
@@ -277,7 +277,7 @@ class _DebtsPageState extends State<DebtsPage> {
     final type = (debt["type"] ?? "").toString();
     final color = type == "receivable" ? Colors.green : Colors.red;
     final remaining = _num(debt["remainingAmount"]);
-    final currency = (debt["currency"] ?? "USD").toString();
+    final currency = (debt["currency"] ?? "LBP").toString();
     final status = (debt["status"] ?? "-").toString();
     final note = (debt["note"] ?? "").toString();
 
@@ -350,7 +350,7 @@ class _DebtDialogState extends State<_DebtDialog> {
   final _note = TextEditingController();
   String? _contactId;
   String _type = "receivable";
-  String _currency = "USD";
+  String _currency = "LBP";
 
   @override
   void initState() {
@@ -361,7 +361,7 @@ class _DebtDialogState extends State<_DebtDialog> {
     _note.text = (debt["note"] ?? "").toString();
     _contactId = (debt["contact"] ?? "").toString().isEmpty ? null : (debt["contact"] ?? "").toString();
     _type = (debt["type"] ?? "receivable").toString();
-    _currency = (debt["currency"] ?? "USD").toString();
+    _currency = (debt["currency"] ?? "LBP").toString();
   }
 
   @override
@@ -496,7 +496,7 @@ class _LedgerDialog extends StatelessWidget {
               for (final debt in debts)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(money(_num(debt["remainingAmount"]), (debt["currency"] ?? "USD").toString())),
+                  title: Text(money(_num(debt["remainingAmount"]), (debt["currency"] ?? "LBP").toString())),
                   subtitle: Text((debt["note"] ?? debt["status"] ?? "").toString()),
                   trailing: Wrap(
                     children: [

@@ -206,6 +206,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               "imageUrl": "",
               "hasVariants": widget.variantOnly ? false : hasVariants,
               "purchasePrice": double.tryParse(purchase.text.trim()) ?? 0,
+              "purchaseCurrency": currency,
               "sellingPrice": double.tryParse(selling.text.trim()) ?? 0,
               "quantity": 0,
               "minStock": double.tryParse(minStock.text.trim()) ?? 0,
