@@ -5,7 +5,9 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../core/phone_text.dart";
+import "../../core/pdf/pdf_service.dart";
 import "../../models/contact.dart";
+import "../../models/invoice_template.dart";
 import "../../widgets/modern_card.dart";
 
 class ContactsPage extends StatefulWidget {
@@ -193,7 +195,6 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   Future<void> _showMovementStatement(ContactModel contact) async {
-    final isAr = AppScope.of(context).isArabic;
     try {
       final raw = await widget.api.get("/records/stock-movements");
       final rows = (raw as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).where((row) {
@@ -204,9 +205,16 @@ class _ContactsPageState extends State<ContactsPage> {
         return matchType && (contactId == contact.id || name == contact.name);
       }).toList();
 
-      final message = _movementMessage(contact, rows, isAr);
+      final rawTemplate = await widget.api.get("/invoice-template");
+      final template = InvoiceTemplateModel.fromJson(Map<String, dynamic>.from(rawTemplate as Map));
       if (!mounted) return;
-      await _showShareDialog(title: isAr ? "\u062d\u0631\u0643\u0629 \u0627\u0644\u0628\u0636\u0627\u0639\u0629" : "Goods Movement", message: message, contact: contact);
+      await PdfService.printGoodsMovementInvoice(
+        languageCode: AppScope.of(context).languageCode,
+        contactName: contact.name,
+        contactType: contact.type,
+        movements: rows,
+        template: template,
+      );
     } catch (e) {
       _showError(e);
     }
@@ -263,33 +271,6 @@ class _ContactsPageState extends State<ContactsPage> {
     }
   }
 
-  String _movementMessage(ContactModel contact, List<Map<String, dynamic>> rows, bool isAr) {
-    final lines = <String>[
-      isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u062d\u0631\u0643\u0629 \u0628\u0636\u0627\u0639\u0629" : "Goods Movement Statement",
-      "${isAr ? "\u0627\u0644\u0627\u0633\u0645" : "Name"}: ${contact.name}",
-      "${isAr ? "\u0627\u0644\u0646\u0648\u0639" : "Type"}: ${contact.type == "supplier" ? (isAr ? "\u0645\u0648\u0631\u062f" : "Supplier") : (isAr ? "\u0632\u0628\u0648\u0646" : "Customer")}",
-      "${isAr ? "\u0627\u0644\u062a\u0627\u0631\u064a\u062e" : "Date"}: ${DateTime.now().toString().substring(0, 16)}",
-      "",
-    ];
-    if (rows.isEmpty) {
-      lines.add(isAr ? "\u0644\u0627 \u064a\u0648\u062c\u062f \u062d\u0631\u0643\u0629 \u0628\u0636\u0627\u0639\u0629 \u0628\u0639\u062f." : "No goods movement yet.");
-      return lines.join("\n");
-    }
-    for (final row in rows) {
-      final type = (row["type"] ?? "").toString();
-      final product = (row["productName"] ?? "").toString();
-      final date = _shortDate(row["createdAt"]);
-      final qty = _num(row["difference"]).abs().toStringAsFixed(0);
-      final total = _num(row["totalCost"]);
-      final currency = (row["currency"] ?? "LBP").toString();
-      final invoice = (row["invoiceNo"] ?? "").toString();
-      lines.add("- $date | ${_movementType(type, isAr)} | $product | ${isAr ? "\u0643\u0645\u064a\u0629" : "Qty"}: $qty");
-      if (total > 0) lines.add("  ${isAr ? "\u0627\u0644\u0645\u0628\u0644\u063a" : "Amount"}: ${money(total, currency)}");
-      if (invoice.isNotEmpty) lines.add("  ${isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice"}: $invoice");
-    }
-    return lines.join("\n");
-  }
-
   String _ledgerMessage(ContactModel contact, List<Map<String, dynamic>> debts, bool isAr) {
     final totals = _debtTotals(debts);
     final lines = <String>[
@@ -333,12 +314,6 @@ class _ContactsPageState extends State<ContactsPage> {
       totals["remaining$suffix"] = (totals["remaining$suffix"] ?? 0) + _num(debt["remainingAmount"]);
     }
     return totals;
-  }
-
-  String _movementType(String type, bool isAr) {
-    if (type == "purchase") return isAr ? "\u062a\u0648\u0631\u064a\u062f" : "Purchase";
-    if (type == "return") return isAr ? "\u0645\u0631\u062a\u062c\u0639" : "Return";
-    return isAr ? "\u0645\u0628\u064a\u0639" : "Sale";
   }
 
   String _shortDate(dynamic raw) {
