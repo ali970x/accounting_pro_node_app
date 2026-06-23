@@ -37,6 +37,7 @@ class _SalesPageState extends State<SalesPage> {
   final _totalPrice = TextEditingController();
 
   bool _registerDebt = false;
+  bool _showAllSales = false;
   _SaleProductChoice? _activeChoice;
 
   @override
@@ -156,6 +157,39 @@ class _SalesPageState extends State<SalesPage> {
     if (ok != true) return;
     try {
       await widget.api.delete("/sales/${sale.id}");
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _deleteAllSales() async {
+    final isAr = AppScope.of(context).isArabic;
+    if (_sales.isEmpty) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "حذف كل الفواتير؟" : "Delete all invoices?"),
+        content: Text(
+          isAr
+              ? "سيتم حذف كل فواتير المبيع، إرجاع كمياتها إلى المخزون، وحذف ديون الفواتير المرتبطة. لا تضغط حذف إلا إذا كنت متأكد."
+              : "All sales invoices will be deleted, stock will be restored, and related invoice debts will be removed. Continue only if you are sure.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isAr ? "إلغاء" : "Cancel")),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(isAr ? "حذف الكل" : "Delete all"),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await widget.api.delete("/sales");
       await _load();
     } catch (e) {
       _showError(e);
@@ -292,8 +326,6 @@ class _SalesPageState extends State<SalesPage> {
         children: [
           Text(c.t("sales"), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 14),
-          _salesReportCard(isAr),
-          const SizedBox(height: 14),
           ModernCard(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -426,10 +458,64 @@ class _SalesPageState extends State<SalesPage> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(c.t("recentSales"), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 12),
-          if (_loading) const Center(child: CircularProgressIndicator()) else if (_error != null) ModernCard(child: Text(_error!)) else if (_sales.isEmpty) ModernCard(child: Text(c.t("empty"))) else ..._sales.map((s) => _saleItem(s)),
+          _invoiceListCard(isAr),
           const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _invoiceListCard(bool isAr) {
+    final c = AppScope.of(context);
+    final shownSales = _showAllSales ? _sales : _sales.take(5).toList();
+    final hasMore = _sales.length > 5;
+
+    return ModernCard(
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: const CircleAvatar(child: Icon(Icons.receipt_long_rounded)),
+        title: Text(isAr ? "آخر الفواتير" : "Latest invoices", style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text(isAr ? "${_sales.length} فاتورة محفوظة" : "${_sales.length} saved invoices"),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+        children: [
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_error != null)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+            )
+          else if (_sales.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(c.t("empty")),
+            )
+          else ...[
+            Row(
+              children: [
+                if (hasMore)
+                  TextButton.icon(
+                    onPressed: () => setState(() => _showAllSales = !_showAllSales),
+                    icon: Icon(_showAllSales ? Icons.unfold_less_rounded : Icons.unfold_more_rounded),
+                    label: Text(_showAllSales ? (isAr ? "عرض آخر 5" : "Show latest 5") : (isAr ? "عرض الكل" : "Show all")),
+                  ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _deleteAllSales,
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  icon: const Icon(Icons.delete_sweep_rounded),
+                  label: Text(isAr ? "حذف الكل" : "Delete all"),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...shownSales.map((s) => _saleItem(s)),
+          ],
         ],
       ),
     );
@@ -480,61 +566,6 @@ class _SalesPageState extends State<SalesPage> {
           onLongPress: () => _editSale(s),
           onTap: () => _printSale(s),
         ),
-      ),
-    );
-  }
-
-  Widget _salesReportCard(bool isAr) {
-    final totals = {"LBP": 0.0, "USD": 0.0};
-    var debtCount = 0;
-    for (final sale in _sales) {
-      final currency = sale.currency == "USD" ? "USD" : "LBP";
-      totals[currency] = (totals[currency] ?? 0) + sale.total;
-      if (sale.paymentStatus == "debt") debtCount += 1;
-    }
-    return ModernCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.query_stats_rounded, color: Colors.blue),
-              const SizedBox(width: 8),
-              Text(isAr ? "تقرير المبيع" : "Sales Report", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _reportPill(isAr ? "الفواتير" : "Invoices", _sales.length.toString(), Colors.indigo),
-              _reportPill(isAr ? "دين" : "Debt", debtCount.toString(), Colors.red),
-              _reportPill("LBP", money(totals["LBP"] ?? 0, "LBP"), Colors.orange),
-              _reportPill("USD", money(totals["USD"] ?? 0, "USD"), Colors.green),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _reportPill(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w700)),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
-        ],
       ),
     );
   }

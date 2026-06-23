@@ -131,6 +131,7 @@ class PdfService {
     final totals = _movementTotals(movements);
     final now = DateTime.now();
     final invoiceNo = "GM-${now.millisecondsSinceEpoch.toString().substring(5)}";
+    final invoiceType = isArabic ? "فاتورة باسم $contactName" : "Invoice for $contactName";
 
     pdf.addPage(
       pw.MultiPage(
@@ -150,11 +151,12 @@ class PdfService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                       children: [
-                        _text(isArabic ? "فاتورة حركة بضاعة" : "Goods Movement Invoice", isArabic, size: 25, bold: true),
+                        _text(invoiceType, isArabic, size: 25, bold: true),
                         pw.SizedBox(height: 12),
                         _labelValue(isArabic ? "رقم الفاتورة" : "Invoice No.", invoiceNo, isArabic),
                         _labelValue(isArabic ? "الاسم" : "Name", contactName, isArabic),
-                        _labelValue(isArabic ? "النوع" : "Type", contactType == "supplier" ? (isArabic ? "مورد" : "Supplier") : (isArabic ? "زبون" : "Customer"), isArabic),
+                        _labelValue(isArabic ? "النوع" : "Type", invoiceType, isArabic),
+                        _labelValue(isArabic ? "صفة الشخص" : "Contact role", contactType == "supplier" ? (isArabic ? "مورد" : "Supplier") : (isArabic ? "زبون" : "Customer"), isArabic),
                         _labelValue(isArabic ? "التاريخ" : "Date", _dateText(now), isArabic),
                         pw.SizedBox(height: 20),
                         _movementItemsTable(movements, isArabic),
