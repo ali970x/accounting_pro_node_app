@@ -211,8 +211,8 @@ class _DebtsPageState extends State<DebtsPage> {
       final currency = (debt["currency"] ?? "USD").toString();
       totals[currency] = (totals[currency] ?? 0) + _num(debt["remainingAmount"]);
     }
-    if (totals.isEmpty) return money(0, "USD");
-    return totals.entries.map((e) => money(e.value, e.key)).join(" / ");
+    if (totals.isEmpty) return "${money(0, "LBP")}\n${money(0, "USD")}";
+    return "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}";
   }
 
   Widget _summaryCard(String label, String value, IconData icon, Color color) {
@@ -241,10 +241,9 @@ class _DebtsPageState extends State<DebtsPage> {
     final first = rows.first;
     final type = (first["type"] ?? "").toString();
     final color = type == "receivable" ? Colors.green : Colors.red;
-    final total = rows.fold(0.0, (sum, d) => sum + _num(d["remainingAmount"]));
-    final currency = (first["currency"] ?? "USD").toString();
     final name = (first["personName"] ?? "").toString();
     final openCount = rows.where((d) => (d["status"] ?? "").toString() != "paid").length;
+    final totals = _totalsFor(rows);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -261,7 +260,7 @@ class _DebtsPageState extends State<DebtsPage> {
           trailing: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(money(total, currency), style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+              Text(_formatTotals(totals), textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
               IconButton(
                 tooltip: _label(isAr, "Open ledger", "\u0641\u062a\u062d \u0627\u0644\u062c\u0631\u062f\u0629"),
                 onPressed: () => _showLedger(first),
@@ -321,6 +320,19 @@ class _DebtsPageState extends State<DebtsPage> {
   double _num(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString()) ?? 0;
+  }
+
+  Map<String, double> _totalsFor(List<Map<String, dynamic>> rows) {
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    for (final row in rows) {
+      final currency = (row["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      totals[currency] = (totals[currency] ?? 0) + _num(row["remainingAmount"]);
+    }
+    return totals;
+  }
+
+  String _formatTotals(Map<String, double> totals) {
+    return "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}";
   }
 }
 
@@ -468,11 +480,7 @@ class _LedgerDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAr = AppScope.of(context).isArabic;
-    final total = debts.fold(0.0, (sum, d) {
-      final value = d["remainingAmount"];
-      return sum + (value is num ? value.toDouble() : double.tryParse(value.toString()) ?? 0);
-    });
-    final currency = debts.isEmpty ? "USD" : (debts.first["currency"] ?? "USD").toString();
+    final totals = _totalsFor(debts);
 
     return AlertDialog(
       title: Text(name),
@@ -483,7 +491,7 @@ class _LedgerDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("${_label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a")}: ${money(total, currency)}", style: const TextStyle(fontWeight: FontWeight.w900)),
+              Text("${_label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a")}:\n${_formatTotals(totals)}", style: const TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 12),
               for (final debt in debts)
                 ListTile(
@@ -511,6 +519,19 @@ class _LedgerDialog extends StatelessWidget {
   double _num(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString()) ?? 0;
+  }
+
+  Map<String, double> _totalsFor(List<Map<String, dynamic>> rows) {
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    for (final row in rows) {
+      final currency = (row["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      totals[currency] = (totals[currency] ?? 0) + _num(row["remainingAmount"]);
+    }
+    return totals;
+  }
+
+  String _formatTotals(Map<String, double> totals) {
+    return "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}";
   }
 }
 

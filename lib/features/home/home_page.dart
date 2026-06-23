@@ -154,22 +154,7 @@ class _HomePageState extends State<HomePage> {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: IndexedStack(
-                index: selected,
-                children: [
-                  InventoryPage(api: widget.api),
-                  SalesPage(api: widget.api),
-                  InvoiceTemplatePage(api: widget.api),
-                  ReportsPage(api: widget.api),
-                  RecordsPage(api: widget.api),
-                  SyncPage(api: widget.api),
-                  ExpensesPage(api: widget.api),
-                  DebtsPage(api: widget.api),
-                  ContactsPage(api: widget.api),
-                  AboutPage(api: widget.api),
-                  SettingsPage(api: widget.api),
-                ],
-              ),
+              child: _pageFor(selected),
             ),
           ),
         ],
@@ -190,5 +175,21 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
     );
+  }
+
+  Widget _pageFor(int index) {
+    return switch (index) {
+      0 => InventoryPage(api: widget.api),
+      1 => SalesPage(api: widget.api),
+      2 => InvoiceTemplatePage(api: widget.api),
+      3 => ReportsPage(api: widget.api),
+      4 => RecordsPage(api: widget.api),
+      5 => SyncPage(api: widget.api),
+      6 => ExpensesPage(api: widget.api),
+      7 => DebtsPage(api: widget.api),
+      8 => ContactsPage(api: widget.api),
+      9 => AboutPage(api: widget.api),
+      _ => SettingsPage(api: widget.api),
+    };
   }
 }

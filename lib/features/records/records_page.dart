@@ -99,12 +99,20 @@ class _RecordsPageState extends State<RecordsPage> {
     final color = isReturn ? Colors.orange : Colors.blue;
     final qty = row.difference.abs().toStringAsFixed(0);
     final customer = row.customerName.isEmpty ? _label(isAr, "Walk-in", "\u0632\u0628\u0648\u0646 \u0645\u0628\u0627\u0634\u0631") : row.customerName;
+    final details = <String>[
+      "${_label(isAr, "Customer", "\u0627\u0644\u0632\u0628\u0648\u0646")}: $customer",
+      "${_label(isAr, "Quantity", "\u0627\u0644\u0643\u0645\u064a\u0629")}: $qty",
+      if (row.totalCost > 0) "${_label(isAr, "Total", "\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a")}: ${money(row.totalCost, row.currency)}",
+      if (row.paymentStatus == "paid") _label(isAr, "Paid", "\u0645\u062f\u0641\u0648\u0639"),
+      if (row.paymentStatus == "debt") _label(isAr, "Customer debt", "\u062f\u064a\u0646 \u0639\u0644\u0649 \u0627\u0644\u0632\u0628\u0648\u0646"),
+      if (row.invoiceNo.isNotEmpty) "${_label(isAr, "Invoice", "\u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629")}: ${row.invoiceNo}",
+    ];
 
     return ModernCard(
       child: ListTile(
         leading: Icon(isReturn ? Icons.keyboard_return_rounded : Icons.point_of_sale_rounded, color: color),
         title: Text(row.productName, style: const TextStyle(fontWeight: FontWeight.w900)),
-        subtitle: Text("${_formatTime(row.createdAt)}\n${_label(isAr, "Customer", "\u0627\u0644\u0632\u0628\u0648\u0646")}: $customer\n${_label(isAr, "Quantity", "\u0627\u0644\u0643\u0645\u064a\u0629")}: $qty"),
+        subtitle: Text("${_formatTime(row.createdAt)}\n${details.join("\n")}"),
         trailing: Icon(isReturn ? Icons.north_west_rounded : Icons.south_east_rounded, color: color),
       ),
     );

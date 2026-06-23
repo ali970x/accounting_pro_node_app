@@ -19,7 +19,7 @@
       quantity: _num(json["quantity"]),
       unitPrice: _num(json["unitPrice"]),
       total: _num(json["total"]),
-      currency: (json["currency"] ?? "USD").toString(),
+      currency: (json["currency"] ?? "LBP").toString(),
     );
   }
 }
@@ -30,6 +30,7 @@ class Sale {
   final String customerName;
   final double total;
   final String currency;
+  final String paymentStatus;
   final List<SaleItem> items;
 
   const Sale({
@@ -38,6 +39,7 @@ class Sale {
     required this.customerName,
     required this.total,
     required this.currency,
+    required this.paymentStatus,
     required this.items,
   });
 
@@ -48,7 +50,8 @@ class Sale {
       invoiceNo: (json["invoiceNo"] ?? "").toString(),
       customerName: (json["customerName"] ?? "").toString(),
       total: _num(json["total"]),
-      currency: (json["currency"] ?? "USD").toString(),
+      currency: (json["currency"] ?? "LBP").toString(),
+      paymentStatus: (json["paymentStatus"] ?? "paid").toString(),
       items: raw is List ? raw.map((e) => SaleItem.fromJson(Map<String, dynamic>.from(e as Map))).toList() : [],
     );
   }

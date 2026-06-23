@@ -1,4 +1,6 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
@@ -77,6 +79,68 @@ class _InventoryPageState extends State<InventoryPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 
+  Future<void> _showInventorySnapshot() async {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final lines = <String>[
+      isAr ? "جردة عامة للمخزون" : "Full Inventory Snapshot",
+      DateTime.now().toString().substring(0, 16),
+      "",
+    ];
+
+    final grouped = _groupProducts(_products);
+    for (final category in grouped.entries) {
+      lines.add("${isAr ? "التصنيف" : "Category"}: ${category.key}");
+      for (final subcategory in category.value.entries) {
+        lines.add("  ${isAr ? "التصنيف الفرعي" : "Subcategory"}: ${subcategory.key}");
+        for (final product in subcategory.value) {
+          if (product.hasVariants) {
+            for (final variant in product.variants) {
+              lines.add("    - ${product.name} / ${variant.name}: ${variant.quantity.toStringAsFixed(0)} ${variant.unit} | ${money(variant.sellingPrice, variant.currency)}");
+            }
+          } else {
+            lines.add("    - ${product.name}: ${product.quantity.toStringAsFixed(0)} ${product.unit} | ${money(product.sellingPrice, product.currency)}");
+          }
+        }
+      }
+      lines.add("");
+    }
+
+    final message = lines.join("\n");
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "جردة عامة" : "Inventory Snapshot"),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(child: SelectableText(message)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(c.t("cancel"))),
+          OutlinedButton.icon(
+            onPressed: () async => Clipboard.setData(ClipboardData(text: message)),
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(isAr ? "نسخ" : "Copy"),
+          ),
+          FilledButton.icon(
+            onPressed: () => _shareInventorySnapshot(message),
+            icon: const Icon(Icons.send_rounded),
+            label: Text(isAr ? "مشاركة" : "Share"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareInventorySnapshot(String message) async {
+    final uri = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await Clipboard.setData(ClipboardData(text: message));
+      _showError("Could not open sharing app. Inventory copied.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
@@ -131,6 +195,11 @@ class _InventoryPageState extends State<InventoryPage> {
                               ),
                             ],
                           ),
+                        ),
+                        IconButton.filledTonal(
+                          onPressed: _products.isEmpty ? null : _showInventorySnapshot,
+                          tooltip: isAr ? "جردة عامة" : "Inventory Snapshot",
+                          icon: const Icon(Icons.ios_share_rounded),
                         ),
                       ],
                     ),

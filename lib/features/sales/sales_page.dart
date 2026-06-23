@@ -28,12 +28,12 @@ class _SalesPageState extends State<SalesPage> {
   String? _selectedProductId;
   String? _selectedCustomerId;
   final _manualCustomerName = TextEditingController();
-  final _manualCustomerPhone = TextEditingController();
+  final _customerFocusNode = FocusNode();
   final _quantity = TextEditingController();
   final _unitPrice = TextEditingController();
   final _totalPrice = TextEditingController();
 
-  bool _isManualCustomer = false;
+  bool _registerDebt = false;
   _SaleProductChoice? _activeChoice;
 
   @override
@@ -45,7 +45,7 @@ class _SalesPageState extends State<SalesPage> {
   @override
   void dispose() {
     _manualCustomerName.dispose();
-    _manualCustomerPhone.dispose();
+    _customerFocusNode.dispose();
     _quantity.dispose();
     _unitPrice.dispose();
     _totalPrice.dispose();
@@ -130,12 +130,16 @@ class _SalesPageState extends State<SalesPage> {
     if (q <= 0) return _showError("Invalid quantity");
 
     final selectedCustomer = _firstCustomerWhere((x) => x.id == _selectedCustomerId);
-    String custName = _isManualCustomer ? (_manualCustomerName.text.isEmpty ? "Walk-in" : _manualCustomerName.text) : (selectedCustomer?.name ?? "Walk-in");
+    final typedCustomer = _manualCustomerName.text.trim();
+    final selectedMatchesText = selectedCustomer != null && selectedCustomer.name == typedCustomer;
+    final custName = typedCustomer.isEmpty ? (selectedCustomer?.name ?? "Walk-in") : typedCustomer;
 
     try {
       await widget.api.post("/sales", {
         "customerName": custName,
-        if (!_isManualCustomer && _selectedCustomerId != null) "contact": _selectedCustomerId,
+        if (selectedMatchesText && _selectedCustomerId != null) "contact": _selectedCustomerId,
+        "currency": _activeChoice!.currency,
+        "paymentStatus": _registerDebt ? "debt" : "paid",
         "items": [
           {
             "productId": _activeChoice!.productId,
@@ -154,13 +158,13 @@ class _SalesPageState extends State<SalesPage> {
 
   void _resetForm() {
     _manualCustomerName.clear();
-    _manualCustomerPhone.clear();
     _quantity.clear();
     _unitPrice.clear();
     _totalPrice.clear();
     _selectedProductId = null;
     _selectedCustomerId = null;
     _activeChoice = null;
+    _registerDebt = false;
   }
 
   void _showError(Object e) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -190,20 +194,65 @@ class _SalesPageState extends State<SalesPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _isManualCustomer
-                          ? TextField(controller: _manualCustomerName, decoration: InputDecoration(labelText: isAr ? "اسم الزبون" : "Customer Name"))
-                          : DropdownButtonFormField<String>(
-                              value: _selectedCustomerId,
-                              decoration: InputDecoration(labelText: c.t("customerName")),
-                              items: _customers.map((cust) => DropdownMenuItem(value: cust.id, child: Text(cust.name))).toList(),
-                              onChanged: (v) => setState(() => _selectedCustomerId = v),
-                            ),
-                    ),
-                    IconButton(onPressed: () => setState(() => _isManualCustomer = !_isManualCustomer), icon: Icon(_isManualCustomer ? Icons.list_alt_rounded : Icons.edit_note_rounded)),
-                  ],
+                RawAutocomplete<ContactModel>(
+                  textEditingController: _manualCustomerName,
+                  focusNode: _customerFocusNode,
+                  displayStringForOption: (customer) => customer.name,
+                  optionsBuilder: (value) {
+                    final q = value.text.trim().toLowerCase();
+                    if (q.isEmpty) return _customers.take(8);
+                    return _customers.where((customer) {
+                      return customer.name.toLowerCase().contains(q) || customer.phone.contains(q);
+                    }).take(8);
+                  },
+                  onSelected: (customer) {
+                    setState(() {
+                      _selectedCustomerId = customer.id;
+                      _manualCustomerName.text = customer.name;
+                    });
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: c.t("customerName"),
+                        prefixIcon: const Icon(Icons.person_search_rounded),
+                      ),
+                      onChanged: (value) {
+                        final selected = _firstCustomerWhere((x) => x.id == _selectedCustomerId);
+                        if (selected != null && selected.name != value) {
+                          setState(() => _selectedCustomerId = null);
+                        }
+                      },
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 8,
+                        borderRadius: BorderRadius.circular(14),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 260, maxWidth: 520),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final customer = options.elementAt(index);
+                              return ListTile(
+                                leading: const Icon(Icons.person_rounded),
+                                title: Text(customer.name),
+                                subtitle: customer.phone.isEmpty ? null : Text(customer.fullPhone),
+                                onTap: () => onSelected(customer),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -245,6 +294,15 @@ class _SalesPageState extends State<SalesPage> {
                   ),
                   onChanged: (_) => _updateUnitPrice(),
                 ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: _registerDebt,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(isAr ? "تسجيل الفاتورة كدين على الزبون" : "Register invoice as customer debt"),
+                  subtitle: Text(isAr ? "الافتراضي مدفوع، فعّلها فقط إذا بقي المبلغ دين" : "Default is paid. Enable only when this remains unpaid."),
+                  onChanged: (v) => setState(() => _registerDebt = v ?? false),
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -277,7 +335,7 @@ class _SalesPageState extends State<SalesPage> {
         child: ListTile(
           leading: const CircleAvatar(child: Icon(Icons.receipt_long)),
           title: Text(s.invoiceNo, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(s.customerName),
+          subtitle: Text("${s.customerName}${s.paymentStatus == "debt" ? (AppScope.of(context).isArabic ? "\nدين" : "\nDebt") : ""}"),
           trailing: Text(money(s.total, s.currency), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.blue, fontSize: 16)),
         ),
       ),
@@ -295,6 +353,7 @@ class _SalesPageState extends State<SalesPage> {
             variantId: variant.id,
             label: "${product.name} - ${variant.name} (${variant.quantity.toStringAsFixed(0)} ${variant.unit})",
             sellingPrice: variant.sellingPrice,
+            currency: variant.currency,
           ));
         }
       } else {
@@ -304,6 +363,7 @@ class _SalesPageState extends State<SalesPage> {
           variantId: null,
           label: "${product.name} (${product.quantity.toStringAsFixed(0)} ${product.unit})",
           sellingPrice: product.sellingPrice,
+          currency: product.currency,
         ));
       }
     }
@@ -331,6 +391,7 @@ class _SaleProductChoice {
   final String? variantId;
   final String label;
   final double sellingPrice;
+  final String currency;
 
   const _SaleProductChoice({
     required this.id,
@@ -338,5 +399,6 @@ class _SaleProductChoice {
     required this.variantId,
     required this.label,
     required this.sellingPrice,
+    required this.currency,
   });
 }

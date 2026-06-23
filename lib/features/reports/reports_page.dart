@@ -63,9 +63,9 @@ class _ReportsPageState extends State<ReportsPage> {
             _sectionTitle(_label(isAr, "Financial Snapshot", "\u0644\u0645\u062d\u0629 \u0645\u0627\u0644\u064a\u0629")),
             const SizedBox(height: 12),
             _metricGrid([
-              _Metric(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"), money(_num(_data["totalSales"]), "USD"), Icons.trending_up, Colors.blue),
-              _Metric(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), money(_num(_data["totalExpenses"]), "USD"), Icons.receipt_long, Colors.red),
-              _Metric(_label(isAr, "Net Profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d"), money(_num(_data["totalProfit"]), "USD"), Icons.account_balance_wallet, Colors.green),
+              _Metric(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"), _moneyBreakdown(_data["salesByCurrency"]), Icons.trending_up, Colors.blue),
+              _Metric(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), _moneyBreakdown(_data["expensesByCurrency"]), Icons.receipt_long, Colors.red),
+              _Metric(_label(isAr, "Net Profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d"), _moneyBreakdown(_data["netProfitByCurrency"]), Icons.account_balance_wallet, Colors.green),
               _Metric(_label(isAr, "Avg. Invoice", "\u0645\u0639\u062f\u0644 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629"), money(_num(_data["averageTicket"]), "USD"), Icons.analytics, Colors.indigo),
             ]),
             const SizedBox(height: 22),
@@ -88,8 +88,8 @@ class _ReportsPageState extends State<ReportsPage> {
             _sectionTitle(_label(isAr, "Debts", "\u0627\u0644\u062f\u064a\u0648\u0646")),
             const SizedBox(height: 12),
             _metricGrid([
-              _Metric(_label(isAr, "Receivable", "\u0644\u0646\u0627"), money(_num(_data["receivableTotal"]), "USD"), Icons.call_received, Colors.green),
-              _Metric(_label(isAr, "Payable", "\u0639\u0644\u064a\u0646\u0627"), money(_num(_data["payableTotal"]), "USD"), Icons.call_made, Colors.red),
+              _Metric(_label(isAr, "Receivable", "\u0644\u0646\u0627"), _moneyBreakdown(_data["receivableByCurrency"]), Icons.call_received, Colors.green),
+              _Metric(_label(isAr, "Payable", "\u0639\u0644\u064a\u0646\u0627"), _moneyBreakdown(_data["payableByCurrency"]), Icons.call_made, Colors.red),
             ]),
             const SizedBox(height: 22),
             _sectionTitle(_label(isAr, "Low Stock Watch", "\u0645\u0631\u0627\u0642\u0628\u0629 \u0627\u0644\u0645\u062e\u0632\u0648\u0646")),
@@ -139,7 +139,7 @@ class _ReportsPageState extends State<ReportsPage> {
         children: [
           Icon(metric.icon, color: metric.color),
           const SizedBox(height: 12),
-          Text(metric.value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: metric.color)),
+          Text(metric.value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, height: 1.25, color: metric.color)),
           Text(metric.title, style: TextStyle(fontSize: 12, color: metric.color.withOpacity(0.8))),
         ],
       ),
@@ -184,6 +184,13 @@ class _ReportsPageState extends State<ReportsPage> {
   double _num(dynamic v) {
     if (v is num) return v.toDouble();
     return double.tryParse(v.toString()) ?? 0;
+  }
+
+  String _moneyBreakdown(dynamic raw) {
+    final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final lbp = _num(map["LBP"]);
+    final usd = _num(map["USD"]);
+    return "${money(lbp, "LBP")}\n${money(usd, "USD")}";
   }
 }
 

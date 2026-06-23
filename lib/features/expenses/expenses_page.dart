@@ -226,7 +226,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
   final _note = TextEditingController();
   String? _selectedTitle;
   String? _selectedCategory;
-  String _currency = "USD";
+  String _currency = "LBP";
 
   @override
   void initState() {
@@ -241,7 +241,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
     _amount.text = _numText(e["amount"]);
     _category.text = (e["category"] ?? "General").toString();
     _note.text = (e["note"] ?? "").toString();
-    _currency = (e["currency"] ?? "USD").toString();
+    _currency = (e["currency"] ?? "LBP").toString();
     _selectedTitle = widget.expenseNames.contains(_title.text) ? _title.text : _newValue;
     _selectedCategory = widget.categories.contains(_category.text) ? _category.text : _newValue;
   }

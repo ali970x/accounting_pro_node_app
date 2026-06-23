@@ -112,7 +112,7 @@ class PdfService {
               width: 58,
               height: 58,
               color: PdfColors.white,
-              child: logo == null ? pw.Center(child: _text(isArabic ? "\u0634\u0639\u0627\u0631" : "Logo", isArabic)) : pw.Image(logo, fit: pw.BoxFit.cover),
+              child: logo == null ? _cargoLogo(primary) : pw.Image(logo, fit: pw.BoxFit.cover),
             ),
           if (template.showLogo) pw.SizedBox(width: 12),
           pw.Expanded(
@@ -125,6 +125,36 @@ class PdfService {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _cargoLogo(PdfColor primary) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(7),
+      child: pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Container(width: 25, height: 18, decoration: pw.BoxDecoration(color: primary, borderRadius: pw.BorderRadius.circular(2))),
+              pw.Container(width: 12, height: 13, decoration: pw.BoxDecoration(color: const PdfColor(0.05, 0.45, 0.28), borderRadius: pw.BorderRadius.circular(2))),
+            ],
+          ),
+          pw.SizedBox(height: 3),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Container(width: 7, height: 7, decoration: const pw.BoxDecoration(color: PdfColors.black, shape: pw.BoxShape.circle)),
+              pw.SizedBox(width: 22),
+              pw.Container(width: 7, height: 7, decoration: const pw.BoxDecoration(color: PdfColors.black, shape: pw.BoxShape.circle)),
+            ],
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text("LB", style: pw.TextStyle(color: const PdfColor(0.75, 0.05, 0.08), fontWeight: pw.FontWeight.bold, fontSize: 8)),
         ],
       ),
     );
