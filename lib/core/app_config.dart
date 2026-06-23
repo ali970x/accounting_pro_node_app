@@ -8,7 +8,7 @@ class AppConfig {
     if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
     if (kReleaseMode) return _productionBaseUrl;
     if (kIsWeb) return "http://localhost:5000/api";
-    if (defaultTargetPlatform == TargetPlatform.android) return "http://192.168.10.103:5000/api";
+    if (defaultTargetPlatform == TargetPlatform.android) return _productionBaseUrl;
     return "http://localhost:5000/api";
   }
 }

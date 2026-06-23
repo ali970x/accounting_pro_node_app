@@ -15,7 +15,7 @@ class ApiException implements Exception {
 
 class ApiClient {
   final SessionStore sessionStore;
-  static const _timeout = Duration(seconds: 12);
+  static const _timeout = Duration(seconds: 25);
 
   ApiClient(this.sessionStore);
 
