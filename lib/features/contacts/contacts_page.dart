@@ -208,16 +208,57 @@ class _ContactsPageState extends State<ContactsPage> {
       final rawTemplate = await widget.api.get("/invoice-template");
       final template = InvoiceTemplateModel.fromJson(Map<String, dynamic>.from(rawTemplate as Map));
       if (!mounted) return;
-      await PdfService.printGoodsMovementInvoice(
-        languageCode: AppScope.of(context).languageCode,
-        contactName: contact.name,
-        contactType: contact.type,
-        movements: rows,
-        template: template,
-      );
+      await _showGoodsInvoiceOptions(contact: contact, movements: rows, template: template);
     } catch (e) {
       _showError(e);
     }
+  }
+
+  Future<void> _showGoodsInvoiceOptions({
+    required ContactModel contact,
+    required List<Map<String, dynamic>> movements,
+    required InvoiceTemplateModel template,
+  }) async {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "فاتورة باسم ${contact.name}" : "Invoice for ${contact.name}"),
+        content: Text(isAr ? "اختار كيف بدك تستخدم الفاتورة." : "Choose what to do with this invoice."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isAr ? "إغلاق" : "Close")),
+          OutlinedButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await PdfService.printGoodsMovementInvoice(
+                languageCode: c.languageCode,
+                contactName: contact.name,
+                contactType: contact.type,
+                movements: movements,
+                template: template,
+              );
+            },
+            icon: const Icon(Icons.print_rounded),
+            label: Text(isAr ? "طباعة" : "Print"),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await PdfService.shareGoodsMovementInvoice(
+                languageCode: c.languageCode,
+                contactName: contact.name,
+                contactType: contact.type,
+                movements: movements,
+                template: template,
+              );
+            },
+            icon: const Icon(Icons.share_rounded),
+            label: Text(isAr ? "مشاركة" : "Share"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showFinancialLedger(ContactModel contact) async {

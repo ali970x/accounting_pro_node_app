@@ -1,3 +1,5 @@
+import "dart:typed_data";
+
 import "package:pdf/pdf.dart";
 import "package:pdf/widgets.dart" as pw;
 import "package:printing/printing.dart";
@@ -17,6 +19,24 @@ class PdfService {
   }
 
   static Future<void> printInvoice({
+    required String languageCode,
+    required Sale sale,
+    required InvoiceTemplateModel template,
+  }) async {
+    final bytes = await _invoiceBytes(languageCode: languageCode, sale: sale, template: template);
+    await Printing.layoutPdf(onLayout: (_) async => bytes);
+  }
+
+  static Future<void> shareInvoice({
+    required String languageCode,
+    required Sale sale,
+    required InvoiceTemplateModel template,
+  }) async {
+    final bytes = await _invoiceBytes(languageCode: languageCode, sale: sale, template: template);
+    await Printing.sharePdf(bytes: bytes, filename: "${sale.invoiceNo}.pdf");
+  }
+
+  static Future<Uint8List> _invoiceBytes({
     required String languageCode,
     required Sale sale,
     required InvoiceTemplateModel template,
@@ -97,10 +117,44 @@ class PdfService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (_) => pdf.save());
+    return pdf.save();
   }
 
   static Future<void> printGoodsMovementInvoice({
+    required String languageCode,
+    required String contactName,
+    required String contactType,
+    required List<Map<String, dynamic>> movements,
+    required InvoiceTemplateModel template,
+  }) async {
+    final bytes = await _goodsMovementInvoiceBytes(
+      languageCode: languageCode,
+      contactName: contactName,
+      contactType: contactType,
+      movements: movements,
+      template: template,
+    );
+    await Printing.layoutPdf(onLayout: (_) async => bytes);
+  }
+
+  static Future<void> shareGoodsMovementInvoice({
+    required String languageCode,
+    required String contactName,
+    required String contactType,
+    required List<Map<String, dynamic>> movements,
+    required InvoiceTemplateModel template,
+  }) async {
+    final bytes = await _goodsMovementInvoiceBytes(
+      languageCode: languageCode,
+      contactName: contactName,
+      contactType: contactType,
+      movements: movements,
+      template: template,
+    );
+    await Printing.sharePdf(bytes: bytes, filename: "goods-movement-$contactName.pdf");
+  }
+
+  static Future<Uint8List> _goodsMovementInvoiceBytes({
     required String languageCode,
     required String contactName,
     required String contactType,
@@ -197,7 +251,7 @@ class PdfService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (_) => pdf.save());
+    return pdf.save();
   }
 
   static pw.Widget _header(InvoiceTemplateModel template, PdfColor primary, pw.ImageProvider? logo, bool isArabic) {

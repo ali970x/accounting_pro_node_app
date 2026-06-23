@@ -1,7 +1,6 @@
 ﻿import "package:flutter/material.dart";
 import "../../core/api_client.dart";
 import "package:flutter/services.dart";
-import "package:url_launcher/url_launcher.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../core/phone_text.dart";
@@ -230,7 +229,7 @@ class _SalesPageState extends State<SalesPage> {
       _resetForm();
       await _load();
       if (!mounted) return;
-      await _showSaleSharePrompt(sale, selectedCustomer);
+      await _showSaleSharePrompt(sale);
     } catch (e) {
       _showError(e);
     }
@@ -247,7 +246,7 @@ class _SalesPageState extends State<SalesPage> {
     _registerDebt = false;
   }
 
-  Future<void> _showSaleSharePrompt(Sale sale, ContactModel? customer, {bool created = true}) async {
+  Future<void> _showSaleSharePrompt(Sale sale, {bool created = true}) async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final message = _saleMessage(sale, isAr);
@@ -263,10 +262,15 @@ class _SalesPageState extends State<SalesPage> {
             icon: const Icon(Icons.copy_rounded),
             label: Text(isAr ? "نسخ" : "Copy"),
           ),
+          OutlinedButton.icon(
+            onPressed: () => _printSale(sale),
+            icon: const Icon(Icons.print_rounded),
+            label: Text(isAr ? "طباعة" : "Print"),
+          ),
           FilledButton.icon(
-            onPressed: customer == null || customer.phone.trim().isEmpty ? () => _shareGeneral(message) : () => _shareWhatsapp(customer, message),
+            onPressed: () => _shareSalePdf(sale),
             icon: const Icon(Icons.send_rounded),
-            label: Text(isAr ? "مشاركة" : "Share"),
+            label: Text(isAr ? "مشاركة PDF" : "Share PDF"),
           ),
         ],
       ),
@@ -288,28 +292,18 @@ class _SalesPageState extends State<SalesPage> {
     return lines.join("\n");
   }
 
-  Future<void> _shareWhatsapp(ContactModel customer, String message) async {
-    final digits = customer.fullPhone.replaceAll(RegExp(r"[^0-9]"), "");
-    final uri = Uri.parse("https://wa.me/$digits?text=${Uri.encodeComponent(message)}");
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      await Clipboard.setData(ClipboardData(text: message));
-      _showError("Could not open WhatsApp. Invoice copied.");
-    }
-  }
-
-  Future<void> _shareGeneral(String message) async {
-    final uri = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      await Clipboard.setData(ClipboardData(text: message));
-      _showError("Could not open sharing app. Invoice copied.");
-    }
-  }
-
   Future<void> _printSale(Sale sale) async {
     final c = AppScope.of(context);
     final raw = await widget.api.get("/invoice-template");
     final template = InvoiceTemplateModel.fromJson(Map<String, dynamic>.from(raw as Map));
     await PdfService.printInvoice(languageCode: c.languageCode, sale: sale, template: template);
+  }
+
+  Future<void> _shareSalePdf(Sale sale) async {
+    final c = AppScope.of(context);
+    final raw = await widget.api.get("/invoice-template");
+    final template = InvoiceTemplateModel.fromJson(Map<String, dynamic>.from(raw as Map));
+    await PdfService.shareInvoice(languageCode: c.languageCode, sale: sale, template: template);
   }
 
   void _showError(Object e) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -523,7 +517,6 @@ class _SalesPageState extends State<SalesPage> {
 
   Widget _saleItem(Sale s) {
     final isAr = AppScope.of(context).isArabic;
-    final customer = _firstCustomerWhere((x) => x.id == s.contactId);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ModernCard(
@@ -549,13 +542,13 @@ class _SalesPageState extends State<SalesPage> {
                   tooltip: isAr ? "خيارات الفاتورة" : "Invoice options",
                   onSelected: (value) {
                     if (value == "print") _printSale(s);
-                    if (value == "share") _showSaleSharePrompt(s, customer, created: false);
+                    if (value == "share") _shareSalePdf(s);
                     if (value == "edit") _editSale(s);
                     if (value == "delete") _deleteSale(s);
                   },
                   itemBuilder: (context) => [
                     PopupMenuItem(value: "print", child: Text(isAr ? "طباعة الفاتورة" : "Print invoice")),
-                    PopupMenuItem(value: "share", child: Text(isAr ? "مشاركة واتساب" : "Share")),
+                    PopupMenuItem(value: "share", child: Text(isAr ? "مشاركة PDF" : "Share PDF")),
                     PopupMenuItem(value: "edit", child: Text(isAr ? "تعديل" : "Edit")),
                     PopupMenuItem(value: "delete", child: Text(isAr ? "حذف" : "Delete")),
                   ],
