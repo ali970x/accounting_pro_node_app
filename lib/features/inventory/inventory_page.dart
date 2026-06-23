@@ -82,18 +82,21 @@ class _InventoryPageState extends State<InventoryPage> {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final theme = Theme.of(context);
-
     final filtered = _filteredProducts();
     final grouped = _groupProducts(filtered);
+    final totalQualities = filtered.fold<int>(0, (sum, p) => sum + (p.hasVariants ? p.variants.length : 1));
+    final totalQuantity = filtered.fold<double>(0, (sum, p) {
+      if (p.hasVariants) return sum + p.variants.fold<double>(0, (inner, v) => inner + v.quantity);
+      return sum + p.quantity;
+    });
     final lowStockCount = filtered.where((p) => p.isLowStock || p.variants.any((v) => v.isLowStock)).length;
-    final totalItems = filtered.fold<int>(0, (sum, p) => sum + (p.hasVariants ? p.variants.length : 1));
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addProduct,
         icon: const Icon(Icons.add_box_rounded),
-        label: Text(isAr ? "\u0625\u0636\u0627\u0641\u0629 \u0635\u0646\u0641" : "Add Item"),
+        label: Text(isAr ? "إضافة صنف" : "Add Item"),
       ),
       body: RefreshIndicator(
         onRefresh: _loadProducts,
@@ -105,32 +108,54 @@ class _InventoryPageState extends State<InventoryPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isAr ? "\u0627\u0644\u0645\u062e\u0632\u0648\u0646" : "Inventory",
-                      style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      isAr ? "\u062a\u0635\u0646\u064a\u0641\u0627\u062a\u060c \u062a\u0635\u0646\u064a\u0641\u0627\u062a \u0641\u0631\u0639\u064a\u0629\u060c \u0648\u0623\u0635\u0646\u0627\u0641 \u0645\u0639 \u062a\u0648\u0631\u064a\u062f \u0645\u0646 \u0627\u0644\u0645\u0648\u0631\u062f\u064a\u0646" : "Categories, subcategories, items, and supplier stock intake",
-                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                    ),
-                    const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _metricCard(isAr ? "\u0627\u0644\u0623\u0635\u0646\u0627\u0641" : "Items", totalItems.toString(), Icons.inventory_2_rounded, theme.colorScheme.primary)),
+                        Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(Icons.warehouse_rounded, color: theme.colorScheme.primary, size: 30),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(isAr ? "المخزون" : "Inventory", style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+                              Text(
+                                isAr ? "تصنيف > تصنيف فرعي > نوعية صنف" : "Category > Subcategory > Item quality",
+                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(child: _metricCard(isAr ? "النوعيات" : "Qualities", totalQualities.toString(), Icons.category_rounded, theme.colorScheme.primary)),
                         const SizedBox(width: 10),
-                        Expanded(child: _metricCard(isAr ? "\u0645\u0646\u062e\u0641\u0636" : "Low", lowStockCount.toString(), Icons.warning_amber_rounded, Colors.orange)),
+                        Expanded(child: _metricCard(isAr ? "الكمية" : "Quantity", totalQuantity.toStringAsFixed(0), Icons.inventory_2_rounded, Colors.teal)),
+                        const SizedBox(width: 10),
+                        Expanded(child: _metricCard(isAr ? "منخفض" : "Low", lowStockCount.toString(), Icons.warning_amber_rounded, Colors.orange)),
                       ],
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: isAr ? "\u0628\u062d\u062b \u0628\u0627\u0644\u0635\u0646\u0641\u060c \u0627\u0644\u062a\u0635\u0646\u064a\u0641\u060c \u0623\u0648 \u0627\u0644\u0643\u0648\u062f..." : "Search item, category, or SKU...",
+                        hintText: isAr ? "بحث بالتصنيف، النوعية، أو الكود..." : "Search category, quality, or SKU...",
                         prefixIcon: const Icon(Icons.search_rounded),
-                        filled: true,
-                        fillColor: theme.colorScheme.surface,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        suffixIcon: _searchController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                onPressed: _searchController.clear,
+                                icon: const Icon(Icons.close_rounded),
+                              ),
                       ),
                     ),
                   ],
@@ -148,23 +173,18 @@ class _InventoryPageState extends State<InventoryPage> {
               )
             else if (filtered.isEmpty)
               SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.withOpacity(0.5)),
-                      const SizedBox(height: 16),
-                      Text(c.t("empty"), style: const TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ),
+                child: _emptyState(isAr, theme),
               )
             else
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 sliver: SliverList(
-                  delegate: SliverChildListDelegate(
-                    grouped.entries.map((categoryEntry) => _categorySection(categoryEntry.key, categoryEntry.value)).toList(),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final entry = grouped.entries.elementAt(index);
+                      return _categoryBlock(entry.key, entry.value);
+                    },
+                    childCount: grouped.length,
                   ),
                 ),
               ),
@@ -182,7 +202,8 @@ class _InventoryPageState extends State<InventoryPage> {
       return p.name.toLowerCase().contains(q) ||
           p.sku.toLowerCase().contains(q) ||
           p.category.toLowerCase().contains(q) ||
-          p.subcategory.toLowerCase().contains(q);
+          p.subcategory.toLowerCase().contains(q) ||
+          p.variants.any((v) => v.name.toLowerCase().contains(q));
     }).toList();
   }
 
@@ -198,7 +219,7 @@ class _InventoryPageState extends State<InventoryPage> {
     return grouped;
   }
 
-  Widget _categorySection(String category, Map<String, List<Product>> subcategories) {
+  Widget _categoryBlock(String category, Map<String, List<Product>> subcategories) {
     final theme = Theme.of(context);
     final count = subcategories.values.fold<int>(0, (sum, rows) => sum + rows.length);
 
@@ -206,88 +227,104 @@ class _InventoryPageState extends State<InventoryPage> {
       padding: const EdgeInsets.only(bottom: 14),
       child: ModernCard(
         padding: const EdgeInsets.all(14),
-        child: Theme(
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            initiallyExpanded: true,
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              backgroundColor: theme.colorScheme.primaryContainer,
-              child: Icon(Icons.folder_rounded, color: theme.colorScheme.onPrimaryContainer),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Icon(Icons.folder_rounded, color: theme.colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(category, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900))),
+                _countPill("$count"),
+              ],
             ),
-            title: Text(category, style: const TextStyle(fontWeight: FontWeight.w900)),
-            subtitle: Text("$count"),
-            children: subcategories.entries.map((entry) => _subcategorySection(entry.key, entry.value)).toList(),
-          ),
+            const SizedBox(height: 12),
+            ...subcategories.entries.map((entry) => _subcategoryBlock(entry.key, entry.value)),
+          ],
         ),
       ),
     );
   }
 
-  Widget _subcategorySection(String subcategory, List<Product> products) {
+  Widget _subcategoryBlock(String subcategory, List<Product> products) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
+    final c = AppScope.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.42),
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.subdirectory_arrow_right_rounded, color: theme.colorScheme.primary, size: 18),
+              Icon(Icons.subdirectory_arrow_right_rounded, color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text(subcategory, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
-              const SizedBox(width: 8),
-              Text("(${products.length})", style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+              Expanded(child: Text(subcategory, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900))),
+              Text("${products.length}", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
           const SizedBox(height: 8),
-          ...products.map(_productRow),
+          ...products.map((p) => _qualityRow(p, c)),
         ],
       ),
     );
   }
 
-  Widget _productRow(Product p) {
-    final c = AppScope.of(context);
+  Widget _qualityRow(Product p, AppController c) {
     final theme = Theme.of(context);
-    final qty = p.hasVariants ? "${p.variants.length} ${c.t("variants")}" : "${p.quantity.toStringAsFixed(0)} ${p.unit}";
+    final qty = p.hasVariants ? p.variants.fold<double>(0, (sum, v) => sum + v.quantity) : p.quantity;
     final low = p.isLowStock || p.variants.any((v) => v.isLowStock);
 
-    return InkWell(
+    return Material(
+      color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(12),
-      onTap: () => _openProduct(p),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: theme.colorScheme.surfaceVariant, borderRadius: BorderRadius.circular(12)),
-              child: Icon(p.hasVariants ? Icons.category_rounded : Icons.inventory_2_rounded, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openProduct(p),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: low ? Colors.orange.withOpacity(0.12) : theme.colorScheme.primary.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(low ? Icons.warning_amber_rounded : Icons.inventory_2_rounded, color: low ? Colors.orange : theme.colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.name, style: const TextStyle(fontWeight: FontWeight.w900)),
+                    Text(
+                      p.hasVariants ? "${p.variants.length} ${c.t("variants")}" : "${c.t("sellingPrice")}: ${money(p.sellingPrice, p.currency)}",
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(p.name, style: const TextStyle(fontWeight: FontWeight.w900)),
-                  Text("${c.t("sku")}: ${p.sku.isEmpty ? "-" : p.sku}", style: theme.textTheme.bodySmall),
+                  Text("${qty.toStringAsFixed(0)} ${p.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                  if (low) Text(c.t("lowStock"), style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w900)),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(qty, style: const TextStyle(fontWeight: FontWeight.w900)),
-                if (!p.hasVariants) Text(money(p.sellingPrice, p.currency), style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                if (low) Text(c.t("lowStock"), style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w900)),
-              ],
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-          ],
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );
@@ -296,21 +333,51 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _metricCard(String label, String value, IconData icon, Color color) {
     final theme = Theme.of(context);
     return ModernCard(
-      padding: const EdgeInsets.all(14),
-      child: Row(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-              ],
-            ),
-          ),
+          CircleAvatar(radius: 18, backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color, size: 20)),
+          const SizedBox(height: 8),
+          Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ],
+      ),
+    );
+  }
+
+  Widget _countPill(String value) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(value, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _emptyState(bool isAr, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warehouse_outlined, size: 70, color: theme.colorScheme.primary.withOpacity(0.35)),
+            const SizedBox(height: 14),
+            Text(isAr ? "لا يوجد أصناف بعد" : "No items yet", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text(
+              isAr ? "ابدأ بإضافة بطاطا > بطاطا حلوة > فئة أولى" : "Start with Potato > Sweet potato > Grade one",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(onPressed: _addProduct, icon: const Icon(Icons.add_rounded), label: Text(isAr ? "إضافة أول صنف" : "Add First Item")),
+          ],
+        ),
       ),
     );
   }

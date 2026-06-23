@@ -1,17 +1,12 @@
-﻿import "package:flutter/material.dart";
-import "package:firebase_core/firebase_core.dart";
+import "package:flutter/material.dart";
 import "core/api_client.dart";
 import "core/session_store.dart";
 import "core/app_controller.dart";
-import "firebase_options.dart";
 import "features/auth/login_page.dart";
 import "features/home/home_page.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
   final sessionStore = SessionStore();
   final api = ApiClient(sessionStore);
@@ -128,9 +123,7 @@ class AccountingProApp extends StatelessWidget {
                 child: child ?? const SizedBox(),
               );
             },
-            home: isLoggedIn
-                ? HomePage(api: api, sessionStore: sessionStore)
-                : LoginPage(api: api, sessionStore: sessionStore),
+            home: isLoggedIn ? HomePage(api: api, sessionStore: sessionStore) : LoginPage(api: api, sessionStore: sessionStore),
           );
         },
       ),

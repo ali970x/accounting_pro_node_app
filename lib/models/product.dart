@@ -35,7 +35,7 @@
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
       minStock: _num(json["minStock"]),
-      currency: (json["currency"] ?? "USD").toString(),
+      currency: (json["currency"] ?? "LBP").toString(),
       unit: (json["unit"] ?? "Piece").toString(),
     );
   }
@@ -90,7 +90,7 @@ class Product {
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
       minStock: _num(json["minStock"]),
-      currency: (json["currency"] ?? "USD").toString(),
+      currency: (json["currency"] ?? "LBP").toString(),
       unit: (json["unit"] ?? "Piece").toString(),
       variants: rawVariants is List
           ? rawVariants.map((e) => ProductVariant.fromJson(Map<String, dynamic>.from(e as Map))).toList()

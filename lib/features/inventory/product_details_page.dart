@@ -1,9 +1,11 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
-import "../../models/product.dart";
 import "../../models/contact.dart";
+import "../../models/product.dart";
 import "../../widgets/modern_card.dart";
 import "product_form_dialog.dart";
 
@@ -43,12 +45,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         widget.api.get("/products/${widget.productId}"),
         widget.api.get("/contacts"),
       ]);
-
-      final data = results[0];
-      _product = Product.fromJson(Map<String, dynamic>.from(data as Map));
-
-      final cData = results[1];
-      _suppliers = (cData as List)
+      _product = Product.fromJson(Map<String, dynamic>.from(results[0] as Map));
+      _suppliers = (results[1] as List)
           .map((e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)))
           .where((c) => c.type == "supplier")
           .toList();
@@ -59,14 +57,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   }
 
   Future<void> _deleteProduct() async {
+    final c = AppScope.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 48),
-        content: Text(AppScope.of(context).isArabic ? "هل أنت متأكد من حذف هذا المنتج؟" : "Delete this product?"),
+        content: Text(c.isArabic ? "\u0647\u0644 \u0623\u0646\u062a \u0645\u062a\u0623\u0643\u062f \u0645\u0646 \u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0645\u0646\u062a\u062c\u061f" : "Delete this product?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppScope.of(context).t("cancel"))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: Text(AppScope.of(context).t("delete"))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(c.t("cancel"))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: Text(c.t("delete"))),
         ],
       ),
     );
@@ -87,124 +86,198 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  Future<void> _adjustStock(dynamic p) async {
-    final isVariant = p is ProductVariant;
+  Future<void> _addStock(dynamic item) async {
+    final isVariant = item is ProductVariant;
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-
     final qty = TextEditingController();
-    final note = TextEditingController();
+    final unitCost = TextEditingController(text: item.purchasePrice.toStringAsFixed(2));
     final invoiceNo = TextEditingController();
-    final unitCost = TextEditingController(text: p.purchasePrice.toStringAsFixed(2));
+    final note = TextEditingController();
     String? supplierId;
-    String paymentStatus = "paid";
+    String purchaseCurrency = "LBP";
+    bool registerDebt = false;
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final addedQty = double.tryParse(qty.text.trim()) ?? 0;
-          final totalAfter = p.quantity + addedQty;
-
+          final totalAfter = item.quantity + addedQty;
           return AlertDialog(
-          title: Text(isAr ? "توريد كمية" : "Add Stock"),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: qty,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: isAr ? "الكمية المضافة" : "Quantity to add",
-                    helperText: "${isAr ? "الرصيد بعد التوريد" : "Stock after"}: ${totalAfter.toStringAsFixed(0)}",
+            title: Text(isAr ? "\u062a\u0648\u0631\u064a\u062f \u0643\u0645\u064a\u0629" : "Add Stock"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: supplierId,
+                    decoration: InputDecoration(labelText: isAr ? "\u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0631\u062f" : "Supplier name"),
+                    items: _suppliers.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
+                    onChanged: (v) => setDialogState(() => supplierId = v),
                   ),
-                  onChanged: (_) => setDialogState(() {}),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: supplierId,
-                  decoration: InputDecoration(labelText: isAr ? "المورد" : "Supplier"),
-                  items: _suppliers.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
-                  onChanged: (v) => setDialogState(() => supplierId = v),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: TextField(controller: unitCost, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isAr ? "سعر الشراء" : "Unit Cost"))),
-                    const SizedBox(width: 10),
-                    Expanded(child: TextField(controller: invoiceNo, decoration: InputDecoration(labelText: isAr ? "رقم الفاتورة" : "Invoice No."))),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: paymentStatus,
-                  decoration: InputDecoration(labelText: isAr ? "حالة الدفع" : "Payment Status"),
-                  items: [
-                    DropdownMenuItem(value: "paid", child: Text(isAr ? "مدفوع" : "Paid")),
-                    DropdownMenuItem(value: "debt", child: Text(isAr ? "دين على المورد" : "Supplier Debt")),
-                  ],
-                  onChanged: (v) => setDialogState(() => paymentStatus = v ?? "paid"),
-                ),
-                const SizedBox(height: 12),
-                TextField(controller: note, decoration: InputDecoration(labelText: isAr ? "ملاحظة" : "Note")),
-              ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: qty,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629" : "Quantity to add",
+                      helperText: "${isAr ? "\u0627\u0644\u0631\u0635\u064a\u062f \u0628\u0639\u062f \u0627\u0644\u062a\u0648\u0631\u064a\u062f" : "Stock after"}: ${totalAfter.toStringAsFixed(0)}",
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: TextField(controller: unitCost, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isAr ? "\u0633\u0639\u0631 \u0627\u0644\u0634\u0631\u0627\u0621" : "Unit cost"))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: purchaseCurrency,
+                          decoration: InputDecoration(labelText: isAr ? "\u0627\u0644\u0639\u0645\u0644\u0629" : "Currency"),
+                          items: const [
+                            DropdownMenuItem(value: "LBP", child: Text("LBP")),
+                            DropdownMenuItem(value: "USD", child: Text("USD")),
+                          ],
+                          onChanged: (v) => setDialogState(() => purchaseCurrency = v ?? "LBP"),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(controller: invoiceNo, decoration: InputDecoration(labelText: isAr ? "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice no.")),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    value: registerDebt,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(isAr ? "\u062a\u0633\u062c\u064a\u0644 \u0643\u062f\u064a\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0631\u062f" : "Register as supplier debt"),
+                    onChanged: (v) => setDialogState(() => registerDebt = v ?? false),
+                  ),
+                  TextField(controller: note, decoration: InputDecoration(labelText: isAr ? "\u0645\u0644\u0627\u062d\u0638\u0629" : "Note")),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(c.t("cancel"))),
-            FilledButton(
-              onPressed: () {
-                final parsedQty = double.tryParse(qty.text.trim()) ?? 0;
-                if (parsedQty <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity")),
-                  );
-                  return;
-                }
-                if (supplierId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(isAr ? "اختر المورد أولاً" : "Select a supplier first")),
-                  );
-                  return;
-                }
-
-                Navigator.pop(ctx, {
-                  "newQuantity": p.quantity + parsedQty,
-                  "reason": note.text.trim(),
-                  "supplierId": supplierId,
-                  "unitCost": double.tryParse(unitCost.text.trim()) ?? 0,
-                  "paymentStatus": paymentStatus,
-                  "invoiceNo": invoiceNo.text.trim(),
-                });
-              },
-              child: Text(c.t("save")),
-            ),
-          ],
-        );
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(c.t("cancel"))),
+              FilledButton(
+                onPressed: () {
+                  final parsedQty = double.tryParse(qty.text.trim()) ?? 0;
+                  if (supplierId == null) return _showError(isAr ? "\u0627\u062e\u062a\u0631 \u0627\u0644\u0645\u0648\u0631\u062f \u0623\u0648\u0644\u0627\u064b" : "Select a supplier first");
+                  if (parsedQty <= 0) return _showError(isAr ? "\u0627\u0643\u062a\u0628 \u0643\u0645\u064a\u0629 \u0635\u062d\u064a\u062d\u0629" : "Enter a valid quantity");
+                  Navigator.pop(ctx, {
+                    "newQuantity": item.quantity + parsedQty,
+                    "reason": note.text.trim(),
+                    "supplierId": supplierId,
+                    "unitCost": double.tryParse(unitCost.text.trim()) ?? 0,
+                    "currency": purchaseCurrency,
+                    "paymentStatus": registerDebt ? "debt" : "paid",
+                    "invoiceNo": invoiceNo.text.trim(),
+                  });
+                },
+                child: Text(c.t("save")),
+              ),
+            ],
+          );
         },
       ),
     );
 
+    final addedQuantity = double.tryParse(qty.text.trim()) ?? 0;
+    final cost = double.tryParse(unitCost.text.trim()) ?? 0;
     qty.dispose();
-    note.dispose();
-    invoiceNo.dispose();
     unitCost.dispose();
-
+    invoiceNo.dispose();
+    note.dispose();
     if (result == null) return;
 
     try {
-      final path = isVariant
-          ? "/products/${widget.productId}/variants/${p.id}/stock"
-          : "/products/${widget.productId}/stock";
+      final path = isVariant ? "/products/${widget.productId}/variants/${item.id}/stock" : "/products/${widget.productId}/stock";
       await widget.api.post(path, result);
+      final supplier = _supplierById((result["supplierId"] ?? "").toString());
       await _load();
+      if (!mounted) return;
+      await _showSupplyInvoice(
+        itemName: item.name,
+        quantity: addedQuantity,
+        unitCost: cost,
+        currency: (result["currency"] ?? "LBP").toString(),
+        invoiceNo: (result["invoiceNo"] ?? "").toString(),
+        isDebt: result["paymentStatus"] == "debt",
+        supplier: supplier,
+      );
     } catch (e) {
       _showError(e);
     }
   }
 
+  ContactModel? _supplierById(String id) {
+    for (final supplier in _suppliers) {
+      if (supplier.id == id) return supplier;
+    }
+    return null;
+  }
+
+  Future<void> _showSupplyInvoice({
+    required String itemName,
+    required double quantity,
+    required double unitCost,
+    required String currency,
+    required String invoiceNo,
+    required bool isDebt,
+    required ContactModel? supplier,
+  }) async {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final rate = c.exchangeRate <= 0 ? 90000 : c.exchangeRate;
+    final total = quantity * unitCost;
+    final totalUsd = currency == "USD" ? total : total / rate;
+    final totalLbp = currency == "LBP" ? total : total * rate;
+    final message = [
+      isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u062a\u0648\u0631\u064a\u062f" : "Stock purchase invoice",
+      "${isAr ? "\u0627\u0644\u0645\u0648\u0631\u062f" : "Supplier"}: ${supplier?.name ?? "-"}",
+      "${isAr ? "\u0627\u0644\u0635\u0646\u0641" : "Item"}: $itemName",
+      "${isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Quantity"}: ${quantity.toStringAsFixed(0)}",
+      "${isAr ? "\u0633\u0639\u0631 \u0627\u0644\u0634\u0631\u0627\u0621" : "Unit cost"}: ${money(unitCost, currency)}",
+      "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u062f\u0648\u0644\u0627\u0631" : "Total USD"}: ${money(totalUsd, "USD")}",
+      "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064a" : "Total LBP"}: ${money(totalLbp, "LBP")}",
+      "${isAr ? "\u0627\u0644\u062d\u0627\u0644\u0629" : "Status"}: ${isDebt ? (isAr ? "\u062f\u064a\u0646" : "Debt") : (isAr ? "\u0645\u062f\u0641\u0648\u0639" : "Paid")}",
+      if (invoiceNo.isNotEmpty) "${isAr ? "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice"}: $invoiceNo",
+    ].join("\n");
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u0627\u0644\u062a\u0648\u0631\u064a\u062f" : "Purchase Invoice"),
+        content: SingleChildScrollView(child: SelectableText(message)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(c.t("cancel"))),
+          OutlinedButton.icon(
+            onPressed: () async => Clipboard.setData(ClipboardData(text: message)),
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(isAr ? "\u0646\u0633\u062e" : "Copy"),
+          ),
+          FilledButton.icon(
+            onPressed: supplier == null || supplier.phone.trim().isEmpty ? null : () => _shareSupplierWhatsapp(supplier, message),
+            icon: const Icon(Icons.send_rounded),
+            label: Text(isAr ? "\u0648\u0627\u062a\u0633\u0627\u0628" : "WhatsApp"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareSupplierWhatsapp(ContactModel supplier, String message) async {
+    final digits = supplier.fullPhone.replaceAll(RegExp(r"[^0-9]"), "");
+    final uri = Uri.parse("https://wa.me/$digits?text=${Uri.encodeComponent(message)}");
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await Clipboard.setData(ClipboardData(text: message));
+      _showError("Could not open WhatsApp. Invoice copied.");
+    }
+  }
+
   void _showError(Object e) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 
@@ -240,23 +313,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Center(
-                                  child: Hero(
-                                    tag: "prod_${_product!.id}",
-                                    child: Container(
-                                      width: 120,
-                                      height: 120,
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.surfaceVariant,
-                                        borderRadius: BorderRadius.circular(24),
-                                      ),
-                                      child: Icon(Icons.inventory_2_rounded, size: 60, color: theme.colorScheme.primary.withOpacity(0.5)),
-                                    ),
+                                  child: Container(
+                                    width: 112,
+                                    height: 112,
+                                    decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(24)),
+                                    child: Icon(Icons.inventory_2_rounded, size: 58, color: theme.colorScheme.primary),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-                                _detailRow(c.t("productName"), _product!.name, theme, isBold: true),
-                                _detailRow(c.isArabic ? "التصنيف" : "Category", _product!.category, theme),
-                                _detailRow(c.isArabic ? "التصنيف الفرعي" : "Subcategory", _product!.subcategory, theme),
+                                _detailRow(c.isArabic ? "\u0646\u0648\u0639\u064a\u0629 \u0627\u0644\u0635\u0646\u0641" : "Item Quality", _product!.name, theme, isBold: true),
+                                _detailRow(c.isArabic ? "\u0627\u0644\u062a\u0635\u0646\u064a\u0641" : "Category", _product!.category, theme),
+                                _detailRow(c.isArabic ? "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0631\u0639\u064a" : "Subcategory", _product!.subcategory, theme),
                                 _detailRow(c.t("sku"), _product!.sku.isEmpty ? "-" : _product!.sku, theme),
                                 if (!_product!.hasVariants) ...[
                                   _detailRow(c.t("purchasePrice"), money(_product!.purchasePrice, _product!.currency), theme),
@@ -266,9 +333,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   SizedBox(
                                     width: double.infinity,
                                     child: FilledButton.icon(
-                                      onPressed: () => _adjustStock(_product!),
-                                      icon: const Icon(Icons.inventory_rounded),
-                                      label: Text(c.isArabic ? "توريد كمية" : "Add Stock"),
+                                      onPressed: () => _addStock(_product!),
+                                      icon: const Icon(Icons.local_shipping_rounded),
+                                      label: Text(c.isArabic ? "\u062a\u0648\u0631\u064a\u062f \u0643\u0645\u064a\u0629" : "Add Stock"),
                                     ),
                                   ),
                                 ],
@@ -285,15 +352,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               ..._product!.variants.map((v) => Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
                                     child: ModernCard(
-                                      onTap: () => _adjustStock(v),
+                                      onTap: () => _addStock(v),
                                       padding: const EdgeInsets.all(12),
                                       child: Row(
                                         children: [
-                                          CircleAvatar(
-                                            radius: 24,
-                                            backgroundColor: theme.colorScheme.surfaceVariant,
-                                            child: const Icon(Icons.category_rounded, size: 20),
-                                          ),
+                                          CircleAvatar(radius: 24, backgroundColor: theme.colorScheme.surfaceVariant, child: const Icon(Icons.category_rounded, size: 20)),
                                           const SizedBox(width: 16),
                                           Expanded(
                                             child: Column(
@@ -304,16 +367,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                               ],
                                             ),
                                           ),
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: [
-                                              Text("${v.quantity.toStringAsFixed(0)} ${v.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
-                                              if (v.isLowStock)
-                                                Text(c.t("lowStock"), style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Icon(Icons.edit_note_rounded, color: Colors.grey, size: 20),
+                                          Text("${v.quantity.toStringAsFixed(0)} ${v.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
                                         ],
                                       ),
                                     ),
@@ -333,11 +387,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
-          Text(
-            value,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
-              color: valueColor,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
+                color: valueColor,
+              ),
             ),
           ),
         ],

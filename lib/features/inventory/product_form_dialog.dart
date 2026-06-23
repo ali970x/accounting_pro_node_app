@@ -25,7 +25,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
 
   String? selectedCategory;
   String? selectedSubcategory;
-  String currency = "USD";
+  String currency = "LBP";
   String unit = "Piece";
   bool hasVariants = false;
   bool isOtherUnit = false;
@@ -52,10 +52,13 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   void initState() {
     super.initState();
     selectedCategory = categories.isEmpty ? _newValue : categories.first;
-    category.text = selectedCategory == _newValue ? "General" : selectedCategory!;
+    category.text = selectedCategory == _newValue ? "\u0628\u0637\u0627\u0637\u0627" : selectedCategory!;
     final subs = subcategories;
     selectedSubcategory = subs.isEmpty ? _newValue : subs.first;
-    subcategory.text = selectedSubcategory == _newValue ? "General" : selectedSubcategory!;
+    subcategory.text = selectedSubcategory == _newValue ? "\u0628\u0637\u0627\u0637\u0627 \u062d\u0644\u0648\u0629" : selectedSubcategory!;
+    if (widget.existingProducts.isEmpty && !widget.variantOnly) {
+      name.text = "\u0641\u0626\u0629 \u0623\u0648\u0644\u0649";
+    }
   }
 
   @override
@@ -138,7 +141,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ],
                 const SizedBox(height: 10),
               ],
-              TextField(controller: name, decoration: InputDecoration(labelText: widget.variantOnly ? c.t("productName") : (isAr ? "\u0627\u0633\u0645 \u0627\u0644\u0635\u0646\u0641" : "Item Name"), prefixIcon: const Icon(Icons.shopping_basket))),
+              TextField(controller: name, decoration: InputDecoration(labelText: widget.variantOnly ? c.t("productName") : (isAr ? "\u0646\u0648\u0639\u064a\u0629 \u0627\u0644\u0635\u0646\u0641" : "Item Quality"), prefixIcon: const Icon(Icons.shopping_basket))),
               const SizedBox(height: 10),
               TextField(controller: sku, decoration: InputDecoration(labelText: c.t("sku"), prefixIcon: const Icon(Icons.qr_code))),
               if (!widget.variantOnly)
@@ -163,7 +166,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   value: currency,
                   decoration: InputDecoration(labelText: c.t("currency")),
                   items: const [DropdownMenuItem(value: "USD", child: Text("USD")), DropdownMenuItem(value: "LBP", child: Text("LBP"))],
-                  onChanged: (v) => setState(() => currency = v ?? "USD"),
+                  onChanged: (v) => setState(() => currency = v ?? "LBP"),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
