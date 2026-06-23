@@ -65,7 +65,13 @@ class _ReportsPageState extends State<ReportsPage> {
             _metricGrid([
               _Metric(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"), _moneyBreakdown(_data["salesByCurrency"]), Icons.trending_up, Colors.blue),
               _Metric(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), _moneyBreakdown(_data["expensesByCurrency"]), Icons.receipt_long, Colors.red),
-              _Metric(_label(isAr, "Net Profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d"), _moneyBreakdown(_data["netProfitByCurrency"]), Icons.account_balance_wallet, Colors.green),
+              _Metric(
+                _label(isAr, "Net Profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d"),
+                _moneyBreakdown(_data["netProfitByCurrency"]),
+                Icons.account_balance_wallet,
+                Colors.green,
+                onLongPress: () => _showActualProfit(isAr),
+              ),
               _Metric(_label(isAr, "Avg. Invoice", "\u0645\u0639\u062f\u0644 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629"), money(_num(_data["averageTicket"]), "USD"), Icons.analytics, Colors.indigo),
             ]),
             const SizedBox(height: 22),
@@ -127,20 +133,49 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _statCard(_Metric metric) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: metric.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: metric.color.withOpacity(0.2)),
+    return GestureDetector(
+      onLongPress: metric.onLongPress,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: metric.color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: metric.color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(metric.icon, color: metric.color),
+            const SizedBox(height: 12),
+            Text(metric.value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, height: 1.25, color: metric.color)),
+            Text(metric.title, style: TextStyle(fontSize: 12, color: metric.color.withOpacity(0.8))),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(metric.icon, color: metric.color),
-          const SizedBox(height: 12),
-          Text(metric.value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, height: 1.25, color: metric.color)),
-          Text(metric.title, style: TextStyle(fontSize: 12, color: metric.color.withOpacity(0.8))),
+    );
+  }
+
+  Future<void> _showActualProfit(bool isAr) async {
+    final net = _currencyMap(_data["netProfitByCurrency"]);
+    final receivable = _currencyMap(_data["receivableByCurrency"]);
+    final payable = _currencyMap(_data["payableByCurrency"]);
+    final actual = {
+      "LBP": (net["LBP"] ?? 0) - (receivable["LBP"] ?? 0) - (payable["LBP"] ?? 0),
+      "USD": (net["USD"] ?? 0) - (receivable["USD"] ?? 0) - (payable["USD"] ?? 0),
+    };
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_label(isAr, "Actual Profit", "\u0627\u0644\u0631\u0628\u062d \u0627\u0644\u0641\u0639\u0644\u064a")),
+        content: Text(
+          "${_label(isAr, "Net profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d")}:\n${_moneyBreakdown(net)}\n\n"
+          "${_label(isAr, "Debts", "\u0627\u0644\u062f\u064a\u0648\u0646")}:\n${_moneyBreakdown({"LBP": (receivable["LBP"] ?? 0) + (payable["LBP"] ?? 0), "USD": (receivable["USD"] ?? 0) + (payable["USD"] ?? 0)})}\n\n"
+          "${_label(isAr, "Actual profit", "\u0627\u0644\u0631\u0628\u062d \u0627\u0644\u0641\u0639\u0644\u064a")}:\n${_moneyBreakdown(actual)}",
+          style: const TextStyle(fontWeight: FontWeight.w800, height: 1.35),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642"))),
         ],
       ),
     );
@@ -192,6 +227,11 @@ class _ReportsPageState extends State<ReportsPage> {
     final usd = _num(map["USD"]);
     return "${money(lbp, "LBP")}\n${money(usd, "USD")}";
   }
+
+  Map<String, double> _currencyMap(dynamic raw) {
+    final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    return {"LBP": _num(map["LBP"]), "USD": _num(map["USD"])};
+  }
 }
 
 class _Metric {
@@ -199,8 +239,9 @@ class _Metric {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onLongPress;
 
-  const _Metric(this.title, this.value, this.icon, this.color);
+  const _Metric(this.title, this.value, this.icon, this.color, {this.onLongPress});
 }
 
 String _label(bool isAr, String en, String ar) => isAr ? ar : en;

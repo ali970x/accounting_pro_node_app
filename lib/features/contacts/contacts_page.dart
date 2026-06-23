@@ -1,6 +1,9 @@
 ﻿import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
+import "../../core/money.dart";
 import "../../models/contact.dart";
 import "../../widgets/modern_card.dart";
 
@@ -169,11 +172,15 @@ class _ContactsPageState extends State<ContactsPage> {
                               contacts: _filtered("supplier"),
                               onEdit: (m) => _addOrEdit(contact: m, type: "supplier"),
                               onDelete: (m) => _delete(m),
+                              onMovement: _showMovementStatement,
+                              onLedger: _showFinancialLedger,
                             ),
                             _ContactListView(
                               contacts: _filtered("customer"),
                               onEdit: (m) => _addOrEdit(contact: m, type: "customer"),
                               onDelete: (m) => _delete(m),
+                              onMovement: _showMovementStatement,
+                              onLedger: _showFinancialLedger,
                             ),
                           ],
                         ),
@@ -182,6 +189,166 @@ class _ContactsPageState extends State<ContactsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showMovementStatement(ContactModel contact) async {
+    final isAr = AppScope.of(context).isArabic;
+    try {
+      final raw = await widget.api.get("/records/stock-movements");
+      final rows = (raw as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).where((row) {
+        final contactId = contact.type == "supplier" ? (row["supplier"] ?? "").toString() : (row["customer"] ?? "").toString();
+        final name = contact.type == "supplier" ? (row["supplierName"] ?? "").toString() : (row["customerName"] ?? "").toString();
+        final type = (row["type"] ?? "").toString();
+        final matchType = contact.type == "supplier" ? type == "purchase" : (type == "sale" || type == "return");
+        return matchType && (contactId == contact.id || name == contact.name);
+      }).toList();
+
+      final message = _movementMessage(contact, rows, isAr);
+      if (!mounted) return;
+      await _showShareDialog(title: isAr ? "\u062d\u0631\u0643\u0629 \u0627\u0644\u0628\u0636\u0627\u0639\u0629" : "Goods Movement", message: message, contact: contact);
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _showFinancialLedger(ContactModel contact) async {
+    final isAr = AppScope.of(context).isArabic;
+    try {
+      final raw = await widget.api.get("/debts");
+      final rows = (raw as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).where((row) {
+        final contactId = (row["contact"] ?? "").toString();
+        final name = (row["personName"] ?? "").toString();
+        return contactId == contact.id || name == contact.name;
+      }).toList();
+
+      final message = _ledgerMessage(contact, rows, isAr);
+      if (!mounted) return;
+      await _showShareDialog(title: isAr ? "\u0627\u0644\u062c\u0631\u062f\u0629 \u0627\u0644\u0645\u0627\u0644\u064a\u0629" : "Financial Ledger", message: message, contact: contact);
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _showShareDialog({required String title, required String message, required ContactModel contact}) async {
+    final isAr = AppScope.of(context).isArabic;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(width: 560, child: SingleChildScrollView(child: SelectableText(message))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isAr ? "\u0625\u063a\u0644\u0627\u0642" : "Close")),
+          OutlinedButton.icon(
+            onPressed: () => Clipboard.setData(ClipboardData(text: message)),
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(isAr ? "\u0646\u0633\u062e" : "Copy"),
+          ),
+          FilledButton.icon(
+            onPressed: contact.phone.trim().isEmpty ? null : () => _shareWhatsapp(contact, message),
+            icon: const Icon(Icons.send_rounded),
+            label: Text(isAr ? "\u0648\u0627\u062a\u0633\u0627\u0628" : "WhatsApp"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareWhatsapp(ContactModel contact, String message) async {
+    final digits = contact.fullPhone.replaceAll(RegExp(r"[^0-9]"), "");
+    final uri = Uri.parse("https://wa.me/$digits?text=${Uri.encodeComponent(message)}");
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await Clipboard.setData(ClipboardData(text: message));
+      _showError("Could not open WhatsApp. Text copied.");
+    }
+  }
+
+  String _movementMessage(ContactModel contact, List<Map<String, dynamic>> rows, bool isAr) {
+    final lines = <String>[
+      isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u062d\u0631\u0643\u0629 \u0628\u0636\u0627\u0639\u0629" : "Goods Movement Statement",
+      "${isAr ? "\u0627\u0644\u0627\u0633\u0645" : "Name"}: ${contact.name}",
+      "${isAr ? "\u0627\u0644\u0646\u0648\u0639" : "Type"}: ${contact.type == "supplier" ? (isAr ? "\u0645\u0648\u0631\u062f" : "Supplier") : (isAr ? "\u0632\u0628\u0648\u0646" : "Customer")}",
+      "${isAr ? "\u0627\u0644\u062a\u0627\u0631\u064a\u062e" : "Date"}: ${DateTime.now().toString().substring(0, 16)}",
+      "",
+    ];
+    if (rows.isEmpty) {
+      lines.add(isAr ? "\u0644\u0627 \u064a\u0648\u062c\u062f \u062d\u0631\u0643\u0629 \u0628\u0636\u0627\u0639\u0629 \u0628\u0639\u062f." : "No goods movement yet.");
+      return lines.join("\n");
+    }
+    for (final row in rows) {
+      final type = (row["type"] ?? "").toString();
+      final product = (row["productName"] ?? "").toString();
+      final date = _shortDate(row["createdAt"]);
+      final qty = _num(row["difference"]).abs().toStringAsFixed(0);
+      final total = _num(row["totalCost"]);
+      final currency = (row["currency"] ?? "LBP").toString();
+      final invoice = (row["invoiceNo"] ?? "").toString();
+      lines.add("- $date | ${_movementType(type, isAr)} | $product | ${isAr ? "\u0643\u0645\u064a\u0629" : "Qty"}: $qty");
+      if (total > 0) lines.add("  ${isAr ? "\u0627\u0644\u0645\u0628\u0644\u063a" : "Amount"}: ${money(total, currency)}");
+      if (invoice.isNotEmpty) lines.add("  ${isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice"}: $invoice");
+    }
+    return lines.join("\n");
+  }
+
+  String _ledgerMessage(ContactModel contact, List<Map<String, dynamic>> debts, bool isAr) {
+    final totals = _debtTotals(debts);
+    final lines = <String>[
+      isAr ? "\u062c\u0631\u062f\u0629 \u0645\u0627\u0644\u064a\u0629" : "Financial Ledger",
+      "${isAr ? "\u0627\u0644\u0627\u0633\u0645" : "Name"}: ${contact.name}",
+      "${isAr ? "\u0627\u0644\u062a\u0627\u0631\u064a\u062e" : "Date"}: ${DateTime.now().toString().substring(0, 16)}",
+      "",
+      "${isAr ? "\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631" : "Invoices total"}: ${money(totals["originalLBP"] ?? 0, "LBP")} / ${money(totals["originalUSD"] ?? 0, "USD")}",
+      "${isAr ? "\u0627\u0644\u0645\u062f\u0641\u0648\u0639" : "Paid"}: ${money(totals["paidLBP"] ?? 0, "LBP")} / ${money(totals["paidUSD"] ?? 0, "USD")}",
+      "${isAr ? "\u0627\u0644\u0628\u0627\u0642\u064a" : "Remaining"}: ${money(totals["remainingLBP"] ?? 0, "LBP")} / ${money(totals["remainingUSD"] ?? 0, "USD")}",
+      "",
+    ];
+    if (debts.isEmpty) {
+      lines.add(isAr ? "\u0644\u0627 \u064a\u0648\u062c\u062f \u062f\u064a\u0648\u0646 \u0623\u0648 \u062f\u0641\u0639\u0627\u062a \u0645\u0633\u062c\u0644\u0629." : "No debts or payments recorded.");
+      return lines.join("\n");
+    }
+    for (final debt in debts) {
+      final currency = (debt["currency"] ?? "LBP").toString();
+      lines.add("- ${_shortDate(debt["createdAt"])} | ${(debt["note"] ?? "").toString()}");
+      lines.add("  ${isAr ? "\u0642\u064a\u0645\u0629 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice"}: ${money(_num(debt["originalAmount"]), currency)}");
+      lines.add("  ${isAr ? "\u0627\u0644\u0648\u0627\u0635\u0644" : "Received/Paid"}: ${money(_num(debt["paidAmount"]), currency)}");
+      lines.add("  ${isAr ? "\u0627\u0644\u0628\u0627\u0642\u064a" : "Remaining"}: ${money(_num(debt["remainingAmount"]), currency)}");
+      final payments = debt["payments"];
+      if (payments is List && payments.isNotEmpty) {
+        for (final p in payments.whereType<Map>()) {
+          final payment = Map<String, dynamic>.from(p);
+          final pc = (payment["currency"] ?? currency).toString();
+          lines.add("    ${isAr ? "\u062f\u0641\u0639\u0629" : "Payment"} ${_shortDate(payment["date"])}: ${money(_num(payment["amount"]), pc)} ${(payment["note"] ?? "").toString()}");
+        }
+      }
+    }
+    return lines.join("\n");
+  }
+
+  Map<String, double> _debtTotals(List<Map<String, dynamic>> debts) {
+    final totals = {"originalLBP": 0.0, "originalUSD": 0.0, "paidLBP": 0.0, "paidUSD": 0.0, "remainingLBP": 0.0, "remainingUSD": 0.0};
+    for (final debt in debts) {
+      final suffix = (debt["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      totals["original$suffix"] = (totals["original$suffix"] ?? 0) + _num(debt["originalAmount"]);
+      totals["paid$suffix"] = (totals["paid$suffix"] ?? 0) + _num(debt["paidAmount"]);
+      totals["remaining$suffix"] = (totals["remaining$suffix"] ?? 0) + _num(debt["remainingAmount"]);
+    }
+    return totals;
+  }
+
+  String _movementType(String type, bool isAr) {
+    if (type == "purchase") return isAr ? "\u062a\u0648\u0631\u064a\u062f" : "Purchase";
+    if (type == "return") return isAr ? "\u0645\u0631\u062a\u062c\u0639" : "Return";
+    return isAr ? "\u0645\u0628\u064a\u0639" : "Sale";
+  }
+
+  String _shortDate(dynamic raw) {
+    final text = (raw ?? "").toString();
+    if (text.isEmpty) return "-";
+    return text.substring(0, text.length < 16 ? text.length : 16).replaceFirst("T", " ");
+  }
+
+  double _num(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
   }
 
   Future<void> _delete(ContactModel contact) async {
@@ -211,11 +378,15 @@ class _ContactListView extends StatelessWidget {
   final List<ContactModel> contacts;
   final Function(ContactModel) onEdit;
   final Function(ContactModel) onDelete;
+  final Function(ContactModel) onMovement;
+  final Function(ContactModel) onLedger;
 
   const _ContactListView({
     required this.contacts,
     required this.onEdit,
     required this.onDelete,
+    required this.onMovement,
+    required this.onLedger,
   });
 
   @override
@@ -275,9 +446,23 @@ class _ContactListView extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => onDelete(m),
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onSelected: (value) {
+                    if (value == "movement") onMovement(m);
+                    if (value == "ledger") onLedger(m);
+                    if (value == "edit") onEdit(m);
+                    if (value == "delete") onDelete(m);
+                  },
+                  itemBuilder: (context) {
+                    final isAr = AppScope.of(context).isArabic;
+                    return [
+                      PopupMenuItem(value: "movement", child: Text(isAr ? "\u062d\u0631\u0643\u0629 \u0648\u0641\u0627\u062a\u0648\u0631\u0629 \u0628\u0636\u0627\u0639\u0629" : "Goods movement invoice")),
+                      PopupMenuItem(value: "ledger", child: Text(isAr ? "\u062c\u0631\u062f\u0629 \u0645\u0627\u0644\u064a\u0629" : "Financial ledger")),
+                      PopupMenuItem(value: "edit", child: Text(isAr ? "\u062a\u0639\u062f\u064a\u0644" : "Edit")),
+                      PopupMenuItem(value: "delete", child: Text(isAr ? "\u062d\u0630\u0641" : "Delete")),
+                    ];
+                  },
                 ),
               ],
             ),
