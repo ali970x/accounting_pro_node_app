@@ -82,10 +82,17 @@ class _InventoryPageState extends State<InventoryPage> {
   Future<void> _showInventorySnapshot() async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
+    final now = DateTime.now();
+    final invoiceNo = "INV-STOCK-${now.millisecondsSinceEpoch.toString().substring(5)}";
+    var totalQuantity = 0.0;
+    final totals = {"LBP": 0.0, "USD": 0.0};
     final lines = <String>[
-      isAr ? "جردة عامة للمخزون" : "Full Inventory Snapshot",
-      DateTime.now().toString().substring(0, 16),
+      isAr ? "فاتورة جردة عامة للمخزون" : "Full Inventory Invoice",
+      "${isAr ? "رقم الفاتورة" : "Invoice No."}: $invoiceNo",
+      "${isAr ? "التاريخ" : "Date"}: ${now.toString().substring(0, 16)}",
+      "${isAr ? "النظام" : "System"}: Accounting Pro",
       "",
+      "----------------------------------------",
     ];
 
     final grouped = _groupProducts(_products);
@@ -96,22 +103,34 @@ class _InventoryPageState extends State<InventoryPage> {
         for (final product in subcategory.value) {
           if (product.hasVariants) {
             for (final variant in product.variants) {
-              lines.add("    - ${product.name} / ${variant.name}: ${variant.quantity.toStringAsFixed(0)} ${variant.unit} | ${money(variant.sellingPrice, variant.currency)}");
+              final value = variant.quantity * variant.sellingPrice;
+              totalQuantity += variant.quantity;
+              totals[variant.currency] = (totals[variant.currency] ?? 0) + value;
+              lines.add("    - ${product.name} / ${variant.name}");
+              lines.add("      ${isAr ? "الكمية" : "Qty"}: ${variant.quantity.toStringAsFixed(0)} ${variant.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}");
             }
           } else {
-            lines.add("    - ${product.name}: ${product.quantity.toStringAsFixed(0)} ${product.unit} | ${money(product.sellingPrice, product.currency)}");
+            final value = product.quantity * product.sellingPrice;
+            totalQuantity += product.quantity;
+            totals[product.currency] = (totals[product.currency] ?? 0) + value;
+            lines.add("    - ${product.name}");
+            lines.add("      ${isAr ? "الكمية" : "Qty"}: ${product.quantity.toStringAsFixed(0)} ${product.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}");
           }
         }
       }
       lines.add("");
     }
+    lines.add("----------------------------------------");
+    lines.add("${isAr ? "إجمالي الكمية" : "Total quantity"}: ${totalQuantity.toStringAsFixed(0)}");
+    lines.add("${isAr ? "إجمالي القيمة باللبناني" : "Total value LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}");
+    lines.add("${isAr ? "إجمالي القيمة بالدولار" : "Total value USD"}: ${money(totals["USD"] ?? 0, "USD")}");
 
     final message = lines.join("\n");
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isAr ? "جردة عامة" : "Inventory Snapshot"),
+        title: Text(isAr ? "فاتورة جردة عامة" : "Inventory Invoice"),
         content: SizedBox(
           width: 560,
           child: SingleChildScrollView(child: SelectableText(message)),

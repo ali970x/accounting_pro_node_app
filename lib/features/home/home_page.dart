@@ -15,6 +15,7 @@ import "../debts/debts_page.dart";
 import "../expenses/expenses_page.dart";
 import "../settings/settings_page.dart";
 import "../about/about_page.dart";
+import "../help/help_page.dart";
 
 class HomePage extends StatefulWidget {
   final ApiClient api;
@@ -75,6 +76,7 @@ class _HomePageState extends State<HomePage> {
       c.t("expenses"),
       c.t("debts"),
       c.t("contacts"),
+      c.isArabic ? "دليل الاستخدام" : "User Guide",
       c.t("about"),
       c.t("settings"),
     ];
@@ -88,6 +90,7 @@ class _HomePageState extends State<HomePage> {
       Icons.payments,
       Icons.account_balance,
       Icons.people_alt,
+      Icons.help_outline_rounded,
       Icons.info,
       Icons.settings,
     ];
@@ -195,7 +198,8 @@ class _HomePageState extends State<HomePage> {
       5 => ExpensesPage(api: widget.api),
       6 => DebtsPage(api: widget.api),
       7 => ContactsPage(api: widget.api),
-      8 => AboutPage(api: widget.api),
+      8 => const HelpPage(),
+      9 => AboutPage(api: widget.api),
       _ => SettingsPage(api: widget.api),
     };
   }
