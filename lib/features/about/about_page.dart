@@ -110,8 +110,18 @@ class _AboutPageState extends State<AboutPage> {
                   _infoRow(_label(isAr, "Version", "\u0627\u0644\u0625\u0635\u062f\u0627\u0631"), version, Icons.verified_rounded, const Color(0xFF5B5FEF)),
                   const Divider(height: 28),
                   GestureDetector(
+                    onTap: () => _openWhatsapp(phone),
                     onLongPress: () => _openWhatsapp(phone),
                     child: _infoRow(_label(isAr, "Contact", "\u0644\u0644\u062a\u0648\u0627\u0635\u0644"), phone, Icons.phone_rounded, const Color(0xFF00A6A6)),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _openWhatsapp(phone),
+                      icon: const Icon(Icons.chat_rounded),
+                      label: Text(_label(isAr, "Message on WhatsApp", "\u0645\u0631\u0627\u0633\u0644\u0629 \u0648\u0627\u062a\u0633\u0627\u0628")),
+                    ),
                   ),
                 ],
               ),

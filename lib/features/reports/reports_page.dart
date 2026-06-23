@@ -56,10 +56,10 @@ class _ReportsPageState extends State<ReportsPage> {
           Row(
             children: [
               Expanded(child: Text(c.t("reports"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900))),
-              IconButton.filledTonal(
+              FilledButton.icon(
                 onPressed: _resetProfits,
-                tooltip: _label(isAr, "Reset profits", "\u062a\u0635\u0641\u064a\u0631 \u0627\u0644\u0623\u0631\u0628\u0627\u062d"),
                 icon: const Icon(Icons.restart_alt_rounded),
+                label: Text(_label(isAr, "Reset Profits", "\u062a\u0635\u0641\u064a\u0631 \u0627\u0644\u0623\u0631\u0628\u0627\u062d")),
               ),
             ],
           ),
