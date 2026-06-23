@@ -53,7 +53,16 @@ class _ReportsPageState extends State<ReportsPage> {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          Text(c.t("reports"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+          Row(
+            children: [
+              Expanded(child: Text(c.t("reports"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900))),
+              IconButton.filledTonal(
+                onPressed: _resetProfits,
+                tooltip: _label(isAr, "Reset profits", "\u062a\u0635\u0641\u064a\u0631 \u0627\u0644\u0623\u0631\u0628\u0627\u062d"),
+                icon: const Icon(Icons.restart_alt_rounded),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           if (_loading)
             const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
@@ -179,6 +188,34 @@ class _ReportsPageState extends State<ReportsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _resetProfits() async {
+    final isAr = AppScope.of(context).isArabic;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_label(isAr, "Reset profits?", "\u062a\u0635\u0641\u064a\u0631 \u0627\u0644\u0623\u0631\u0628\u0627\u062d\u061f")),
+        content: Text(_label(
+          isAr,
+          "Reports will calculate profit from this moment forward. Old invoices stay saved.",
+          "\u0633\u064a\u062a\u0645 \u062d\u0633\u0627\u0628 \u0627\u0644\u0631\u0628\u062d \u0645\u0646 \u0647\u0630\u0647 \u0627\u0644\u0644\u062d\u0638\u0629 \u0648\u0645\u0627 \u0628\u0639\u062f\u0647\u0627. \u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631 \u0627\u0644\u0642\u062f\u064a\u0645\u0629 \u062a\u0628\u0642\u0649 \u0645\u062d\u0641\u0648\u0638\u0629.",
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_label(isAr, "Cancel", "\u0625\u0644\u063a\u0627\u0621"))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(_label(isAr, "Reset", "\u062a\u0635\u0641\u064a\u0631"))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await widget.api.post("/reports/reset-profits", {});
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   Widget _rowItem(String title, String value, IconData icon, {Color? color}) {

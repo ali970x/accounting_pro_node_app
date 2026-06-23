@@ -1,3 +1,3 @@
 class AppVersion {
-  static const display = "1.5";
+  static const display = "1.6";
 }

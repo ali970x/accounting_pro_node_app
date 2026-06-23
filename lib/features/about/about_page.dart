@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/app_version.dart";
@@ -108,7 +109,10 @@ class _AboutPageState extends State<AboutPage> {
                 children: [
                   _infoRow(_label(isAr, "Version", "\u0627\u0644\u0625\u0635\u062f\u0627\u0631"), version, Icons.verified_rounded, const Color(0xFF5B5FEF)),
                   const Divider(height: 28),
-                  _infoRow(_label(isAr, "Contact", "\u0644\u0644\u062a\u0648\u0627\u0635\u0644"), phone, Icons.phone_rounded, const Color(0xFF00A6A6)),
+                  GestureDetector(
+                    onLongPress: () => _openWhatsapp(phone),
+                    child: _infoRow(_label(isAr, "Contact", "\u0644\u0644\u062a\u0648\u0627\u0635\u0644"), phone, Icons.phone_rounded, const Color(0xFF00A6A6)),
+                  ),
                 ],
               ),
             ),
@@ -132,6 +136,16 @@ class _AboutPageState extends State<AboutPage> {
         Text(value, textAlign: TextAlign.end, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900, color: iconColor)),
       ],
     );
+  }
+
+  Future<void> _openWhatsapp(String phone) async {
+    final digits = phone.replaceAll(RegExp(r"[^0-9]"), "");
+    final full = digits.startsWith("961") ? digits : "961$digits";
+    final uri = Uri.parse("https://wa.me/$full");
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not open WhatsApp.")));
+    }
   }
 
   String _label(bool isAr, String en, String ar) => isAr ? ar : en;

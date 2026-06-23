@@ -2,6 +2,8 @@
 import "../../core/api_client.dart";
 import "../../core/session_store.dart";
 import "../../core/app_controller.dart";
+import "../../core/local/local_store.dart";
+import "../../core/local/sync_service.dart";
 import "../auth/login_page.dart";
 import "../inventory/inventory_page.dart";
 import "../sales/sales_page.dart";
@@ -11,7 +13,6 @@ import "../records/records_page.dart";
 import "../contacts/contacts_page.dart";
 import "../debts/debts_page.dart";
 import "../expenses/expenses_page.dart";
-import "../sync/sync_page.dart";
 import "../settings/settings_page.dart";
 import "../about/about_page.dart";
 
@@ -38,7 +39,16 @@ class _HomePageState extends State<HomePage> {
     Future.microtask(() {
       if (!mounted) return;
       AppScope.of(context).loadSettings();
+      _autoSync();
     });
+  }
+
+  Future<void> _autoSync() async {
+    try {
+      await SyncService(api: widget.api, store: LocalStore()).syncNow();
+    } catch (_) {
+      // Silent background sync keeps the app usable when the network is unavailable.
+    }
   }
 
   Future<void> logout() async {
@@ -62,7 +72,6 @@ class _HomePageState extends State<HomePage> {
       c.t("invoiceTemplate"),
       c.t("reports"),
       c.t("records"),
-      c.isArabic ? "المزامنة" : "Sync",
       c.t("expenses"),
       c.t("debts"),
       c.t("contacts"),
@@ -76,7 +85,6 @@ class _HomePageState extends State<HomePage> {
       Icons.receipt_long,
       Icons.analytics,
       Icons.history,
-      Icons.sync,
       Icons.payments,
       Icons.account_balance,
       Icons.people_alt,
@@ -184,11 +192,10 @@ class _HomePageState extends State<HomePage> {
       2 => InvoiceTemplatePage(api: widget.api),
       3 => ReportsPage(api: widget.api),
       4 => RecordsPage(api: widget.api),
-      5 => SyncPage(api: widget.api),
-      6 => ExpensesPage(api: widget.api),
-      7 => DebtsPage(api: widget.api),
-      8 => ContactsPage(api: widget.api),
-      9 => AboutPage(api: widget.api),
+      5 => ExpensesPage(api: widget.api),
+      6 => DebtsPage(api: widget.api),
+      7 => ContactsPage(api: widget.api),
+      8 => AboutPage(api: widget.api),
       _ => SettingsPage(api: widget.api),
     };
   }
