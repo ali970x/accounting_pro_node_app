@@ -193,7 +193,11 @@ class _HomePageState extends State<HomePage> {
       0 => InventoryPage(api: widget.api),
       1 => SalesPage(api: widget.api),
       2 => InvoiceTemplatePage(api: widget.api),
-      3 => ReportsPage(api: widget.api),
+      3 => ReportsPage(
+          api: widget.api,
+          onOpenExpenses: () => setState(() => selected = 5),
+          onOpenRecords: () => setState(() => selected = 4),
+        ),
       4 => RecordsPage(api: widget.api),
       5 => ExpensesPage(api: widget.api),
       6 => DebtsPage(api: widget.api),

@@ -546,6 +546,13 @@ class _PaymentDialog extends StatefulWidget {
 class _PaymentDialogState extends State<_PaymentDialog> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
+  late String _currency;
+
+  @override
+  void initState() {
+    super.initState();
+    _currency = widget.currency == "USD" ? "USD" : "LBP";
+  }
 
   @override
   void dispose() {
@@ -566,6 +573,16 @@ class _PaymentDialogState extends State<_PaymentDialog> {
         children: [
           TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: _label(isAr, "Amount", "\u0627\u0644\u0645\u0628\u0644\u063a"))),
           const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _currency,
+            decoration: InputDecoration(labelText: c.t("currency")),
+            items: const [
+              DropdownMenuItem(value: "LBP", child: Text("LBP")),
+              DropdownMenuItem(value: "USD", child: Text("USD")),
+            ],
+            onChanged: (v) => setState(() => _currency = v ?? _currency),
+          ),
+          const SizedBox(height: 12),
           TextField(controller: _note, decoration: InputDecoration(labelText: _label(isAr, "Note", "\u0645\u0644\u0627\u062d\u0638\u0629"))),
         ],
       ),
@@ -575,7 +592,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           onPressed: () {
             Navigator.pop(context, {
               "amount": double.tryParse(_amount.text) ?? 0,
-              "currency": widget.currency,
+              "currency": _currency,
               "note": _note.text.trim(),
             });
           },

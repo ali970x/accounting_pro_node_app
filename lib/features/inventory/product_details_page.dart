@@ -86,6 +86,36 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
+  Future<void> _editProduct() async {
+    final product = _product;
+    if (product == null) return;
+    final body = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => ProductFormDialog(product: product, existingProducts: [product]),
+    );
+    if (body == null) return;
+    try {
+      await widget.api.put("/products/${widget.productId}", body);
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _editVariant(ProductVariant variant) async {
+    final body = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => ProductFormDialog(variantOnly: true, variant: variant),
+    );
+    if (body == null) return;
+    try {
+      await widget.api.put("/products/${widget.productId}/variants/${variant.id}", body);
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
   Future<void> _addStock(dynamic item) async {
     final isVariant = item is ProductVariant;
     final c = AppScope.of(context);
@@ -290,6 +320,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       appBar: AppBar(
         title: Text(c.t("productDetails")),
         actions: [
+          IconButton(onPressed: _editProduct, icon: const Icon(Icons.edit_rounded)),
           IconButton(onPressed: _deleteProduct, icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent)),
         ],
       ),
@@ -367,6 +398,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                                 Text("${c.t("purchasePrice")}: ${money(v.purchasePrice, v.purchaseCurrency)}", style: theme.textTheme.bodySmall),
                                               ],
                                             ),
+                                          ),
+                                          IconButton(
+                                            tooltip: c.isArabic ? "\u062a\u0639\u062f\u064a\u0644" : "Edit",
+                                            onPressed: () => _editVariant(v),
+                                            icon: const Icon(Icons.edit_rounded),
                                           ),
                                           Text("${v.quantity.toStringAsFixed(0)} ${v.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
                                         ],

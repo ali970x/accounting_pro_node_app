@@ -4,6 +4,7 @@ import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
+import "../../core/phone_text.dart";
 import "../../models/contact.dart";
 import "../../widgets/modern_card.dart";
 
@@ -432,7 +433,7 @@ class _ContactListView extends StatelessWidget {
                         children: [
                           const Icon(Icons.phone_rounded, size: 14, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Text(m.fullPhone, style: Theme.of(context).textTheme.bodySmall),
+                          PhoneText(m.fullPhone, style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
                       if (m.address.isNotEmpty)

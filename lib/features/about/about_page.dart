@@ -3,6 +3,7 @@ import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/app_version.dart";
+import "../../core/phone_text.dart";
 import "../../widgets/modern_card.dart";
 
 class AboutPage extends StatefulWidget {
@@ -111,7 +112,7 @@ class _AboutPageState extends State<AboutPage> {
                   const Divider(height: 28),
                   GestureDetector(
                     onLongPress: () => _openWhatsapp(phone),
-                    child: _infoRow(_label(isAr, "Contact", "\u0644\u0644\u062a\u0648\u0627\u0635\u0644"), phone, Icons.phone_rounded, const Color(0xFF00A6A6)),
+                    child: _infoRow(_label(isAr, "Contact", "\u0644\u0644\u062a\u0648\u0627\u0635\u0644"), phone, Icons.phone_rounded, const Color(0xFF00A6A6), isPhone: true),
                   ),
                 ],
               ),
@@ -122,7 +123,7 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
-  Widget _infoRow(String title, String value, IconData icon, Color iconColor) {
+  Widget _infoRow(String title, String value, IconData icon, Color iconColor, {bool isPhone = false}) {
     final theme = Theme.of(context);
     return Row(
       children: [
@@ -133,7 +134,9 @@ class _AboutPageState extends State<AboutPage> {
         ),
         const SizedBox(width: 14),
         Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-        Text(value, textAlign: TextAlign.end, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900, color: iconColor)),
+        isPhone
+            ? PhoneText(value, textAlign: TextAlign.end, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900, color: iconColor))
+            : Text(value, textAlign: TextAlign.end, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900, color: iconColor)),
       ],
     );
   }

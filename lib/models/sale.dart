@@ -28,18 +28,22 @@ class Sale {
   final String id;
   final String invoiceNo;
   final String customerName;
+  final String contactId;
   final double total;
   final String currency;
   final String paymentStatus;
+  final String note;
   final List<SaleItem> items;
 
   const Sale({
     required this.id,
     required this.invoiceNo,
     required this.customerName,
+    required this.contactId,
     required this.total,
     required this.currency,
     required this.paymentStatus,
+    required this.note,
     required this.items,
   });
 
@@ -49,12 +53,19 @@ class Sale {
       id: (json["_id"] ?? json["id"] ?? "").toString(),
       invoiceNo: (json["invoiceNo"] ?? "").toString(),
       customerName: (json["customerName"] ?? "").toString(),
+      contactId: _id(json["contact"]),
       total: _num(json["total"]),
       currency: (json["currency"] ?? "LBP").toString(),
       paymentStatus: (json["paymentStatus"] ?? "paid").toString(),
+      note: (json["note"] ?? "").toString(),
       items: raw is List ? raw.map((e) => SaleItem.fromJson(Map<String, dynamic>.from(e as Map))).toList() : [],
     );
   }
+}
+
+String _id(dynamic value) {
+  if (value is Map) return (value["_id"] ?? value["id"] ?? "").toString();
+  return (value ?? "").toString();
 }
 
 double _num(dynamic value) {

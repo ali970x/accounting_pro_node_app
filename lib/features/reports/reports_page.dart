@@ -6,7 +6,9 @@ import "../../widgets/modern_card.dart";
 
 class ReportsPage extends StatefulWidget {
   final ApiClient api;
-  const ReportsPage({super.key, required this.api});
+  final VoidCallback? onOpenExpenses;
+  final VoidCallback? onOpenRecords;
+  const ReportsPage({super.key, required this.api, this.onOpenExpenses, this.onOpenRecords});
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -72,8 +74,8 @@ class _ReportsPageState extends State<ReportsPage> {
             _sectionTitle(_label(isAr, "Financial Snapshot", "\u0644\u0645\u062d\u0629 \u0645\u0627\u0644\u064a\u0629")),
             const SizedBox(height: 12),
             _metricGrid([
-              _Metric(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"), _moneyBreakdown(_data["salesByCurrency"]), Icons.trending_up, Colors.blue),
-              _Metric(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), _moneyBreakdown(_data["expensesByCurrency"]), Icons.receipt_long, Colors.red),
+              _Metric(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"), _moneyBreakdown(_data["salesByCurrency"]), Icons.trending_up, Colors.blue, onLongPress: widget.onOpenRecords),
+              _Metric(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), _moneyBreakdown(_data["expensesByCurrency"]), Icons.receipt_long, Colors.red, onLongPress: widget.onOpenExpenses),
               _Metric(
                 _label(isAr, "Net Profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d"),
                 _moneyBreakdown(_data["netProfitByCurrency"]),
@@ -81,7 +83,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 Colors.green,
                 onLongPress: () => _showActualProfit(isAr),
               ),
-              _Metric(_label(isAr, "Avg. Invoice", "\u0645\u0639\u062f\u0644 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629"), money(_num(_data["averageTicket"]), "USD"), Icons.analytics, Colors.indigo),
+              _Metric(_label(isAr, "Avg. Invoice", "\u0645\u0639\u062f\u0644 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629"), _moneyBreakdown(_data["averageTicketByCurrency"]), Icons.analytics, Colors.indigo, onLongPress: () => _showAverageProfit(isAr)),
             ]),
             const SizedBox(height: 22),
             _sectionTitle(_label(isAr, "Operations", "\u0627\u0644\u062a\u0634\u063a\u064a\u0644")),
@@ -181,6 +183,23 @@ class _ReportsPageState extends State<ReportsPage> {
           "${_label(isAr, "Net profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d")}:\n${_moneyBreakdown(net)}\n\n"
           "${_label(isAr, "Debts", "\u0627\u0644\u062f\u064a\u0648\u0646")}:\n${_moneyBreakdown({"LBP": (receivable["LBP"] ?? 0) + (payable["LBP"] ?? 0), "USD": (receivable["USD"] ?? 0) + (payable["USD"] ?? 0)})}\n\n"
           "${_label(isAr, "Actual profit", "\u0627\u0644\u0631\u0628\u062d \u0627\u0644\u0641\u0639\u0644\u064a")}:\n${_moneyBreakdown(actual)}",
+          style: const TextStyle(fontWeight: FontWeight.w800, height: 1.35),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642"))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAverageProfit(bool isAr) async {
+    final average = _currencyMap(_data["averageInvoiceProfitByCurrency"]);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_label(isAr, "Average Invoice Profit", "\u0645\u0639\u062f\u0644 \u0631\u0628\u062d \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629")),
+        content: Text(
+          "${_label(isAr, "Profit per invoice", "\u0631\u0628\u062d \u0643\u0644 \u0641\u0627\u062a\u0648\u0631\u0629")}:\n${_moneyBreakdown(average)}",
           style: const TextStyle(fontWeight: FontWeight.w800, height: 1.35),
         ),
         actions: [

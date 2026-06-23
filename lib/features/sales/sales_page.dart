@@ -1,7 +1,10 @@
 ﻿import "package:flutter/material.dart";
 import "../../core/api_client.dart";
+import "package:flutter/services.dart";
+import "package:url_launcher/url_launcher.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
+import "../../core/phone_text.dart";
 import "../../core/pdf/pdf_service.dart";
 import "../../models/invoice_template.dart";
 import "../../models/product.dart";
@@ -123,6 +126,42 @@ class _SalesPageState extends State<SalesPage> {
     }
   }
 
+  Future<void> _editSale(Sale sale) async {
+    final body = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _SaleEditDialog(sale: sale, customers: _customers),
+    );
+    if (body == null) return;
+    try {
+      await widget.api.put("/sales/${sale.id}", body);
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> _deleteSale(Sale sale) async {
+    final isAr = AppScope.of(context).isArabic;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "حذف الفاتورة؟" : "Delete invoice?"),
+        content: Text(isAr ? "سيتم إرجاع الكمية إلى المخزون وحذف دين الفاتورة إن وجد." : "Stock will be restored and related invoice debt will be removed."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isAr ? "إلغاء" : "Cancel")),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: Text(isAr ? "حذف" : "Delete")),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await widget.api.delete("/sales/${sale.id}");
+      await _load();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
   Future<void> _createSale() async {
     if (_activeChoice == null) return _showError("Select product");
     final isAr = AppScope.of(context).isArabic;
@@ -139,7 +178,7 @@ class _SalesPageState extends State<SalesPage> {
     }
 
     try {
-      await widget.api.post("/sales", {
+      final created = await widget.api.post("/sales", {
         "customerName": custName,
         if (selectedMatchesText && _selectedCustomerId != null) "contact": _selectedCustomerId,
         "currency": _activeChoice!.currency,
@@ -153,8 +192,11 @@ class _SalesPageState extends State<SalesPage> {
           }
         ],
       });
+      final sale = Sale.fromJson(Map<String, dynamic>.from(created as Map));
       _resetForm();
       await _load();
+      if (!mounted) return;
+      await _showSaleSharePrompt(sale, selectedCustomer);
     } catch (e) {
       _showError(e);
     }
@@ -171,6 +213,71 @@ class _SalesPageState extends State<SalesPage> {
     _registerDebt = false;
   }
 
+  Future<void> _showSaleSharePrompt(Sale sale, ContactModel? customer, {bool created = true}) async {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final message = _saleMessage(sale, isAr);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(created ? (isAr ? "تم إنشاء الفاتورة" : "Invoice created") : (isAr ? "مشاركة الفاتورة" : "Share invoice")),
+        content: SingleChildScrollView(child: SelectableText(message)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isAr ? "إغلاق" : "Close")),
+          OutlinedButton.icon(
+            onPressed: () async => Clipboard.setData(ClipboardData(text: message)),
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(isAr ? "نسخ" : "Copy"),
+          ),
+          FilledButton.icon(
+            onPressed: customer == null || customer.phone.trim().isEmpty ? () => _shareGeneral(message) : () => _shareWhatsapp(customer, message),
+            icon: const Icon(Icons.send_rounded),
+            label: Text(isAr ? "مشاركة" : "Share"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _saleMessage(Sale sale, bool isAr) {
+    final lines = <String>[
+      isAr ? "فاتورة مبيع" : "Sales Invoice",
+      "${isAr ? "رقم الفاتورة" : "Invoice"}: ${sale.invoiceNo}",
+      "${isAr ? "الزبون" : "Customer"}: ${sale.customerName}",
+      "${isAr ? "المجموع" : "Total"}: ${money(sale.total, sale.currency)}",
+      "${isAr ? "الحالة" : "Status"}: ${sale.paymentStatus == "debt" ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
+      "",
+    ];
+    for (final item in sale.items) {
+      lines.add("- ${item.productName}: ${item.quantity.toStringAsFixed(0)} x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}");
+    }
+    return lines.join("\n");
+  }
+
+  Future<void> _shareWhatsapp(ContactModel customer, String message) async {
+    final digits = customer.fullPhone.replaceAll(RegExp(r"[^0-9]"), "");
+    final uri = Uri.parse("https://wa.me/$digits?text=${Uri.encodeComponent(message)}");
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await Clipboard.setData(ClipboardData(text: message));
+      _showError("Could not open WhatsApp. Invoice copied.");
+    }
+  }
+
+  Future<void> _shareGeneral(String message) async {
+    final uri = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await Clipboard.setData(ClipboardData(text: message));
+      _showError("Could not open sharing app. Invoice copied.");
+    }
+  }
+
+  Future<void> _printSale(Sale sale) async {
+    final c = AppScope.of(context);
+    final raw = await widget.api.get("/invoice-template");
+    final template = InvoiceTemplateModel.fromJson(Map<String, dynamic>.from(raw as Map));
+    await PdfService.printInvoice(languageCode: c.languageCode, sale: sale, template: template);
+  }
+
   void _showError(Object e) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
 
   @override
@@ -184,6 +291,8 @@ class _SalesPageState extends State<SalesPage> {
         padding: const EdgeInsets.all(18),
         children: [
           Text(c.t("sales"), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 14),
+          _salesReportCard(isAr),
           const SizedBox(height: 14),
           ModernCard(
             padding: const EdgeInsets.all(20),
@@ -248,7 +357,7 @@ class _SalesPageState extends State<SalesPage> {
                               return ListTile(
                                 leading: const Icon(Icons.person_rounded),
                                 title: Text(customer.name),
-                                subtitle: customer.phone.isEmpty ? null : Text(customer.fullPhone),
+                                subtitle: customer.phone.isEmpty ? null : PhoneText(customer.fullPhone),
                                 onTap: () => onSelected(customer),
                               );
                             },
@@ -281,7 +390,7 @@ class _SalesPageState extends State<SalesPage> {
                       child: TextField(
                         controller: _unitPrice,
                         keyboardType: TextInputType.number,
-                        decoration: InputDecoration(labelText: isAr ? "سعر الحبة" : "Unit Price"),
+                        decoration: InputDecoration(labelText: _unitPriceLabel(isAr)),
                         onChanged: (_) => _updateTotal(),
                       ),
                     ),
@@ -327,21 +436,105 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   Widget _saleItem(Sale s) {
+    final isAr = AppScope.of(context).isArabic;
+    final customer = _firstCustomerWhere((x) => x.id == s.contactId);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ModernCard(
-        onTap: () async {
-          final c = AppScope.of(context);
-          final raw = await widget.api.get("/invoice-template");
-          final template = InvoiceTemplateModel.fromJson(Map<String, dynamic>.from(raw as Map));
-          await PdfService.printInvoice(languageCode: c.languageCode, sale: s, template: template);
-        },
         child: ListTile(
           leading: const CircleAvatar(child: Icon(Icons.receipt_long)),
           title: Text(s.invoiceNo, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text("${s.customerName}${s.paymentStatus == "debt" ? (AppScope.of(context).isArabic ? "\nدين" : "\nDebt") : ""}"),
-          trailing: Text(money(s.total, s.currency), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.blue, fontSize: 16)),
+          subtitle: Text("${s.customerName}${s.paymentStatus == "debt" ? (isAr ? "\nدين" : "\nDebt") : ""}"),
+          trailing: SizedBox(
+            width: 132,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    money(s.total, s.currency),
+                    textAlign: TextAlign.end,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.blue, fontSize: 15),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: isAr ? "خيارات الفاتورة" : "Invoice options",
+                  onSelected: (value) {
+                    if (value == "print") _printSale(s);
+                    if (value == "share") _showSaleSharePrompt(s, customer, created: false);
+                    if (value == "edit") _editSale(s);
+                    if (value == "delete") _deleteSale(s);
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(value: "print", child: Text(isAr ? "طباعة الفاتورة" : "Print invoice")),
+                    PopupMenuItem(value: "share", child: Text(isAr ? "مشاركة واتساب" : "Share")),
+                    PopupMenuItem(value: "edit", child: Text(isAr ? "تعديل" : "Edit")),
+                    PopupMenuItem(value: "delete", child: Text(isAr ? "حذف" : "Delete")),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          onLongPress: () => _editSale(s),
+          onTap: () => _printSale(s),
         ),
+      ),
+    );
+  }
+
+  Widget _salesReportCard(bool isAr) {
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    var debtCount = 0;
+    for (final sale in _sales) {
+      final currency = sale.currency == "USD" ? "USD" : "LBP";
+      totals[currency] = (totals[currency] ?? 0) + sale.total;
+      if (sale.paymentStatus == "debt") debtCount += 1;
+    }
+    return ModernCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.query_stats_rounded, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(isAr ? "تقرير المبيع" : "Sales Report", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _reportPill(isAr ? "الفواتير" : "Invoices", _sales.length.toString(), Colors.indigo),
+              _reportPill(isAr ? "دين" : "Debt", debtCount.toString(), Colors.red),
+              _reportPill("LBP", money(totals["LBP"] ?? 0, "LBP"), Colors.orange),
+              _reportPill("USD", money(totals["USD"] ?? 0, "USD"), Colors.green),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportPill(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w700)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+        ],
       ),
     );
   }
@@ -358,6 +551,7 @@ class _SalesPageState extends State<SalesPage> {
             label: "${product.name} - ${variant.name} (${variant.quantity.toStringAsFixed(0)} ${variant.unit})",
             sellingPrice: variant.sellingPrice,
             currency: variant.currency,
+            unit: variant.unit,
           ));
         }
       } else {
@@ -368,6 +562,7 @@ class _SalesPageState extends State<SalesPage> {
           label: "${product.name} (${product.quantity.toStringAsFixed(0)} ${product.unit})",
           sellingPrice: product.sellingPrice,
           currency: product.currency,
+          unit: product.unit,
         ));
       }
     }
@@ -387,6 +582,27 @@ class _SalesPageState extends State<SalesPage> {
     }
     return null;
   }
+
+  String _unitPriceLabel(bool isAr) {
+    final unit = _activeChoice?.unit ?? "";
+    if (!isAr) return unit.isEmpty ? "Unit Price" : "Price per $unit";
+    return "سعر ${_arabicUnit(unit)}";
+  }
+
+  String _arabicUnit(String unit) {
+    switch (unit) {
+      case "Bag":
+        return "الكيس";
+      case "Kilogram":
+        return "الكيلو";
+      case "Box":
+        return "الصندوق";
+      case "Piece":
+        return "القطعة";
+      default:
+        return unit.trim().isEmpty ? "الوحدة" : unit;
+    }
+  }
 }
 
 class _SaleProductChoice {
@@ -396,6 +612,7 @@ class _SaleProductChoice {
   final String label;
   final double sellingPrice;
   final String currency;
+  final String unit;
 
   const _SaleProductChoice({
     required this.id,
@@ -404,5 +621,139 @@ class _SaleProductChoice {
     required this.label,
     required this.sellingPrice,
     required this.currency,
+    required this.unit,
   });
+}
+
+class _SaleEditDialog extends StatefulWidget {
+  final Sale sale;
+  final List<ContactModel> customers;
+
+  const _SaleEditDialog({required this.sale, required this.customers});
+
+  @override
+  State<_SaleEditDialog> createState() => _SaleEditDialogState();
+}
+
+class _SaleEditDialogState extends State<_SaleEditDialog> {
+  final _customerName = TextEditingController();
+  final _note = TextEditingController();
+  String? _contactId;
+  bool _registerDebt = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _customerName.text = widget.sale.customerName;
+    _note.text = widget.sale.note;
+    _contactId = widget.sale.contactId.isEmpty ? null : widget.sale.contactId;
+    _registerDebt = widget.sale.paymentStatus == "debt";
+  }
+
+  @override
+  void dispose() {
+    _customerName.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final validContactId = widget.customers.any((customer) => customer.id == _contactId) ? _contactId : null;
+
+    return AlertDialog(
+      title: Text(isAr ? "تعديل الفاتورة" : "Edit invoice"),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: validContactId,
+                decoration: InputDecoration(labelText: isAr ? "اختيار الزبون" : "Customer"),
+                items: widget.customers
+                    .map((customer) => DropdownMenuItem(
+                          value: customer.id,
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(customer.name, overflow: TextOverflow.ellipsis)),
+                              if (customer.phone.trim().isNotEmpty) PhoneText(customer.fullPhone, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  final selected = _firstCustomerWhere((customer) => customer.id == value);
+                  setState(() {
+                    _contactId = value;
+                    if (selected != null) _customerName.text = selected.name;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customerName,
+                decoration: InputDecoration(labelText: isAr ? "اسم الزبون على الفاتورة" : "Invoice customer name"),
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                value: _registerDebt,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(isAr ? "تسجيلها كدين" : "Register as debt"),
+                subtitle: Text(isAr ? "الدين يحتاج زبون محفوظ من قائمة الأسماء" : "Debt invoices need a saved customer contact"),
+                onChanged: (value) => setState(() {
+                  _registerDebt = value ?? false;
+                  _error = null;
+                }),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _note,
+                minLines: 1,
+                maxLines: 3,
+                decoration: InputDecoration(labelText: isAr ? "ملاحظة" : "Note"),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(_error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(c.t("cancel"))),
+        FilledButton(onPressed: _save, child: Text(c.t("save"))),
+      ],
+    );
+  }
+
+  void _save() {
+    final isAr = AppScope.of(context).isArabic;
+    final selected = _firstCustomerWhere((customer) => customer.id == _contactId);
+    if (_registerDebt && selected == null) {
+      setState(() => _error = isAr ? "اختار زبون محفوظ قبل تسجيلها كدين" : "Select a saved customer before registering debt");
+      return;
+    }
+
+    final name = _customerName.text.trim().isEmpty ? (selected?.name ?? widget.sale.customerName) : _customerName.text.trim();
+    Navigator.pop(context, {
+      "customerName": name,
+      if (_contactId != null && _contactId!.isNotEmpty) "contact": _contactId,
+      "paymentStatus": _registerDebt ? "debt" : "paid",
+      "note": _note.text.trim(),
+    });
+  }
+
+  ContactModel? _firstCustomerWhere(bool Function(ContactModel) test) {
+    for (final customer in widget.customers) {
+      if (test(customer)) return customer;
+    }
+    return null;
+  }
 }

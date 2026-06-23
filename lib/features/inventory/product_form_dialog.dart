@@ -5,7 +5,9 @@ import "../../models/product.dart";
 class ProductFormDialog extends StatefulWidget {
   final bool variantOnly;
   final List<Product> existingProducts;
-  const ProductFormDialog({super.key, this.variantOnly = false, this.existingProducts = const []});
+  final Product? product;
+  final ProductVariant? variant;
+  const ProductFormDialog({super.key, this.variantOnly = false, this.existingProducts = const [], this.product, this.variant});
 
   @override
   State<ProductFormDialog> createState() => _ProductFormDialogState();
@@ -59,6 +61,35 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     if (widget.existingProducts.isEmpty && !widget.variantOnly) {
       name.text = "\u0641\u0626\u0629 \u0623\u0648\u0644\u0649";
     }
+    final product = widget.product;
+    if (product != null) {
+      name.text = product.name;
+      sku.text = product.sku;
+      purchase.text = product.purchasePrice.toStringAsFixed(2);
+      selling.text = product.sellingPrice.toStringAsFixed(2);
+      minStock.text = product.minStock.toStringAsFixed(0);
+      currency = product.currency;
+      unit = product.unit;
+      hasVariants = product.hasVariants;
+      category.text = product.category;
+      subcategory.text = product.subcategory;
+      selectedCategory = categories.contains(product.category) ? product.category : _newValue;
+      selectedSubcategory = subcategories.contains(product.subcategory) ? product.subcategory : _newValue;
+      isOtherUnit = !["Piece", "Bag", "Kilogram", "Box"].contains(unit);
+      if (isOtherUnit) customUnit.text = unit;
+    }
+    final variant = widget.variant;
+    if (variant != null) {
+      name.text = variant.name;
+      sku.text = variant.sku;
+      purchase.text = variant.purchasePrice.toStringAsFixed(2);
+      selling.text = variant.sellingPrice.toStringAsFixed(2);
+      minStock.text = variant.minStock.toStringAsFixed(0);
+      currency = variant.currency;
+      unit = variant.unit;
+      isOtherUnit = !["Piece", "Bag", "Kilogram", "Box"].contains(unit);
+      if (isOtherUnit) customUnit.text = unit;
+    }
   }
 
   @override
@@ -80,7 +111,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     final isAr = c.isArabic;
 
     return AlertDialog(
-      title: Text(widget.variantOnly ? c.t("addVariant") : c.t("addProduct")),
+      title: Text(widget.product != null || widget.variant != null ? (isAr ? "تعديل" : "Edit") : (widget.variantOnly ? c.t("addVariant") : c.t("addProduct"))),
       content: SizedBox(
         width: 500,
         child: SingleChildScrollView(
@@ -148,7 +179,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 SwitchListTile(
                   value: hasVariants,
                   title: Text(c.t("variants")),
-                  onChanged: (v) => setState(() => hasVariants = v),
+                  onChanged: widget.product != null ? null : (v) => setState(() => hasVariants = v),
                 ),
               if (!hasVariants || widget.variantOnly) ...[
                 const SizedBox(height: 10),
@@ -198,7 +229,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         FilledButton(
           onPressed: () {
             if (name.text.trim().isEmpty) return;
-            Navigator.pop(context, {
+            final body = <String, dynamic>{
               "category": category.text.trim().isEmpty ? "General" : category.text.trim(),
               "subcategory": subcategory.text.trim().isEmpty ? "General" : subcategory.text.trim(),
               "name": name.text.trim(),
@@ -208,11 +239,12 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               "purchasePrice": double.tryParse(purchase.text.trim()) ?? 0,
               "purchaseCurrency": currency,
               "sellingPrice": double.tryParse(selling.text.trim()) ?? 0,
-              "quantity": 0,
               "minStock": double.tryParse(minStock.text.trim()) ?? 0,
               "currency": currency,
               "unit": isOtherUnit ? customUnit.text.trim() : unit,
-            });
+            };
+            if (widget.product == null && widget.variant == null) body["quantity"] = 0;
+            Navigator.pop(context, body);
           },
           child: Text(c.t("save")),
         ),

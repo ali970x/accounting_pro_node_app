@@ -22,6 +22,8 @@ class _InventoryPageState extends State<InventoryPage> {
   String? _error;
   List<Product> _products = [];
   final _searchController = TextEditingController();
+  final Set<String> _closedCategories = {};
+  final Set<String> _closedSubcategories = {};
 
   @override
   void initState() {
@@ -310,6 +312,7 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _categoryBlock(String category, Map<String, List<Product>> subcategories) {
     final theme = Theme.of(context);
     final count = subcategories.values.fold<int>(0, (sum, rows) => sum + rows.length);
+    final isClosed = _closedCategories.contains(category);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -318,28 +321,44 @@ class _InventoryPageState extends State<InventoryPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Icon(Icons.folder_rounded, color: theme.colorScheme.onPrimaryContainer),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(category, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900))),
-                _countPill("$count"),
-              ],
+            InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => setState(() {
+                if (isClosed) {
+                  _closedCategories.remove(category);
+                } else {
+                  _closedCategories.add(category);
+                }
+              }),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Icon(isClosed ? Icons.folder_rounded : Icons.folder_open_rounded, color: theme.colorScheme.onPrimaryContainer),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(category, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900))),
+                  _countPill("$count"),
+                  const SizedBox(width: 6),
+                  Icon(isClosed ? Icons.expand_more_rounded : Icons.expand_less_rounded),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            ...subcategories.entries.map((entry) => _subcategoryBlock(entry.key, entry.value)),
+            if (!isClosed) ...[
+              const SizedBox(height: 12),
+              ...subcategories.entries.map((entry) => _subcategoryBlock(category, entry.key, entry.value)),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _subcategoryBlock(String subcategory, List<Product> products) {
+  Widget _subcategoryBlock(String category, String subcategory, List<Product> products) {
     final theme = Theme.of(context);
     final c = AppScope.of(context);
+    final key = "$category/$subcategory";
+    final isClosed = _closedSubcategories.contains(key);
 
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -350,16 +369,28 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              Icon(Icons.subdirectory_arrow_right_rounded, color: theme.colorScheme.primary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(child: Text(subcategory, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900))),
-              Text("${products.length}", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            ],
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => setState(() {
+              if (isClosed) {
+                _closedSubcategories.remove(key);
+              } else {
+                _closedSubcategories.add(key);
+              }
+            }),
+            child: Row(
+              children: [
+                Icon(isClosed ? Icons.chevron_right_rounded : Icons.keyboard_arrow_down_rounded, color: theme.colorScheme.primary, size: 22),
+                const SizedBox(width: 8),
+                Expanded(child: Text(subcategory, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900))),
+                Text("${products.length}", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          ...products.map((p) => _qualityRow(p, c)),
+          if (!isClosed) ...[
+            const SizedBox(height: 8),
+            ...products.map((p) => _qualityRow(p, c)),
+          ],
         ],
       ),
     );
