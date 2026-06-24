@@ -163,28 +163,59 @@ class _ExpensesPageState extends State<ExpensesPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ModernCard(
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const CircleAvatar(child: Icon(Icons.receipt_rounded)),
-          title: Text((expense["title"] ?? "").toString(), style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text("${expense["category"] ?? "General"}${shortDate.isEmpty ? "" : "\n$shortDate"}"),
-          trailing: Wrap(
-            spacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(money(amount, currency), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.red)),
-              IconButton(
-                tooltip: _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
-                onPressed: () => _addOrEdit(expense: expense),
-                icon: const Icon(Icons.edit_rounded),
-              ),
-              IconButton(
-                tooltip: _label(isAr, "Delete", "\u062d\u0630\u0641"),
-                onPressed: () => _delete(expense),
-                icon: const Icon(Icons.delete_outline_rounded),
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(child: Icon(Icons.receipt_rounded)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (expense["title"] ?? "").toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        "${expense["category"] ?? "General"}${shortDate.isEmpty ? "" : " - $shortDate"}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(money(amount, currency), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.red)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Tooltip(
+                  message: _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _addOrEdit(expense: expense),
+                    icon: const Icon(Icons.edit_rounded, size: 18),
+                    label: Text(_label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644")),
+                  ),
+                ),
+                Tooltip(
+                  message: _label(isAr, "Delete", "\u062d\u0630\u0641"),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _delete(expense),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: Text(_label(isAr, "Delete", "\u062d\u0630\u0641")),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

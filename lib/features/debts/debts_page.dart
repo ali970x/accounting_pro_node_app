@@ -180,13 +180,7 @@ class _DebtsPageState extends State<DebtsPage> {
             onChanged: (value) => setState(() => _dateFilter = value),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(child: _summaryCard(_label(isAr, "For us", "\u0644\u0646\u0627"), receivable, Icons.call_received_rounded, Colors.green)),
-              const SizedBox(width: 10),
-              Expanded(child: _summaryCard(_label(isAr, "On us", "\u0639\u0644\u064a\u0646\u0627"), payable, Icons.call_made_rounded, Colors.red)),
-            ],
-          ),
+          _summaryGrid(isAr, receivable, payable),
           const SizedBox(height: 14),
           if (_loading)
             const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
@@ -231,24 +225,53 @@ class _DebtsPageState extends State<DebtsPage> {
     return "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}";
   }
 
+  Widget _summaryGrid(bool isAr, String receivable, String payable) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 560 ? 2 : 1;
+        final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            SizedBox(width: width, child: _summaryCard(_label(isAr, "For us", "\u0644\u0646\u0627"), receivable, Icons.call_received_rounded, Colors.green)),
+            SizedBox(width: width, child: _summaryCard(_label(isAr, "On us", "\u0639\u0644\u064a\u0646\u0627"), payable, Icons.call_made_rounded, Colors.red)),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _summaryCard(String label, String value, IconData icon, Color color) {
     final theme = Theme.of(context);
+    final values = value.split("\n").where((line) => line.trim().isNotEmpty).toList();
     return ModernCard(
       padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: color)),
-              ],
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 104),
+        child: Row(
+          children: [
+            CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  for (final line in values)
+                    Text(
+                      line,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: color, height: 1.12),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -260,32 +283,73 @@ class _DebtsPageState extends State<DebtsPage> {
     final name = (first["personName"] ?? "").toString();
     final openCount = rows.where((d) => (d["status"] ?? "").toString() != "paid").length;
     final totals = _totalsFor(rows);
+    final role = type == "receivable" ? _label(isAr, "Customer", "\u0632\u0628\u0648\u0646") : _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f");
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ModernCard(
         onTap: () => _showLedger(first),
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: CircleAvatar(
-            backgroundColor: color.withOpacity(0.12),
-            child: Icon(type == "receivable" ? Icons.person_rounded : Icons.store_rounded, color: color),
-          ),
-          title: Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
-          subtitle: Text("${type == "receivable" ? _label(isAr, "Customer", "\u0632\u0628\u0648\u0646") : _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f")} | ${number(rows.length)} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} | ${number(openCount)} ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}"),
-          trailing: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(_formatTotals(totals), textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
-              IconButton(
-                tooltip: _label(isAr, "Open ledger", "\u0641\u062a\u062d \u0627\u0644\u062c\u0631\u062f\u0629"),
-                onPressed: () => _showLedger(first),
-                icon: const Icon(Icons.receipt_long_rounded),
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withOpacity(0.12),
+                  child: Icon(type == "receivable" ? Icons.person_rounded : Icons.store_rounded, color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name.isEmpty ? "-" : name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                      const SizedBox(height: 3),
+                      Text(
+                        "$role - ${number(rows.length)} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} - ${number(openCount)} ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: _label(isAr, "Open ledger", "\u0641\u062a\u062d \u0627\u0644\u062c\u0631\u062f\u0629"),
+                  onPressed: () => _showLedger(first),
+                  icon: const Icon(Icons.receipt_long_rounded),
+                ),
+              ],
+            ),
+            const Divider(height: 18),
+            _amountStrip(totals, color),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _amountStrip(Map<String, double> totals, Color color) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _amountPill(money(totals["LBP"] ?? 0, "LBP"), color),
+        _amountPill(money(totals["USD"] ?? 0, "USD"), color),
+      ],
+    );
+  }
+
+  Widget _amountPill(String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.22)),
+      ),
+      child: Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
     );
   }
 
@@ -301,33 +365,50 @@ class _DebtsPageState extends State<DebtsPage> {
       padding: const EdgeInsets.only(bottom: 10),
       child: ModernCard(
         onTap: () => _showLedger(debt),
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: CircleAvatar(child: Icon(type == "receivable" ? Icons.call_received : Icons.call_made)),
-          title: Text((debt["personName"] ?? "").toString(), style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text(note.isEmpty ? status : "$status\n$note"),
-          trailing: Wrap(
-            spacing: 2,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(money(remaining, currency), style: TextStyle(fontWeight: FontWeight.w900, color: color)),
-              IconButton(
-                tooltip: _label(isAr, "Payment", "\u062f\u0641\u0639\u0629"),
-                onPressed: () => _addPayment(debt),
-                icon: const Icon(Icons.payments_rounded),
-              ),
-              IconButton(
-                tooltip: _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
-                onPressed: () => _addOrEdit(debt: debt),
-                icon: const Icon(Icons.edit_rounded),
-              ),
-              IconButton(
-                tooltip: _label(isAr, "Delete", "\u062d\u0630\u0641"),
-                onPressed: () => _delete(debt),
-                icon: const Icon(Icons.delete_outline_rounded),
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(type == "receivable" ? Icons.call_received : Icons.call_made, color: color)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text((debt["personName"] ?? "").toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                      if (status.isNotEmpty || note.isNotEmpty)
+                        Text(note.isEmpty ? status : "$status - $note", maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                Text(money(remaining, currency), style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _addPayment(debt),
+                  icon: const Icon(Icons.payments_rounded, size: 18),
+                  label: Text(_label(isAr, "Payment", "\u062f\u0641\u0639\u0629")),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _addOrEdit(debt: debt),
+                  icon: const Icon(Icons.edit_rounded, size: 18),
+                  label: Text(_label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644")),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _delete(debt),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: Text(_label(isAr, "Delete", "\u062d\u0630\u0641")),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -509,19 +590,7 @@ class _LedgerDialog extends StatelessWidget {
             children: [
               Text("${_label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a")}:\n${_formatTotals(totals)}", style: const TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 12),
-              for (final debt in debts)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(money(_num(debt["remainingAmount"]), (debt["currency"] ?? "LBP").toString())),
-                  subtitle: Text((debt["note"] ?? debt["status"] ?? "").toString()),
-                  trailing: Wrap(
-                    children: [
-                      IconButton(onPressed: () => onPay(debt), icon: const Icon(Icons.payments_rounded)),
-                      IconButton(onPressed: () => onEdit(debt), icon: const Icon(Icons.edit_rounded)),
-                      IconButton(onPressed: () => onDelete(debt), icon: const Icon(Icons.delete_outline_rounded)),
-                    ],
-                  ),
-                ),
+              for (final debt in debts) _ledgerDebtRow(context, debt, isAr),
             ],
           ),
         ),
@@ -529,6 +598,43 @@ class _LedgerDialog extends StatelessWidget {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(_label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642"))),
       ],
+    );
+  }
+
+  Widget _ledgerDebtRow(BuildContext context, Map<String, dynamic> debt, bool isAr) {
+    final currency = (debt["currency"] ?? "LBP").toString();
+    final status = (debt["status"] ?? "").toString();
+    final note = (debt["note"] ?? "").toString();
+    final color = (debt["type"] ?? "").toString() == "receivable" ? Colors.green : Colors.red;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(money(_num(debt["remainingAmount"]), currency), style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 16)),
+          if (status.isNotEmpty || note.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(note.isEmpty ? status : "$status - $note", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              OutlinedButton.icon(onPressed: () => onPay(debt), icon: const Icon(Icons.payments_rounded, size: 18), label: Text(_label(isAr, "Pay", "\u062f\u0641\u0639"))),
+              OutlinedButton.icon(onPressed: () => onEdit(debt), icon: const Icon(Icons.edit_rounded, size: 18), label: Text(_label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"))),
+              OutlinedButton.icon(onPressed: () => onDelete(debt), icon: const Icon(Icons.delete_outline_rounded, size: 18), label: Text(_label(isAr, "Delete", "\u062d\u0630\u0641"))),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

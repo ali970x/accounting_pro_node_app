@@ -306,8 +306,8 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget _metricGrid(List<_Metric> metrics) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 680;
-        final columns = isWide ? (metrics.length >= 4 ? 4 : metrics.length) : 2;
+        final preferredWidth = constraints.maxWidth >= 900 ? 260.0 : 210.0;
+        final columns = (constraints.maxWidth / preferredWidth).floor().clamp(1, metrics.length);
         final width = (constraints.maxWidth - ((columns - 1) * 12)) / columns;
         return Wrap(
           spacing: 12,
@@ -321,23 +321,48 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _statCard(_Metric metric) {
+    final theme = Theme.of(context);
+    final values = metric.value.split("\n").where((line) => line.trim().isNotEmpty).toList();
     return GestureDetector(
       onLongPress: metric.onLongPress,
-      child: Container(
+      child: ModernCard(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: metric.color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: metric.color.withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(metric.icon, color: metric.color),
-            const SizedBox(height: 12),
-            Text(metric.value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, height: 1.25, color: metric.color)),
-            Text(metric.title, style: TextStyle(fontSize: 12, color: metric.color.withOpacity(0.8))),
-          ],
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 132),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(color: metric.color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                    child: Icon(metric.icon, color: metric.color, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      metric.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              for (final value in values)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: metric.color, height: 1.1),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

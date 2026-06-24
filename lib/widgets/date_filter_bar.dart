@@ -44,10 +44,10 @@ class DateFilterBar extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _chip(context, DateFilterPreset.today, isArabic ? "يوم" : "Day"),
-        _chip(context, DateFilterPreset.week, isArabic ? "أسبوع" : "Week"),
-        _chip(context, DateFilterPreset.month, isArabic ? "شهر" : "Month"),
-        _chip(context, DateFilterPreset.custom, isArabic ? "تاريخ مخصص" : "Custom date"),
+        _chip(context, DateFilterPreset.today, isArabic ? "\u064a\u0648\u0645" : "Day"),
+        _chip(context, DateFilterPreset.week, isArabic ? "\u0623\u0633\u0628\u0648\u0639" : "Week"),
+        _chip(context, DateFilterPreset.month, isArabic ? "\u0634\u0647\u0631" : "Month"),
+        _chip(context, DateFilterPreset.custom, isArabic ? "\u062a\u0627\u0631\u064a\u062e \u0645\u062e\u0635\u0635" : "Custom date"),
       ],
     );
   }
