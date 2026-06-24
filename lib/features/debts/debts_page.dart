@@ -3,6 +3,7 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../models/contact.dart";
+import "../../widgets/date_filter_bar.dart";
 import "../../widgets/modern_card.dart";
 
 class DebtsPage extends StatefulWidget {
@@ -18,6 +19,7 @@ class _DebtsPageState extends State<DebtsPage> {
   String? _error;
   List<Map<String, dynamic>> _debts = [];
   List<ContactModel> _contacts = [];
+  DateFilterValue _dateFilter = const DateFilterValue(preset: DateFilterPreset.month);
 
   @override
   void initState() {
@@ -151,9 +153,10 @@ class _DebtsPageState extends State<DebtsPage> {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-    final receivable = _moneyByCurrency("receivable");
-    final payable = _moneyByCurrency("payable");
-    final grouped = _groupDebts();
+    final visibleDebts = _filteredDebts();
+    final receivable = _moneyByCurrency("receivable", visibleDebts);
+    final payable = _moneyByCurrency("payable", visibleDebts);
+    final grouped = _groupDebts(visibleDebts);
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -171,6 +174,12 @@ class _DebtsPageState extends State<DebtsPage> {
             ],
           ),
           const SizedBox(height: 14),
+          DateFilterBar(
+            isArabic: isAr,
+            value: _dateFilter,
+            onChanged: (value) => setState(() => _dateFilter = value),
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(child: _summaryCard(_label(isAr, "For us", "\u0644\u0646\u0627"), receivable, Icons.call_received_rounded, Colors.green)),
@@ -183,7 +192,7 @@ class _DebtsPageState extends State<DebtsPage> {
             const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
           else if (_error != null)
             ModernCard(child: Text(_error!))
-          else if (_debts.isEmpty)
+          else if (visibleDebts.isEmpty)
             ModernCard(child: Text(c.t("empty")))
           else
             ...grouped.values.map((rows) => _contactDebtItem(rows, isAr)),
@@ -193,9 +202,16 @@ class _DebtsPageState extends State<DebtsPage> {
     );
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupDebts() {
+  List<Map<String, dynamic>> _filteredDebts() {
+    return _debts.where((debt) {
+      final rawDate = (debt["updatedAt"] ?? debt["createdAt"] ?? "").toString();
+      return _dateFilter.includes(DateTime.tryParse(rawDate));
+    }).toList();
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupDebts(List<Map<String, dynamic>> debts) {
     final grouped = <String, List<Map<String, dynamic>>>{};
-    for (final debt in _debts) {
+    for (final debt in debts) {
       final contactId = (debt["contact"] ?? "").toString();
       final name = (debt["personName"] ?? "").toString();
       final key = contactId.isNotEmpty ? contactId : name;
@@ -205,9 +221,9 @@ class _DebtsPageState extends State<DebtsPage> {
     return grouped;
   }
 
-  String _moneyByCurrency(String type) {
+  String _moneyByCurrency(String type, List<Map<String, dynamic>> debts) {
     final totals = <String, double>{};
-    for (final debt in _debts.where((d) => (d["type"] ?? "").toString() == type)) {
+    for (final debt in debts.where((d) => (d["type"] ?? "").toString() == type)) {
       final currency = (debt["currency"] ?? "LBP").toString();
       totals[currency] = (totals[currency] ?? 0) + _num(debt["remainingAmount"]);
     }
@@ -256,7 +272,7 @@ class _DebtsPageState extends State<DebtsPage> {
             child: Icon(type == "receivable" ? Icons.person_rounded : Icons.store_rounded, color: color),
           ),
           title: Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
-          subtitle: Text("${type == "receivable" ? _label(isAr, "Customer", "\u0632\u0628\u0648\u0646") : _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f")} • ${rows.length} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} • $openCount ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}"),
+          subtitle: Text("${type == "receivable" ? _label(isAr, "Customer", "\u0632\u0628\u0648\u0646") : _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f")} | ${number(rows.length)} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} | ${number(openCount)} ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}"),
           trailing: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [

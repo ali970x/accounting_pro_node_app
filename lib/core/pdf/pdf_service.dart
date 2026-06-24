@@ -337,7 +337,7 @@ class PdfService {
         ),
         ...sale.items.map((i) => pw.TableRow(children: [
               _cell(i.productName, isArabic, false),
-              _cell(i.quantity.toStringAsFixed(0), isArabic, false),
+              _cell(number(i.quantity), isArabic, false),
               _cell(money(i.unitPrice, i.currency), isArabic, false),
               _cell(money(i.total, i.currency), isArabic, false),
             ])),
@@ -385,7 +385,7 @@ class PdfService {
             _cell(_shortDate(row["createdAt"]), isArabic, false),
             _cell(_movementTypeLabel((row["type"] ?? "").toString(), isArabic), isArabic, false),
             _cell((row["productName"] ?? "").toString(), isArabic, false),
-            _cell(_num(row["difference"]).abs().toStringAsFixed(0), isArabic, false),
+            _cell(number(_num(row["difference"]).abs()), isArabic, false),
             _cell((row["invoiceNo"] ?? "").toString(), isArabic, false),
             _cell(total > 0 ? money(total, currency) : "-", isArabic, false),
           ]);

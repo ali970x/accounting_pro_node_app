@@ -3,6 +3,7 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../models/app_record.dart";
+import "../../widgets/date_filter_bar.dart";
 import "../../widgets/modern_card.dart";
 
 class RecordsPage extends StatefulWidget {
@@ -17,6 +18,7 @@ class _RecordsPageState extends State<RecordsPage> {
   bool loading = true;
   String? error;
   List<AppRecord> movements = [];
+  DateFilterValue _dateFilter = const DateFilterValue(preset: DateFilterPreset.month);
 
   @override
   void initState() {
@@ -42,8 +44,9 @@ class _RecordsPageState extends State<RecordsPage> {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-    final customerRows = movements.where((r) => r.type == "sale" || r.type == "return").toList();
-    final supplierRows = movements.where((r) => r.type == "purchase").toList();
+    final filteredMovements = movements.where((r) => _dateFilter.includes(r.createdAt)).toList();
+    final customerRows = filteredMovements.where((r) => r.type == "sale" || r.type == "return").toList();
+    final supplierRows = filteredMovements.where((r) => r.type == "purchase").toList();
 
     return DefaultTabController(
       length: 2,
@@ -53,6 +56,12 @@ class _RecordsPageState extends State<RecordsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(isAr ? "\u0627\u0644\u0633\u062c\u0644\u0627\u062a" : "Records", style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            DateFilterBar(
+              isArabic: isAr,
+              value: _dateFilter,
+              onChanged: (value) => setState(() => _dateFilter = value),
+            ),
             const SizedBox(height: 12),
             ModernCard(
               padding: const EdgeInsets.all(8),
@@ -97,7 +106,7 @@ class _RecordsPageState extends State<RecordsPage> {
     final isAr = AppScope.of(context).isArabic;
     final isReturn = row.type == "return";
     final color = isReturn ? Colors.orange : Colors.blue;
-    final qty = row.difference.abs().toStringAsFixed(0);
+    final qty = number(row.difference.abs());
     final customer = row.customerName.isEmpty ? _label(isAr, "Walk-in", "\u0632\u0628\u0648\u0646 \u0645\u0628\u0627\u0634\u0631") : row.customerName;
     final details = <String>[
       "${_label(isAr, "Customer", "\u0627\u0644\u0632\u0628\u0648\u0646")}: $customer",
@@ -121,7 +130,7 @@ class _RecordsPageState extends State<RecordsPage> {
   Widget _supplierTile(AppRecord row) {
     final isAr = AppScope.of(context).isArabic;
     final details = <String>[
-      "${_label(isAr, "Quantity", "\u0627\u0644\u0643\u0645\u064a\u0629")}: ${row.difference.toStringAsFixed(0)}",
+      "${_label(isAr, "Quantity", "\u0627\u0644\u0643\u0645\u064a\u0629")}: ${number(row.difference)}",
       if (row.supplierName.isNotEmpty) "${_label(isAr, "Supplier", "\u0627\u0644\u0645\u0648\u0631\u062f")}: ${row.supplierName}",
       if (row.totalCost > 0) "${_label(isAr, "Total", "\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a")}: ${money(row.totalCost, row.currency)}",
       if (row.paymentStatus == "paid") _label(isAr, "Paid", "\u0645\u062f\u0641\u0648\u0639"),

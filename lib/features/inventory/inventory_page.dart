@@ -109,21 +109,21 @@ class _InventoryPageState extends State<InventoryPage> {
               totalQuantity += variant.quantity;
               totals[variant.currency] = (totals[variant.currency] ?? 0) + value;
               lines.add("    - ${product.name} / ${variant.name}");
-              lines.add("      ${isAr ? "الكمية" : "Qty"}: ${variant.quantity.toStringAsFixed(0)} ${variant.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}");
+              lines.add("      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}");
             }
           } else {
             final value = product.quantity * product.sellingPrice;
             totalQuantity += product.quantity;
             totals[product.currency] = (totals[product.currency] ?? 0) + value;
             lines.add("    - ${product.name}");
-            lines.add("      ${isAr ? "الكمية" : "Qty"}: ${product.quantity.toStringAsFixed(0)} ${product.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}");
+            lines.add("      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}");
           }
         }
       }
       lines.add("");
     }
     lines.add("----------------------------------------");
-    lines.add("${isAr ? "إجمالي الكمية" : "Total quantity"}: ${totalQuantity.toStringAsFixed(0)}");
+    lines.add("${isAr ? "إجمالي الكمية" : "Total quantity"}: ${number(totalQuantity)}");
     lines.add("${isAr ? "إجمالي القيمة باللبناني" : "Total value LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}");
     lines.add("${isAr ? "إجمالي القيمة بالدولار" : "Total value USD"}: ${money(totals["USD"] ?? 0, "USD")}");
 
@@ -229,7 +229,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       children: [
                         Expanded(child: _metricCard(isAr ? "النوعيات" : "Qualities", totalQualities.toString(), Icons.category_rounded, theme.colorScheme.primary)),
                         const SizedBox(width: 10),
-                        Expanded(child: _metricCard(isAr ? "الكمية" : "Quantity", totalQuantity.toStringAsFixed(0), Icons.inventory_2_rounded, Colors.teal)),
+                        Expanded(child: _metricCard(isAr ? "الكمية" : "Quantity", number(totalQuantity), Icons.inventory_2_rounded, Colors.teal)),
                         const SizedBox(width: 10),
                         Expanded(child: _metricCard(isAr ? "منخفض" : "Low", lowStockCount.toString(), Icons.warning_amber_rounded, Colors.orange)),
                       ],
@@ -436,7 +436,7 @@ class _InventoryPageState extends State<InventoryPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text("${qty.toStringAsFixed(0)} ${p.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Text("${number(qty)} ${p.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
                   if (low) Text(c.t("lowStock"), style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w900)),
                 ],
               ),

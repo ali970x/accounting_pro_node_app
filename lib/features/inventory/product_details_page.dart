@@ -152,7 +152,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629" : "Quantity to add",
-                      helperText: "${isAr ? "\u0627\u0644\u0631\u0635\u064a\u062f \u0628\u0639\u062f \u0627\u0644\u062a\u0648\u0631\u064a\u062f" : "Stock after"}: ${totalAfter.toStringAsFixed(0)}",
+                      helperText: "${isAr ? "\u0627\u0644\u0631\u0635\u064a\u062f \u0628\u0639\u062f \u0627\u0644\u062a\u0648\u0631\u064a\u062f" : "Stock after"}: ${number(totalAfter)}",
                     ),
                     onChanged: (_) => setDialogState(() {}),
                   ),
@@ -267,7 +267,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       isAr ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u062a\u0648\u0631\u064a\u062f" : "Stock purchase invoice",
       "${isAr ? "\u0627\u0644\u0645\u0648\u0631\u062f" : "Supplier"}: ${supplier?.name ?? "-"}",
       "${isAr ? "\u0627\u0644\u0635\u0646\u0641" : "Item"}: $itemName",
-      "${isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Quantity"}: ${quantity.toStringAsFixed(0)}",
+      "${isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Quantity"}: ${number(quantity)}",
       "${isAr ? "\u0633\u0639\u0631 \u0627\u0644\u0634\u0631\u0627\u0621" : "Unit cost"}: ${money(unitCost, currency)}",
       "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u062f\u0648\u0644\u0627\u0631" : "Total USD"}: ${money(totalUsd, "USD")}",
       "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064a" : "Total LBP"}: ${money(totalLbp, "LBP")}",
@@ -359,7 +359,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 if (!_product!.hasVariants) ...[
                                   _detailRow(c.t("purchasePrice"), money(_product!.purchasePrice, _product!.purchaseCurrency), theme),
                                   _detailRow(c.t("sellingPrice"), money(_product!.sellingPrice, _product!.currency), theme, valueColor: theme.colorScheme.primary),
-                                  _detailRow(c.t("quantity"), "${_product!.quantity.toStringAsFixed(0)} ${_product!.unit}", theme),
+                                  _detailRow(c.t("quantity"), "${number(_product!.quantity)} ${_product!.unit}", theme),
                                   const SizedBox(height: 20),
                                   SizedBox(
                                     width: double.infinity,
@@ -404,7 +404,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                             onPressed: () => _editVariant(v),
                                             icon: const Icon(Icons.edit_rounded),
                                           ),
-                                          Text("${v.quantity.toStringAsFixed(0)} ${v.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                                          Text("${number(v.quantity)} ${v.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
                                         ],
                                       ),
                                     ),

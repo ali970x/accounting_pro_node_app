@@ -295,7 +295,7 @@ class _SalesPageState extends State<SalesPage> {
       "",
     ];
     for (final item in sale.items) {
-      lines.add("- ${item.productName}: ${item.quantity.toStringAsFixed(0)} x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}");
+      lines.add("- ${item.productName}: ${number(item.quantity)} x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}");
     }
     return lines.join("\n");
   }
@@ -527,46 +527,42 @@ class _SalesPageState extends State<SalesPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
+        _responsiveFields([
+          DropdownButtonFormField<String>(
                 value: _productCategoryFilter,
                 decoration: InputDecoration(labelText: isAr ? "الصنف" : "Category", prefixIcon: const Icon(Icons.folder_rounded)),
                 items: [
-                  DropdownMenuItem(value: "", child: Text(isAr ? "كل الأصناف" : "All categories")),
+                  DropdownMenuItem(value: "", child: Text(isAr ? "اختر الصنف" : "Choose category")),
                   ...categories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
                 ],
                 onChanged: (value) => setState(() {
                   _productCategoryFilter = value ?? "";
                   _productSubcategoryFilter = "";
+                  _productSearch.clear();
                   _clearSelectedProductIfHidden();
                 }),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: DropdownButtonFormField<String>(
+          DropdownButtonFormField<String>(
                 value: _productSubcategoryFilter,
                 decoration: InputDecoration(labelText: isAr ? "الصنف الفرعي" : "Subcategory", prefixIcon: const Icon(Icons.folder_copy_rounded)),
                 items: [
-                  DropdownMenuItem(value: "", child: Text(isAr ? "كل الأنواع" : "All subcategories")),
+                  DropdownMenuItem(value: "", child: Text(isAr ? "اختر الصنف الفرعي" : "Choose subcategory")),
                   ...subcategories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
                 ],
                 onChanged: (value) => setState(() {
                   _productSubcategoryFilter = value ?? "";
+                  _productSearch.clear();
                   _clearSelectedProductIfHidden();
                 }),
               ),
-            ),
-          ],
-        ),
+        ]),
         const SizedBox(height: 12),
         RawAutocomplete<_SaleProductChoice>(
           textEditingController: _productSearch,
           focusNode: _productFocusNode,
           displayStringForOption: (choice) => choice.label,
           optionsBuilder: (value) {
+            if (_productCategoryFilter.isEmpty || _productSubcategoryFilter.isEmpty) return const Iterable<_SaleProductChoice>.empty();
             final q = value.text.trim().toLowerCase();
             return choices.where((choice) {
               if (q.isEmpty) return true;
@@ -627,7 +623,7 @@ class _SalesPageState extends State<SalesPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text("${choice.quantity.toStringAsFixed(0)} ${choice.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                            Text("${number(choice.quantity)} ${choice.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
                             Text(money(choice.sellingPrice, choice.currency), style: const TextStyle(fontSize: 12)),
                           ],
                         ),
@@ -644,8 +640,8 @@ class _SalesPageState extends State<SalesPage> {
           const SizedBox(height: 8),
           Text(
             isAr
-                ? "المتوفر: ${active.quantity.toStringAsFixed(0)} ${active.unit} | السعر: ${money(active.sellingPrice, active.currency)}"
-                : "Available: ${active.quantity.toStringAsFixed(0)} ${active.unit} | Price: ${money(active.sellingPrice, active.currency)}",
+                ? "المتوفر: ${number(active.quantity)} ${active.unit} | السعر: ${money(active.sellingPrice, active.currency)}"
+                : "Available: ${number(active.quantity)} ${active.unit} | Price: ${money(active.sellingPrice, active.currency)}",
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w700),
           ),
         ],
@@ -741,9 +737,10 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   List<_SaleProductChoice> _filteredSaleChoices() {
+    if (_productCategoryFilter.isEmpty || _productSubcategoryFilter.isEmpty) return [];
     return _saleChoices().where((choice) {
-      if (_productCategoryFilter.isNotEmpty && choice.category != _productCategoryFilter) return false;
-      if (_productSubcategoryFilter.isNotEmpty && choice.subcategory != _productSubcategoryFilter) return false;
+      if (choice.category != _productCategoryFilter) return false;
+      if (choice.subcategory != _productSubcategoryFilter) return false;
       return true;
     }).toList();
   }
@@ -756,7 +753,7 @@ class _SalesPageState extends State<SalesPage> {
 
   List<String> _productSubcategoryOptions() {
     final rows = _saleChoices()
-        .where((choice) => _productCategoryFilter.isEmpty || choice.category == _productCategoryFilter)
+        .where((choice) => _productCategoryFilter.isNotEmpty && choice.category == _productCategoryFilter)
         .map((choice) => choice.subcategory)
         .where((x) => x.trim().isNotEmpty)
         .toSet()
@@ -811,6 +808,31 @@ class _SalesPageState extends State<SalesPage> {
       default:
         return unit.trim().isEmpty ? "الوحدة" : unit;
     }
+  }
+
+  Widget _responsiveFields(List<Widget> children) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                children[i],
+                if (i != children.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              Expanded(child: children[i]),
+              if (i != children.length - 1) const SizedBox(width: 10),
+            ],
+          ],
+        );
+      },
+    );
   }
 }
 

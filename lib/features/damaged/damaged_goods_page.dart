@@ -15,6 +15,7 @@ class DamagedGoodsPage extends StatefulWidget {
 
 class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   bool _loading = true;
+  bool _resetting = false;
   String? _error;
   List<Product> _products = [];
   List<_DamageMovement> _movements = [];
@@ -113,6 +114,45 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
     }
   }
 
+  Future<void> _resetDamagedData() async {
+    final isAr = AppScope.of(context).isArabic;
+    if (_movements.isEmpty || _resetting) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "تصفير سجل التالف؟" : "Reset damaged data?"),
+        content: Text(
+          isAr
+              ? "سيتم حذف سجل البضاعة التالفة وإرجاع الكميات إلى المخزون."
+              : "Damaged goods history will be cleared and quantities will be restored to inventory.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isAr ? "إلغاء" : "Cancel")),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(isAr ? "تصفير" : "Reset"),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() => _resetting = true);
+    try {
+      await widget.api.delete("/products/damaged");
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isAr ? "تم تصفير التالف وإرجاع الكميات للمخزون" : "Damaged data reset and stock restored")),
+      );
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _resetting = false);
+    }
+  }
+
   void _selectChoice(_DamageChoice choice) {
     setState(() {
       _activeChoice = choice;
@@ -161,6 +201,13 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                   ],
                 ),
               ),
+              IconButton.filledTonal(
+                onPressed: _movements.isEmpty || _resetting ? null : _resetDamagedData,
+                tooltip: isAr ? "تصفير التالف" : "Reset damaged data",
+                icon: _resetting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.restart_alt_rounded),
+              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -191,8 +238,8 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
           runSpacing: 12,
           children: [
             SizedBox(width: width, child: _summaryCard(isAr ? "خسارة التالف" : "Damage loss", "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}", Icons.money_off_rounded, Colors.red)),
-            SizedBox(width: width, child: _summaryCard(isAr ? "الكمية التالفة" : "Damaged qty", damagedQty.toStringAsFixed(0), Icons.inventory_rounded, Colors.deepOrange)),
-            SizedBox(width: width, child: _summaryCard(isAr ? "عدد الحركات" : "Movements", _movements.length.toString(), Icons.history_rounded, Colors.indigo)),
+            SizedBox(width: width, child: _summaryCard(isAr ? "الكمية التالفة" : "Damaged qty", number(damagedQty), Icons.inventory_rounded, Colors.deepOrange)),
+            SizedBox(width: width, child: _summaryCard(isAr ? "عدد الحركات" : "Movements", number(_movements.length), Icons.history_rounded, Colors.indigo)),
           ],
         );
       },
@@ -234,46 +281,42 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
         children: [
           Text(isAr ? "نقل بضاعة إلى التالف" : "Move Item to Damaged", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
+          _responsiveFields([
+            DropdownButtonFormField<String>(
                   value: _categoryFilter,
                   decoration: InputDecoration(labelText: isAr ? "الصنف" : "Category", prefixIcon: const Icon(Icons.folder_rounded)),
                   items: [
-                    DropdownMenuItem(value: "", child: Text(isAr ? "كل الأصناف" : "All categories")),
+                    DropdownMenuItem(value: "", child: Text(isAr ? "اختر الصنف" : "Choose category")),
                     ...categories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
                   ],
                   onChanged: (value) => setState(() {
                     _categoryFilter = value ?? "";
                     _subcategoryFilter = "";
+                    _productSearch.clear();
                     _clearActiveIfHidden();
                   }),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<String>(
+            DropdownButtonFormField<String>(
                   value: _subcategoryFilter,
                   decoration: InputDecoration(labelText: isAr ? "الصنف الفرعي" : "Subcategory", prefixIcon: const Icon(Icons.folder_copy_rounded)),
                   items: [
-                    DropdownMenuItem(value: "", child: Text(isAr ? "كل الأنواع" : "All subcategories")),
+                    DropdownMenuItem(value: "", child: Text(isAr ? "اختر الصنف الفرعي" : "Choose subcategory")),
                     ...subcategories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
                   ],
                   onChanged: (value) => setState(() {
                     _subcategoryFilter = value ?? "";
+                    _productSearch.clear();
                     _clearActiveIfHidden();
                   }),
                 ),
-              ),
-            ],
-          ),
+          ]),
           const SizedBox(height: 12),
           RawAutocomplete<_DamageChoice>(
             textEditingController: _productSearch,
             focusNode: _productFocus,
             displayStringForOption: (choice) => choice.label,
             optionsBuilder: (value) {
+              if (_categoryFilter.isEmpty || _subcategoryFilter.isEmpty) return const Iterable<_DamageChoice>.empty();
               final q = value.text.trim().toLowerCase();
               final filtered = choices.where((choice) {
                 if (q.isEmpty) return true;
@@ -325,7 +368,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                           leading: const CircleAvatar(child: Icon(Icons.inventory_2_rounded)),
                           title: Text(choice.label, maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: Text("${choice.category} > ${choice.subcategory}"),
-                          trailing: Text("${choice.quantity.toStringAsFixed(0)} ${choice.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                          trailing: Text("${number(choice.quantity)} ${choice.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
                           onTap: () => onSelected(choice),
                         );
                       },
@@ -339,36 +382,27 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
             const SizedBox(height: 8),
             Text(
               isAr
-                  ? "المتوفر: ${active.quantity.toStringAsFixed(0)} ${active.unit} | سعر الشراء: ${money(active.purchasePrice, active.purchaseCurrency)}"
-                  : "Available: ${active.quantity.toStringAsFixed(0)} ${active.unit} | Cost: ${money(active.purchasePrice, active.purchaseCurrency)}",
+                  ? "المتوفر: ${number(active.quantity)} ${active.unit} | سعر الشراء: ${money(active.purchasePrice, active.purchaseCurrency)}"
+                  : "Available: ${number(active.quantity)} ${active.unit} | Cost: ${money(active.purchasePrice, active.purchaseCurrency)}",
               style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w700),
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
+          _responsiveFields([
+            TextField(
                   controller: _quantity,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(labelText: isAr ? "الكمية التالفة" : "Damaged quantity", prefixIcon: const Icon(Icons.remove_circle_outline_rounded)),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
+            TextField(
                   controller: _unitCost,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(labelText: isAr ? "خسارة الوحدة" : "Loss per unit", prefixIcon: const Icon(Icons.payments_rounded)),
                 ),
-              ),
-            ],
-          ),
+          ]),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
+          _responsiveFields([
+            DropdownButtonFormField<String>(
                   value: _currency,
                   decoration: InputDecoration(labelText: isAr ? "عملة الخسارة" : "Loss currency"),
                   items: const [
@@ -377,16 +411,11 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                   ],
                   onChanged: (value) => setState(() => _currency = value ?? "LBP"),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
+            TextField(
                   controller: _reason,
                   decoration: InputDecoration(labelText: isAr ? "سبب التلف" : "Damage reason", prefixIcon: const Icon(Icons.note_alt_rounded)),
                 ),
-              ),
-            ],
-          ),
+          ]),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
@@ -434,7 +463,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text("${row.quantity.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                      Text(number(row.quantity), style: const TextStyle(fontWeight: FontWeight.w900)),
                       Text(money(row.totalCost, row.currency), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w900)),
                     ],
                   ),
@@ -485,9 +514,10 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   }
 
   List<_DamageChoice> _filteredChoices() {
+    if (_categoryFilter.isEmpty || _subcategoryFilter.isEmpty) return [];
     return _choices().where((choice) {
-      if (_categoryFilter.isNotEmpty && choice.category != _categoryFilter) return false;
-      if (_subcategoryFilter.isNotEmpty && choice.subcategory != _subcategoryFilter) return false;
+      if (choice.category != _categoryFilter) return false;
+      if (choice.subcategory != _subcategoryFilter) return false;
       return true;
     }).toList();
   }
@@ -500,7 +530,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
 
   List<String> _subcategoryOptions() {
     final rows = _choices()
-        .where((choice) => _categoryFilter.isEmpty || choice.category == _categoryFilter)
+        .where((choice) => _categoryFilter.isNotEmpty && choice.category == _categoryFilter)
         .map((choice) => choice.subcategory)
         .where((x) => x.trim().isNotEmpty)
         .toSet()
@@ -532,6 +562,31 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   String _formatDate(DateTime? date) {
     if (date == null) return "-";
     return date.toString().substring(0, 16);
+  }
+
+  Widget _responsiveFields(List<Widget> children) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                children[i],
+                if (i != children.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              Expanded(child: children[i]),
+              if (i != children.length - 1) const SizedBox(width: 10),
+            ],
+          ],
+        );
+      },
+    );
   }
 }
 

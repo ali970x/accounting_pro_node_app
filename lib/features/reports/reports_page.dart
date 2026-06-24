@@ -95,13 +95,13 @@ class _ReportsPageState extends State<ReportsPage> {
             ModernCard(
               child: Column(
                 children: [
-                  _rowItem(_label(isAr, "Invoices Count", "\u0639\u062f\u062f \u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631"), _num(_data["salesCount"]).toStringAsFixed(0), Icons.receipt),
+                  _rowItem(_label(isAr, "Invoices Count", "\u0639\u062f\u062f \u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631"), number(_num(_data["salesCount"])), Icons.receipt),
                   const Divider(),
-                  _rowItem(_label(isAr, "Products Count", "\u0639\u062f\u062f \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a"), _num(_data["productsCount"]).toStringAsFixed(0), Icons.inventory_2),
+                  _rowItem(_label(isAr, "Products Count", "\u0639\u062f\u062f \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a"), number(_num(_data["productsCount"])), Icons.inventory_2),
                   const Divider(),
                   _rowItem(_label(isAr, "Current Stock Value", "\u0642\u064a\u0645\u0629 \u0627\u0644\u0645\u062e\u0632\u0648\u0646"), money(_num(_data["inventoryValue"]), "USD"), Icons.warehouse),
                   const Divider(),
-                  _rowItem(_label(isAr, "Low Stock Items", "\u0645\u062e\u0632\u0648\u0646 \u0645\u0646\u062e\u0641\u0636"), _num(_data["lowStockCount"]).toStringAsFixed(0), Icons.warning_amber, color: Colors.orange),
+                  _rowItem(_label(isAr, "Low Stock Items", "\u0645\u062e\u0632\u0648\u0646 \u0645\u0646\u062e\u0641\u0636"), number(_num(_data["lowStockCount"])), Icons.warning_amber, color: Colors.orange),
                 ],
               ),
             ),
@@ -435,7 +435,7 @@ class _ReportsPageState extends State<ReportsPage> {
       contentPadding: EdgeInsets.zero,
       leading: const CircleAvatar(child: Icon(Icons.warning_amber_rounded)),
       title: Text((row["name"] ?? "").toString(), style: const TextStyle(fontWeight: FontWeight.w800)),
-      subtitle: Text("${quantity.toStringAsFixed(0)} / ${minStock.toStringAsFixed(0)} ${(row["unit"] ?? "").toString()}"),
+      subtitle: Text("${number(quantity)} / ${number(minStock)} ${(row["unit"] ?? "").toString()}"),
     );
   }
 
