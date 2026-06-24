@@ -81,7 +81,7 @@ class _GuideStep {
 }
 
 const _arabicSteps = [
-  _GuideStep("الدخول والحسابات", "ما عاد في إنشاء حساب عام. المدير ينشئ الحسابات من لوحة الإدارة، ويقدر يفعّل أو يحظر أي مستخدم."),
+  _GuideStep("الدخول والحسابات", "ما عاد في إنشاء حساب عام. المدير ينشئ الحسابات من لوحة الإدارة، ويقدر يفعّل أو يحظر أو يحذف أي مستخدم."),
   _GuideStep("أضف الموردين والزباين", "افتح الأسماء وأضف الموردين والزباين مع أرقام واتسابهم. هذا ضروري للديون والجردات والمشاركة."),
   _GuideStep("ابن المخزون", "من المخزون أضف التصنيف، التصنيف الفرعي، ونوعية الصنف. مثال: بطاطا > بطاطا حلوة > فئة أولى."),
   _GuideStep("ورّد الكمية من المورد", "افتح الصنف واضغط توريد كمية. اختر المورد، الكمية، سعر الشراء، والعملة. إذا بقي الحساب دين فعّل خيار الدين."),
@@ -92,12 +92,12 @@ const _arabicSteps = [
   _GuideStep("فلتر السجلات والديون", "استخدم يوم، أسبوع، شهر، أو تاريخ مخصص لعرض الفترة التي تريدها فقط."),
   _GuideStep("تابع التقارير", "التقارير تعرض المبيعات، المصاريف، الربح، الديون، التالف، والرسم الشهري. كبسة طويلة على صافي الربح تعرض الربح الفعلي بعد الديون."),
   _GuideStep("شارك الجردات والفواتير", "من المخزون شارك فاتورة الجردة العامة. ومن الأسماء شارك حركة البضاعة أو الجردة المالية عبر واتساب."),
-  _GuideStep("أرسل رأيك", "من صفحة حول التطبيق افتح رأيك واقتراحاتك واكتب ملاحظتك. سيتم تجهيز رسالة بريد إلكتروني للمطور مباشرة."),
+  _GuideStep("أرسل مراجعتك", "من صفحة حول التطبيق افتح رأيك واقتراحاتك واكتب ملاحظتك. التطبيق يرسلها للسيرفر، والسيرفر يوصلها للمطور بالإيميل عند ضبط SMTP."),
   _GuideStep("تصفير الأرباح", "زر تصفير الأرباح في التقارير يبدأ حساب الربح من لحظة الضغط، من دون حذف الفواتير القديمة."),
 ];
 
 const _englishSteps = [
-  _GuideStep("Login and accounts", "Public registration is disabled. The admin creates accounts and can activate or block any user."),
+  _GuideStep("Login and accounts", "Public registration is disabled. The admin creates accounts and can activate, block, or delete any user."),
   _GuideStep("Add contacts", "Add suppliers and customers with WhatsApp numbers. This powers debts, ledgers, and sharing."),
   _GuideStep("Build inventory", "Create category, subcategory, and item quality. Example: Potato > Sweet potato > Grade one."),
   _GuideStep("Receive stock", "Open an item and add stock. Pick supplier, quantity, cost, and currency. Mark as debt only when unpaid."),
@@ -108,6 +108,6 @@ const _englishSteps = [
   _GuideStep("Filter records and debts", "Use Day, Week, Month, or Custom Date to focus records and debts on the period you need."),
   _GuideStep("Use reports", "Reports show sales, expenses, profit, debts, damaged goods, and monthly charts. Long-press net profit to see actual profit after debts."),
   _GuideStep("Share statements", "Share the full inventory invoice from inventory, or goods/financial statements from contacts via WhatsApp."),
-  _GuideStep("Send feedback", "Open About, then Feedback & Suggestions, to email a note or feature idea to the developer."),
+  _GuideStep("Send feedback", "Open About, then Feedback & Suggestions. The app sends it to the server, and the server emails it to the developer when SMTP is configured."),
   _GuideStep("Reset profits", "Reset profits starts profit calculations from that moment without deleting old invoices."),
 ];

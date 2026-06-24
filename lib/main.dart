@@ -59,9 +59,9 @@ class DaftrApp extends StatelessWidget {
             theme: ThemeData(
               useMaterial3: true,
               colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF5B5FEF),
+                seedColor: controller.accent,
                 brightness: Brightness.light,
-                primary: const Color(0xFF5B5FEF),
+                primary: controller.accent,
                 secondary: const Color(0xFF00A6A6),
                 tertiary: const Color(0xFFFFB020),
                 surface: Colors.white,
@@ -81,7 +81,7 @@ class DaftrApp extends StatelessWidget {
               ),
               filledButtonTheme: FilledButtonThemeData(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF5B5FEF),
+                  backgroundColor: controller.accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -102,9 +102,9 @@ class DaftrApp extends StatelessWidget {
             darkTheme: ThemeData(
               useMaterial3: true,
               colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF7C83FF),
+                seedColor: controller.accent,
                 brightness: Brightness.dark,
-                primary: const Color(0xFF9EA3FF),
+                primary: controller.accent,
                 secondary: const Color(0xFF20D0C4),
                 tertiary: const Color(0xFFFFC15A),
               ),

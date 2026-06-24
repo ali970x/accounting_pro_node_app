@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
+import "../../core/money.dart";
 import "../../widgets/modern_card.dart";
 
 class SettingsPage extends StatefulWidget {
@@ -15,7 +16,17 @@ class _SettingsPageState extends State<SettingsPage> {
   final _rateController = TextEditingController();
   String? _selectedLang;
   ThemeMode? _selectedTheme;
+  String? _selectedAccent;
   bool _rateSet = false;
+
+  static const _accents = [
+    _Accent("#0F766E", "Emerald"),
+    _Accent("#2563EB", "Blue"),
+    _Accent("#7C3AED", "Violet"),
+    _Accent("#B45309", "Gold"),
+    _Accent("#DC2626", "Red"),
+    _Accent("#111827", "Graphite"),
+  ];
 
   @override
   void dispose() {
@@ -27,13 +38,17 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final theme = Theme.of(context);
+    final isAr = c.isArabic;
 
     _selectedLang ??= c.languageCode;
     _selectedTheme ??= c.themeMode;
+    _selectedAccent ??= c.accentColor;
     if (!_rateSet) {
-      _rateController.text = c.exchangeRate.toStringAsFixed(0);
+      _rateController.text = number(c.exchangeRate);
       _rateSet = true;
     }
+
+    final rate = _parseNumber(_rateController.text, fallback: c.exchangeRate);
 
     return ListView(
       padding: const EdgeInsets.all(18),
@@ -59,15 +74,24 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 22),
               _titleRow(Icons.contrast_rounded, c.t("theme")),
               const SizedBox(height: 10),
-              SegmentedButton<ThemeMode>(
-                showSelectedIcon: false,
-                segments: [
-                  ButtonSegment(value: ThemeMode.light, label: Text(c.t("light")), icon: const Icon(Icons.light_mode_rounded)),
-                  ButtonSegment(value: ThemeMode.dark, label: Text(c.t("dark")), icon: const Icon(Icons.dark_mode_rounded)),
-                  ButtonSegment(value: ThemeMode.system, label: Text(c.t("system")), icon: const Icon(Icons.devices_rounded)),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _themeChip(ThemeMode.light, c.t("light"), Icons.light_mode_rounded),
+                  _themeChip(ThemeMode.dark, c.t("dark"), Icons.dark_mode_rounded),
+                  _themeChip(ThemeMode.system, c.t("system"), Icons.devices_rounded),
                 ],
-                selected: {_selectedTheme ?? ThemeMode.light},
-                onSelectionChanged: (value) => setState(() => _selectedTheme = value.first),
+              ),
+              const SizedBox(height: 22),
+              _titleRow(Icons.palette_rounded, isAr ? "لون التطبيق" : "App color"),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final accent in _accents) _accentChip(accent),
+                ],
               ),
               const SizedBox(height: 22),
               _titleRow(Icons.currency_exchange_rounded, c.t("exchangeRate")),
@@ -75,25 +99,42 @@ class _SettingsPageState extends State<SettingsPage> {
               TextField(
                 controller: _rateController,
                 keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                onEditingComplete: () {
+                  final parsed = _parseNumber(_rateController.text, fallback: rate);
+                  _rateController.text = number(parsed);
+                  FocusScope.of(context).unfocus();
+                },
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.attach_money_rounded),
                   suffixText: "LBP",
-                  hintText: "90000",
+                  hintText: "90,000",
+                  helperText: isAr ? "استخدم الفواصل لتسهيل قراءة الأرقام الكبيرة." : "Commas are supported for easier reading.",
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
+              _ratePreview(rate, isAr),
+              const SizedBox(height: 22),
+              _infoStrip(
+                isAr ? "التغييرات تطبق مباشرة بعد الحفظ، وتبقى محفوظة على حسابك." : "Changes apply immediately after saving and stay attached to your account.",
+                Icons.info_outline_rounded,
+              ),
+              const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: FilledButton.icon(
                   onPressed: () async {
                     try {
+                      final parsedRate = _parseNumber(_rateController.text, fallback: 90000);
                       await c.saveSettings(
                         lang: _selectedLang!,
                         theme: _selectedTheme!,
-                        rate: double.tryParse(_rateController.text) ?? 90000,
+                        accent: _selectedAccent!,
+                        rate: parsedRate.toDouble(),
                       );
+                      _rateController.text = number(parsedRate);
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(c.t("save"))));
                     } catch (e) {
@@ -112,6 +153,93 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _themeChip(ThemeMode mode, String label, IconData icon) {
+    final selected = _selectedTheme == mode;
+    return ChoiceChip(
+      selected: selected,
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      onSelected: (_) => setState(() => _selectedTheme = mode),
+    );
+  }
+
+  Widget _accentChip(_Accent accent) {
+    final color = _colorFromHex(accent.hex);
+    final selected = _selectedAccent == accent.hex;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => setState(() => _selectedAccent = accent.hex),
+      child: Container(
+        width: 128,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? color : color.withOpacity(0.18), width: selected ? 2 : 1),
+        ),
+        child: Row(
+          children: [
+            Container(width: 24, height: 24, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(accent.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ratePreview(num rate, bool isAr) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _miniCard(isAr ? "دولار واحد" : "One USD", "${number(rate)} LBP", Icons.payments_rounded),
+        _miniCard(isAr ? "١٠٠ دولار" : "100 USD", "${number(rate * 100)} LBP", Icons.calculate_rounded),
+      ],
+    );
+  }
+
+  Widget _miniCard(String title, String value, IconData icon) {
+    final color = _colorFromHex(_selectedAccent ?? "#0F766E");
+    return Container(
+      width: 190,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.bodySmall),
+                Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoStrip(String text, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+  }
+
   Widget _titleRow(IconData icon, String title) {
     return Row(
       children: [
@@ -121,4 +249,20 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     );
   }
+
+  num _parseNumber(String value, {required num fallback}) {
+    return num.tryParse(value.replaceAll(",", "").trim()) ?? fallback;
+  }
+
+  Color _colorFromHex(String value) {
+    var clean = value.replaceAll("#", "").trim();
+    if (clean.length == 6) clean = "FF$clean";
+    return Color(int.tryParse(clean, radix: 16) ?? 0xFF0F766E);
+  }
+}
+
+class _Accent {
+  final String hex;
+  final String name;
+  const _Accent(this.hex, this.name);
 }

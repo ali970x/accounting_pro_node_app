@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter/foundation.dart";
 import "package:flutter/services.dart";
 import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
@@ -215,9 +216,9 @@ class _AboutPageState extends State<AboutPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isAr ? "رأيك واقتراحاتك" : "Feedback & Suggestions", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                Text(isAr ? "مراجعتك واقتراحاتك" : "Reviews & Suggestions", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
                 Text(
-                  isAr ? "اكتب ملاحظة أو فكرة جديدة لتصل مباشرة إلى المطور." : "Send a note or feature idea directly to the developer.",
+                  isAr ? "اكتب مراجعة أو فكرة جديدة، والسيرفر يوصلها للمطور مباشرة." : "Send a review or feature idea through the server.",
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
@@ -225,7 +226,7 @@ class _AboutPageState extends State<AboutPage> {
           ),
           IconButton.filledTonal(
             onPressed: _openFeedbackDialog,
-            tooltip: isAr ? "إرسال رأي" : "Send feedback",
+            tooltip: isAr ? "إرسال مراجعة" : "Send review",
             icon: const Icon(Icons.send_rounded),
           ),
         ],
@@ -370,7 +371,7 @@ class _AboutPageState extends State<AboutPage> {
       if (mounted) setState(() => _data = data);
 
       final latest = (data["latestVersion"] ?? data["version"] ?? AppVersion.display).toString();
-      final updateUrl = (data["updateUrl"] ?? "").toString();
+      final updateUrl = _preferredUpdateUrl(data);
       if (!_isNewerVersion(latest, AppVersion.display)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -457,61 +458,92 @@ class _AboutPageState extends State<AboutPage> {
     final isAr = AppScope.of(context).isArabic;
     final name = TextEditingController();
     final message = TextEditingController();
+    int rating = 5;
     final result = await showDialog<Map<String, String>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isAr ? "إرسال رأي أو اقتراح" : "Send Feedback"),
-        content: SizedBox(
-          width: 460,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: name, decoration: InputDecoration(labelText: isAr ? "اسمك اختياري" : "Your name (optional)")),
-              const SizedBox(height: 12),
-              TextField(
-                controller: message,
-                minLines: 4,
-                maxLines: 6,
-                decoration: InputDecoration(labelText: isAr ? "رأيك أو اقتراحك" : "Feedback or suggestion"),
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(isAr ? "إرسال مراجعة أو اقتراح" : "Send Review"),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: name, decoration: InputDecoration(labelText: isAr ? "اسمك اختياري" : "Your name (optional)")),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  value: rating,
+                  decoration: InputDecoration(labelText: isAr ? "التقييم" : "Rating"),
+                  items: const [
+                    DropdownMenuItem(value: 5, child: Text("5 / 5")),
+                    DropdownMenuItem(value: 4, child: Text("4 / 5")),
+                    DropdownMenuItem(value: 3, child: Text("3 / 5")),
+                    DropdownMenuItem(value: 2, child: Text("2 / 5")),
+                    DropdownMenuItem(value: 1, child: Text("1 / 5")),
+                  ],
+                  onChanged: (value) => setDialogState(() => rating = value ?? 5),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: message,
+                  minLines: 4,
+                  maxLines: 6,
+                  decoration: InputDecoration(labelText: isAr ? "رأيك أو اقتراحك" : "Feedback or suggestion"),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isAr ? "إلغاء" : "Cancel")),
+            FilledButton(
+              onPressed: () {
+                final text = message.text.trim();
+                if (text.isEmpty) return;
+                Navigator.pop(ctx, {"name": name.text.trim(), "message": text, "rating": rating.toString()});
+              },
+              child: Text(isAr ? "إرسال" : "Send"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isAr ? "إلغاء" : "Cancel")),
-          FilledButton(
-            onPressed: () {
-              final text = message.text.trim();
-              if (text.isEmpty) return;
-              Navigator.pop(ctx, {"name": name.text.trim(), "message": text});
-            },
-            child: Text(isAr ? "إرسال" : "Send"),
-          ),
-        ],
       ),
     );
     name.dispose();
     message.dispose();
     if (result == null) return;
 
-    final sender = result["name"]?.trim().isEmpty == false ? result["name"]!.trim() : "daftr user";
-    final body = "Sender: $sender\nVersion: ${AppVersion.display}\n\n${result["message"] ?? ""}";
-    final uri = Uri(
-      scheme: "mailto",
-      path: "alimjdandash@gmail.com",
-      queryParameters: {
-        "subject": "daftr Feedback",
-        "body": body,
-      },
-    );
-
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      await Clipboard.setData(ClipboardData(text: "alimjdandash@gmail.com\n\n$body"));
+    try {
+      final raw = await widget.api.post("/feedback", {
+        "name": result["name"],
+        "message": result["message"],
+        "rating": int.tryParse(result["rating"] ?? "5") ?? 5,
+        "appVersion": AppVersion.display,
+      });
+      final response = Map<String, dynamic>.from(raw as Map);
+      if (!mounted) return;
+      final sent = response["emailSent"] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            sent
+                ? _label(isAr, "Review sent directly to the developer.", "تم إرسال المراجعة مباشرة إلى المطور.")
+                : _label(isAr, "Review saved. Configure SMTP on the server to receive it by email.", "تم حفظ المراجعة. اضبط SMTP على السيرفر لتصلك بالإيميل."),
+          ),
+        ),
+      );
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isAr ? "تعذر فتح البريد. تم نسخ الرسالة والإيميل." : "Could not open email. Message and email copied.")),
+        SnackBar(content: Text(e.toString())),
       );
     }
+  }
+
+  String _preferredUpdateUrl(Map<String, dynamic> data) {
+    if (kIsWeb) return (data["webUrl"] ?? data["updateUrl"] ?? "").toString();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return (data["androidApkUrl"] ?? data["updateUrl"] ?? "").toString();
+    }
+    return (data["updateUrl"] ?? "").toString();
   }
 
   Future<void> _openWhatsapp(String phone) async {

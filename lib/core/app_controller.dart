@@ -10,6 +10,7 @@ class AppController extends ChangeNotifier {
   String languageCode = "en";
   ThemeMode themeMode = ThemeMode.light;
   double exchangeRate = 90000;
+  String accentColor = "#0F766E";
 
   AppController({
     required this.api,
@@ -32,25 +33,38 @@ class AppController extends ChangeNotifier {
       };
       final rate = data["exchangeRate"];
       exchangeRate = rate is num ? rate.toDouble() : double.tryParse("$rate") ?? 90000;
+      accentColor = (data["accentColor"] ?? "#0F766E").toString();
       notifyListeners();
     } catch (_) {}
   }
+
+  Color get accent => _colorFromHex(accentColor);
 
   Future<void> saveSettings({
     required String lang,
     required ThemeMode theme,
     required double rate,
+    required String accent,
   }) async {
     languageCode = lang;
     themeMode = theme;
     exchangeRate = rate;
+    accentColor = accent;
     notifyListeners();
 
     await api.put("/settings", {
       "languageCode": lang,
       "themeMode": theme.name,
+      "accentColor": accent,
       "exchangeRate": rate,
     });
+  }
+
+  Color _colorFromHex(String value) {
+    var clean = value.replaceAll("#", "").trim();
+    if (clean.length == 6) clean = "FF$clean";
+    final parsed = int.tryParse(clean, radix: 16);
+    return Color(parsed ?? 0xFF0F766E);
   }
 }
 

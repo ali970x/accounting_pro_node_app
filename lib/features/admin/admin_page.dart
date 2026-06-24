@@ -182,11 +182,52 @@ class _AdminPageState extends State<AdminPage> {
     }
 
     await _runAction(() async {
-      await widget.api.put("/admin/users/${user["id"]}/status", {
+      final raw = await widget.api.put("/admin/users/${user["id"]}/status", {
         "isActive": isActive,
         "reason": reason,
       });
+      final response = Map<String, dynamic>.from(raw as Map);
       await _load();
+      if (!mounted) return;
+      final sent = response["emailSent"] == true;
+      final message = isActive
+          ? sent
+              ? "User activated and email sent."
+              : "User activated. SMTP is not configured, so email was not sent."
+          : sent
+              ? "User blocked and reason email sent."
+              : "User blocked. SMTP is not configured, so reason email was not sent.";
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    });
+  }
+
+  Future<void> _deleteUser(Map<String, dynamic> row) async {
+    final user = _user(row);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete user"),
+        content: Text(
+          "This will permanently delete ${user["name"] ?? "this user"} and all related products, sales, expenses, debts, contacts, records, and feedback. Continue?",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete permanently"),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    await _runAction(() async {
+      await widget.api.delete("/admin/users/${user["id"]}");
+      _selectedId = null;
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User and related data deleted.")));
     });
   }
 
@@ -323,6 +364,7 @@ class _AdminPageState extends State<AdminPage> {
     final active = _num(_summary["activeUsers"]);
     final blocked = _num(_summary["blockedUsers"]);
     final admins = _num(_summary["admins"]);
+    final feedback = _num(_summary["pendingFeedback"]);
 
     return Wrap(
       spacing: 8,
@@ -332,6 +374,7 @@ class _AdminPageState extends State<AdminPage> {
         _chipStat("Active", number(active), Icons.verified_user_rounded, const Color(0xFF2563EB)),
         _chipStat("Blocked", number(blocked), Icons.block_rounded, const Color(0xFFDC2626)),
         _chipStat("Admins", number(admins), Icons.admin_panel_settings_rounded, const Color(0xFF7C3AED)),
+        _chipStat("New reviews", number(feedback), Icons.rate_review_rounded, const Color(0xFFB45309)),
       ],
     );
   }
@@ -402,6 +445,7 @@ class _AdminPageState extends State<AdminPage> {
                 _tinyMetric("Sales", counts["sales"]),
                 _tinyMetric("Debts", counts["openDebts"]),
                 _tinyMetric("Contacts", counts["contacts"]),
+                _tinyMetric("Reviews", counts["feedback"]),
               ],
             ),
           ],
@@ -484,6 +528,12 @@ class _AdminPageState extends State<AdminPage> {
                 icon: Icon(active ? Icons.block_rounded : Icons.verified_user_rounded),
                 label: Text(active ? "Block" : "Activate"),
               ),
+            if (!isAdmin)
+              OutlinedButton.icon(
+                onPressed: _working ? null : () => _deleteUser(row),
+                icon: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                label: const Text("Delete user"),
+              ),
           ],
         ),
         const SizedBox(height: 18),
@@ -497,6 +547,7 @@ class _AdminPageState extends State<AdminPage> {
             _metricBox("Expenses", counts["expenses"], Icons.payments_rounded, const Color(0xFFB45309)),
             _metricBox("Open debts", counts["openDebts"], Icons.account_balance_rounded, const Color(0xFFDC2626)),
             _metricBox("Low stock", counts["lowStock"], Icons.warning_amber_rounded, const Color(0xFFEA580C)),
+            _metricBox("Reviews", counts["feedback"], Icons.rate_review_rounded, const Color(0xFFB45309)),
           ],
         ),
         const SizedBox(height: 18),
@@ -516,6 +567,7 @@ class _AdminPageState extends State<AdminPage> {
         _latestList("Debts", _list(latest["debts"]), (item) => "${item["personName"] ?? ""} - ${item["status"] ?? ""}", (item) => money(_num(item["remainingAmount"]), (item["currency"] ?? "LBP").toString())),
         _latestList("Products", _list(latest["products"]), (item) => "${item["category"] ?? ""} / ${item["subcategory"] ?? ""}", (item) => "${item["name"] ?? ""}"),
         _latestList("Damaged goods", _list(latest["damages"]), (item) => "${item["productName"] ?? ""}", (item) => "Qty ${number(_num(item["difference"]).abs())}"),
+        _latestList("Reviews", _list(latest["feedback"]), (item) => "${item["name"] ?? "User"} - ${number(_num(item["rating"]))}/5", (item) => "${item["message"] ?? ""}"),
       ],
     );
   }
@@ -565,9 +617,18 @@ class _AdminPageState extends State<AdminPage> {
                     padding: const EdgeInsets.only(bottom: 7),
                     child: Row(
                       children: [
-                        Expanded(child: Text(leading(item), overflow: TextOverflow.ellipsis)),
+                        Expanded(flex: 3, child: Text(leading(item), overflow: TextOverflow.ellipsis)),
                         const SizedBox(width: 10),
-                        Text(trailing(item), style: const TextStyle(fontWeight: FontWeight.w800)),
+                        Flexible(
+                          flex: 2,
+                          child: Text(
+                            trailing(item),
+                            textAlign: TextAlign.end,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
                       ],
                     ),
                   );
