@@ -7,6 +7,7 @@ import "../../core/app_controller.dart";
 import "../../core/app_version.dart";
 import "../../core/phone_text.dart";
 import "../../core/text_download.dart";
+import "../../core/update_installer.dart";
 import "../../widgets/modern_card.dart";
 
 class AboutPage extends StatefulWidget {
@@ -449,38 +450,88 @@ class _AboutPageState extends State<AboutPage> {
       return;
     }
 
+    if (UpdateInstaller.canInstallInApp) {
+      await _downloadAndInstallInsideApp(updateUrl, version, isAr);
+      return;
+    }
+
+    final uri = Uri.parse(updateUrl);
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_label(isAr, "Could not open the update link.", "\u0644\u0645 \u064a\u0646\u062c\u062d \u0641\u062a\u062d \u0631\u0627\u0628\u0637 \u0627\u0644\u062a\u062d\u062f\u064a\u062b."))),
+      );
+    }
+  }
+
+  Future<void> _downloadAndInstallInsideApp(String updateUrl, String version, bool isAr) async {
+    final progress = ValueNotifier<double?>(0);
+    var dialogOpen = false;
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        content: Row(
-          children: [
-            const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 3)),
-            const SizedBox(width: 14),
-            Expanded(child: Text(_label(isAr, "Downloading update...", "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u062a\u062d\u062f\u064a\u062b..."))),
-          ],
-        ),
-      ),
+      builder: (ctx) {
+        dialogOpen = true;
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: Text(_label(isAr, "Downloading update", "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u062a\u062d\u062f\u064a\u062b")),
+            content: ValueListenableBuilder<double?>(
+              valueListenable: progress,
+              builder: (context, value, _) {
+                final percent = value == null ? null : (value * 100).clamp(0, 100).round();
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(value: value),
+                    const SizedBox(height: 14),
+                    Text(
+                      percent == null
+                          ? _label(isAr, "Downloading Daftr update inside the app...", "\u0639\u0645 \u064a\u0646\u0632\u0644 \u062a\u062d\u062f\u064a\u062b Daftr \u062f\u0627\u062e\u0644 \u0627\u0644\u062a\u0637\u0628\u064a\u0642...")
+                          : _label(isAr, "$percent% downloaded", "\u062a\u0645 \u062a\u062d\u0645\u064a\u0644 $percent%"),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _label(isAr, "The installer will open automatically when the download finishes.", "\u0628\u0633 \u064a\u062e\u0644\u0635 \u0627\u0644\u062a\u062d\u0645\u064a\u0644 \u0631\u062d \u062a\u0641\u062a\u062d \u0634\u0627\u0634\u0629 \u0627\u0644\u062a\u062b\u0628\u064a\u062a \u062a\u0644\u0642\u0627\u0626\u064a\u0627."),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
-    try {
-      final uri = Uri.parse(updateUrl);
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      await Future<void>.delayed(const Duration(milliseconds: 900));
-    } finally {
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
-    }
 
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_label(isAr, "Ready to install", "\u062c\u0627\u0647\u0632 \u0644\u0644\u062a\u062b\u0628\u064a\u062a")),
-        content: Text(_label(isAr, "When the download finishes, open the downloaded file and install version $version.", "\u0628\u0633 \u064a\u062e\u0644\u0635 \u0627\u0644\u062a\u062d\u0645\u064a\u0644\u060c \u0627\u0641\u062a\u062d \u0627\u0644\u0645\u0644\u0641 \u0648\u062b\u0628\u062a \u0627\u0644\u0625\u0635\u062f\u0627\u0631 $version.")),
-        actions: [
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(_label(isAr, "OK", "\u062a\u0645"))),
-        ],
-      ),
-    );
+    try {
+      await UpdateInstaller.downloadAndInstallApk(
+        url: updateUrl,
+        filename: "Daftr-v$version.apk",
+        onProgress: (value) => progress.value = value,
+      );
+      if (!mounted) return;
+      if (dialogOpen) Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_label(isAr, "Install screen opened. Tap Install to finish.", "\u0641\u062a\u062d\u062a \u0634\u0627\u0634\u0629 \u0627\u0644\u062a\u062b\u0628\u064a\u062a. \u0627\u0636\u063a\u0637 \u062a\u062b\u0628\u064a\u062a \u0644\u0644\u0625\u0643\u0645\u0627\u0644."))),
+      );
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      if (dialogOpen) Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? _label(isAr, "Could not install the update.", "\u0644\u0645 \u064a\u0646\u062c\u062d \u062a\u062b\u0628\u064a\u062a \u0627\u0644\u062a\u062d\u062f\u064a\u062b."))),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      if (dialogOpen) Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_label(isAr, "Could not download the update. Check your internet connection.", "\u0644\u0645 \u064a\u0646\u062c\u062d \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u062a\u062d\u062f\u064a\u062b. \u062a\u0623\u0643\u062f \u0645\u0646 \u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a."))),
+      );
+    } finally {
+      progress.dispose();
+    }
   }
 
   bool _isNewerVersion(String remote, String local) {
