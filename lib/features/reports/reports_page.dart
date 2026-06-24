@@ -3,6 +3,7 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class ReportsPage extends StatefulWidget {
   final ApiClient api;
@@ -56,9 +57,9 @@ class _ReportsPageState extends State<ReportsPage> {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(c.t("reports"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900))),
+          PageHeader(
+            title: c.t("reports"),
+            actions: [
               FilledButton.icon(
                 onPressed: _resetProfits,
                 icon: const Icon(Icons.restart_alt_rounded),

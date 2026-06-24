@@ -5,6 +5,7 @@ import "../../core/money.dart";
 import "../../models/app_record.dart";
 import "../../widgets/date_filter_bar.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class RecordsPage extends StatefulWidget {
   final ApiClient api;
@@ -55,7 +56,7 @@ class _RecordsPageState extends State<RecordsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(isAr ? "\u0627\u0644\u0633\u062c\u0644\u0627\u062a" : "Records", style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+            PageHeader(title: isAr ? "\u0627\u0644\u0633\u062c\u0644\u0627\u062a" : "Records"),
             const SizedBox(height: 12),
             DateFilterBar(
               isArabic: isAr,

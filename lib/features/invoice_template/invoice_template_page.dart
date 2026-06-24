@@ -3,6 +3,7 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../models/invoice_template.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class InvoiceTemplatePage extends StatefulWidget {
   final ApiClient api;
@@ -120,7 +121,7 @@ class _InvoiceTemplatePageState extends State<InvoiceTemplatePage> {
         final form = ModernCard(
           child: ListView(
             children: [
-              Text(c.t("invoiceTemplate"), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+              PageHeader(title: c.t("invoiceTemplate")),
               const SizedBox(height: 12),
               field(c.t("businessName"), businessName),
               field(c.t("businessPhone"), businessPhone),

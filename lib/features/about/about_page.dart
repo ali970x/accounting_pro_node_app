@@ -9,6 +9,7 @@ import "../../core/phone_text.dart";
 import "../../core/text_download.dart";
 import "../../core/update_installer.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class AboutPage extends StatefulWidget {
   final ApiClient api;
@@ -61,7 +62,7 @@ class _AboutPageState extends State<AboutPage> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(c.t("about"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+          PageHeader(title: c.t("about")),
           const SizedBox(height: 18),
           if (_loading)
             const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))

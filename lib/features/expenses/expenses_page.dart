@@ -3,6 +3,7 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class ExpensesPage extends StatefulWidget {
   final ApiClient api;
@@ -105,9 +106,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(c.t("expenses"), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900))),
+          PageHeader(
+            title: c.t("expenses"),
+            actions: [
               FilledButton.icon(onPressed: () => _addOrEdit(), icon: const Icon(Icons.add), label: Text(_label(isAr, "New Expense", "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f"))),
             ],
           ),

@@ -58,8 +58,23 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException("Connection timed out. Check that the server is running.");
     } on http.ClientException catch (e) {
-      throw ApiException(e.message);
+      throw ApiException(_friendlyClientMessage(e.message));
+    } on FormatException {
+      throw ApiException("Could not connect to the server. Check your internet connection.");
     }
+  }
+
+  String _friendlyClientMessage(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains("failed to fetch") ||
+        lower.contains("xmlhttprequest") ||
+        lower.contains("socket") ||
+        lower.contains("connection") ||
+        lower.contains("http://") ||
+        lower.contains("https://")) {
+      return "Could not connect to the server. Check your internet connection.";
+    }
+    return raw.replaceAll(RegExp(r"uri=https?:\/\/\S+", caseSensitive: false), "").trim();
   }
 
   dynamic _handle(http.Response r) {

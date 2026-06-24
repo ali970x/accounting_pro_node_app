@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "../../core/app_controller.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class HelpPage extends StatelessWidget {
   const HelpPage({super.key});
@@ -15,7 +16,7 @@ class HelpPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        Text(isAr ? "دليل الاستخدام" : "User Guide", style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+        PageHeader(title: isAr ? "دليل الاستخدام" : "User Guide"),
         const SizedBox(height: 14),
         ModernCard(
           padding: const EdgeInsets.all(18),

@@ -5,6 +5,7 @@ import "../../core/money.dart";
 import "../../models/contact.dart";
 import "../../widgets/date_filter_bar.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class DebtsPage extends StatefulWidget {
   final ApiClient api;
@@ -163,9 +164,9 @@ class _DebtsPageState extends State<DebtsPage> {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(c.t("debts"), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900))),
+          PageHeader(
+            title: c.t("debts"),
+            actions: [
               FilledButton.icon(
                 onPressed: () => _addOrEdit(),
                 icon: const Icon(Icons.add),

@@ -10,6 +10,7 @@ import "../../models/product.dart";
 import "../../models/sale.dart";
 import "../../models/contact.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 import "../contacts/contacts_page.dart";
 
 class SalesPage extends StatefulWidget {
@@ -326,7 +327,7 @@ class _SalesPageState extends State<SalesPage> {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          Text(c.t("sales"), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+          PageHeader(title: c.t("sales")),
           const SizedBox(height: 14),
           ModernCard(
             padding: const EdgeInsets.all(20),

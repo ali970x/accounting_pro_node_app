@@ -3,6 +3,7 @@ import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class SettingsPage extends StatefulWidget {
   final ApiClient api;
@@ -53,7 +54,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        Text(c.t("settings"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+        PageHeader(title: c.t("settings")),
         const SizedBox(height: 14),
         ModernCard(
           padding: const EdgeInsets.all(20),

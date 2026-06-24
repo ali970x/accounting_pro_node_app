@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 
 import "core/api_client.dart";
-import "core/app_config.dart";
 import "core/app_controller.dart";
 import "core/session_store.dart";
 import "features/admin/admin_page.dart";
@@ -190,7 +189,7 @@ class _StartupPageState extends State<_StartupPage> {
                 const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
                 const SizedBox(height: 14),
                 Text(
-                  _status ?? "Connecting to ${AppConfig.baseUrl}",
+                  _status ?? "Preparing daftr...",
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),

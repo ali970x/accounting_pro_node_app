@@ -9,6 +9,7 @@ import "../../core/pdf/pdf_service.dart";
 import "../../models/contact.dart";
 import "../../models/invoice_template.dart";
 import "../../widgets/modern_card.dart";
+import "../../widgets/page_header.dart";
 
 class ContactsPage extends StatefulWidget {
   final ApiClient api;
@@ -124,10 +125,7 @@ class _ContactsPageState extends State<ContactsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    c.t("contacts"),
-                    style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
-                  ),
+                  PageHeader(title: c.t("contacts")),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _search,
