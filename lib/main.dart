@@ -1,477 +1,199 @@
-import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import "package:flutter/material.dart";
 
-const String apiBaseUrl = String.fromEnvironment(
-  'API_URL',
-  defaultValue: 'http://localhost:4000',
-);
+import "core/api_client.dart";
+import "core/app_config.dart";
+import "core/app_controller.dart";
+import "core/session_store.dart";
+import "features/admin/admin_page.dart";
+import "features/auth/login_page.dart";
+import "features/home/home_page.dart";
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const DaftrApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DaftrApp extends StatefulWidget {
+  const DaftrApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Flutter Production App',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xfff6f8fb),
-      ),
-      home: const StartupPage(),
-    );
-  }
+  State<DaftrApp> createState() => _DaftrAppState();
 }
 
-class ApiResult {
-  final bool ok;
-  final int statusCode;
-  final String message;
-  final dynamic data;
+class _DaftrAppState extends State<DaftrApp> {
+  late final SessionStore _sessionStore;
+  late final ApiClient _api;
+  late final AppController _controller;
 
-  ApiResult({
-    required this.ok,
-    required this.statusCode,
-    required this.message,
-    this.data,
-  });
-}
-
-class ApiService {
-  static Uri url(String path) {
-    return Uri.parse('$apiBaseUrl$path');
-  }
-
-  static Map<String, String> headers({String? token}) {
-    return {
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-  }
-
-  static ApiResult parseResponse(http.Response response) {
-    dynamic decodedBody;
-
-    try {
-      decodedBody = jsonDecode(response.body);
-    } catch (_) {
-      decodedBody = response.body;
-    }
-
-    String message = 'Request completed';
-
-    if (decodedBody is Map && decodedBody['message'] != null) {
-      message = decodedBody['message'].toString();
-    } else if (response.body.isNotEmpty) {
-      message = response.body;
-    }
-
-    return ApiResult(
-      ok: response.statusCode >= 200 && response.statusCode < 300,
-      statusCode: response.statusCode,
-      message: message,
-      data: decodedBody,
-    );
-  }
-
-  static Future<ApiResult> get(String path, {String? token}) async {
-    try {
-      final response = await http.get(
-        url(path),
-        headers: headers(token: token),
-      );
-
-      return parseResponse(response);
-    } catch (error) {
-      return ApiResult(
-        ok: false,
-        statusCode: 0,
-        message: 'Cannot connect to API: $error',
-      );
-    }
-  }
-
-  static Future<ApiResult> post(
-    String path,
-    Map<String, dynamic> body, {
-    String? token,
-  }) async {
-    try {
-      final response = await http.post(
-        url(path),
-        headers: headers(token: token),
-        body: jsonEncode(body),
-      );
-
-      return parseResponse(response);
-    } catch (error) {
-      return ApiResult(
-        ok: false,
-        statusCode: 0,
-        message: 'Cannot connect to API: $error',
-      );
-    }
-  }
-}
-
-class AuthSession {
-  static const String tokenKey = 'auth_token';
-  static const String userNameKey = 'user_name';
-  static const String userEmailKey = 'user_email';
-
-  static Future<void> save({
-    required String token,
-    required String userName,
-    required String userEmail,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(tokenKey, token);
-    await prefs.setString(userNameKey, userName);
-    await prefs.setString(userEmailKey, userEmail);
-  }
-
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(tokenKey);
-  }
-
-  static Future<String?> getUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(userNameKey);
-  }
-
-  static Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(tokenKey);
-    await prefs.remove(userNameKey);
-    await prefs.remove(userEmailKey);
-  }
-}
-
-class StartupPage extends StatefulWidget {
-  const StartupPage({super.key});
-
-  @override
-  State<StartupPage> createState() => _StartupPageState();
-}
-
-class _StartupPageState extends State<StartupPage> {
   @override
   void initState() {
     super.initState();
-    checkSession();
+    _sessionStore = SessionStore();
+    _api = ApiClient(_sessionStore);
+    _controller = AppController(api: _api, sessionStore: _sessionStore);
+    Future.microtask(_controller.loadSettings);
   }
 
-  Future<void> checkSession() async {
-    final token = await AuthSession.getToken();
+  @override
+  Widget build(BuildContext context) {
+    return AppScope(
+      controller: _controller,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: "daftr",
+            themeMode: _controller.themeMode,
+            theme: _theme(_controller, Brightness.light),
+            darkTheme: _theme(_controller, Brightness.dark),
+            home: _StartupPage(api: _api, sessionStore: _sessionStore),
+          );
+        },
+      ),
+    );
+  }
 
-    if (token == null || token.isEmpty) {
-      goToAuth();
-      return;
-    }
-
-    final result = await ApiService.get('/api/me', token: token);
-
-    if (!mounted) return;
-
-    if (result.ok && result.data is Map && result.data['user'] is Map) {
-      final user = result.data['user'] as Map;
-      final name = user['name']?.toString() ?? 'User';
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardPage(userName: name),
+  ThemeData _theme(AppController controller, Brightness brightness) {
+    final scheme = ColorScheme.fromSeed(seedColor: controller.accent, brightness: brightness);
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surface,
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest.withOpacity(brightness == Brightness.dark ? 0.28 : 0.48),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.primary, width: 1.7),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        indicatorColor: scheme.primaryContainer,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      ),
+    );
+  }
+}
+
+class _StartupPage extends StatefulWidget {
+  final ApiClient api;
+  final SessionStore sessionStore;
+
+  const _StartupPage({
+    required this.api,
+    required this.sessionStore,
+  });
+
+  @override
+  State<_StartupPage> createState() => _StartupPageState();
+}
+
+class _StartupPageState extends State<_StartupPage> {
+  String? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_openInitialPage);
+  }
+
+  Future<void> _openInitialPage() async {
+    final isLoggedIn = await widget.sessionStore.isLoggedIn();
+    if (!isLoggedIn) {
+      _replace(LoginPage(api: widget.api, sessionStore: widget.sessionStore));
+      return;
+    }
+
+    try {
+      final data = await widget.api.get("/auth/me");
+      final user = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      final token = await widget.sessionStore.getToken();
+      final storedName = await widget.sessionStore.getName();
+      final storedEmail = await widget.sessionStore.getEmail();
+      final storedRole = await widget.sessionStore.getRole();
+      if (token != null && token.isNotEmpty) {
+        await widget.sessionStore.saveSession(
+          token: token,
+          name: (user["name"] ?? storedName ?? "").toString(),
+          email: (user["email"] ?? storedEmail ?? "").toString(),
+          role: (user["role"] ?? storedRole ?? "owner").toString(),
+        );
+      }
+
+      if (!mounted) return;
+      final role = (user["role"] ?? storedRole ?? "owner").toString();
+      _replace(
+        role == "admin"
+            ? AdminPage(api: widget.api, sessionStore: widget.sessionStore)
+            : HomePage(api: widget.api, sessionStore: widget.sessionStore),
       );
-    } else {
-      await AuthSession.clear();
-      goToAuth();
+    } catch (_) {
+      await widget.sessionStore.clear();
+      if (!mounted) return;
+      setState(() => _status = "Login again to continue.");
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      _replace(LoginPage(api: widget.api, sessionStore: widget.sessionStore));
     }
   }
 
-  void goToAuth() {
+  void _replace(Widget page) {
     if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AuthPage(),
-      ),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-}
-
-class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
-
-  @override
-  State<AuthPage> createState() => _AuthPageState();
-}
-
-class _AuthPageState extends State<AuthPage> {
-  bool isLogin = true;
-  bool isLoading = false;
-  String message = '';
-
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> checkApi() async {
-    setState(() {
-      isLoading = true;
-      message = '';
-    });
-
-    final result = await ApiService.get('/health');
-
-    setState(() {
-      isLoading = false;
-      message = result.ok ? 'API is working: ${result.message}' : result.message;
-    });
-  }
-
-  Future<void> submit() async {
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-
-    if (!isLogin && name.isEmpty) {
-      setState(() => message = 'Name is required');
-      return;
-    }
-
-    if (email.isEmpty || password.isEmpty) {
-      setState(() => message = 'Email and password are required');
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-      message = '';
-    });
-
-    final endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-
-    final result = await ApiService.post(endpoint, {
-      if (!isLogin) 'name': name,
-      'email': email,
-      'password': password,
-    });
-
-    setState(() {
-      isLoading = false;
-      message = result.message;
-    });
-
-    if (!result.ok) return;
-
-    if (result.data is! Map) {
-      setState(() => message = 'Invalid API response');
-      return;
-    }
-
-    final data = result.data as Map;
-    final token = data['token']?.toString();
-
-    if (token == null || token.isEmpty) {
-      setState(() => message = 'Token missing from API response');
-      return;
-    }
-
-    final user = data['user'];
-
-    String userName = email;
-    String userEmail = email;
-
-    if (user is Map) {
-      userName = user['name']?.toString() ?? email;
-      userEmail = user['email']?.toString() ?? email;
-    }
-
-    await AuthSession.save(
-      token: token,
-      userName: userName,
-      userEmail: userEmail,
-    );
-
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DashboardPage(userName: userName),
-      ),
-    );
-  }
-
-  void continueDemo() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const DashboardPage(userName: 'Demo User'),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 420,
-          margin: const EdgeInsets.all(20),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 25,
-                color: Colors.black.withOpacity(0.08),
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: SingleChildScrollView(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.lock_rounded,
-                  size: 54,
-                  color: Colors.blue,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.asset(
+                    "assets/brand/daftr_logo.jpeg",
+                    width: 190,
+                    height: 190,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Icon(Icons.account_balance_wallet_rounded, size: 104, color: theme.colorScheme.primary),
+                  ),
                 ),
+                const SizedBox(height: 18),
+                Text("daftr", style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: 0)),
                 const SizedBox(height: 12),
-                Text(
-                  isLogin ? 'Login' : 'Create Account',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'API: $apiBaseUrl',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                if (!isLogin)
-                  AppTextField(
-                    controller: nameController,
-                    label: 'Name',
-                    icon: Icons.person_outline,
-                  ),
-                if (!isLogin) const SizedBox(height: 14),
-                AppTextField(
-                  controller: emailController,
-                  label: 'Email',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                ),
+                const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3)),
                 const SizedBox(height: 14),
-                AppTextField(
-                  controller: passwordController,
-                  label: 'Password',
-                  icon: Icons.lock_outline,
-                  obscureText: true,
+                Text(
+                  _status ?? "Connecting to ${AppConfig.baseUrl}",
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: FilledButton(
-                    onPressed: isLoading ? null : submit,
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(isLogin ? 'Login' : 'Register'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          setState(() {
-                            isLogin = !isLogin;
-                            message = '';
-                          });
-                        },
-                  child: Text(
-                    isLogin
-                        ? 'Need an account? Register'
-                        : 'Already have an account? Login',
-                  ),
-                ),
-                const Divider(height: 28),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: isLoading ? null : checkApi,
-                        icon: const Icon(Icons.cloud_done_outlined),
-                        label: const Text('Check API'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: isLoading ? null : continueDemo,
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: const Text('Demo'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (message.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -479,280 +201,4 @@ class _AuthPageState extends State<AuthPage> {
       ),
     );
   }
-}
-
-class AppTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final bool obscureText;
-  final TextInputType keyboardType;
-
-  const AppTextField({
-    super.key,
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.obscureText = false,
-    this.keyboardType = TextInputType.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-    );
-  }
-}
-
-class DashboardPage extends StatefulWidget {
-  final String userName;
-
-  const DashboardPage({
-    super.key,
-    required this.userName,
-  });
-
-  @override
-  State<DashboardPage> createState() => _DashboardPageState();
-}
-
-class _DashboardPageState extends State<DashboardPage> {
-  bool isLoading = true;
-  String message = '';
-  List<dynamic> users = [];
-
-  @override
-  void initState() {
-    super.initState();
-    fetchUsers();
-  }
-
-  Future<void> fetchUsers() async {
-    setState(() {
-      isLoading = true;
-      message = '';
-    });
-
-    final token = await AuthSession.getToken();
-
-    if (token == null || token.isEmpty) {
-      setState(() {
-        isLoading = false;
-        message = 'No token found. Please login.';
-      });
-      return;
-    }
-
-    final result = await ApiService.get('/api/users', token: token);
-
-    if (!mounted) return;
-
-    if (result.ok && result.data is Map && result.data['users'] is List) {
-      setState(() {
-        users = result.data['users'] as List;
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        message = result.message;
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<void> logout() async {
-    await AuthSession.clear();
-
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AuthPage(),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final List<_DashboardCardData> cards = [
-      _DashboardCardData(
-        title: 'Users',
-        value: users.length.toString(),
-        icon: Icons.people_outline,
-      ),
-      _DashboardCardData(
-        title: 'Database',
-        value: 'PostgreSQL',
-        icon: Icons.storage_outlined,
-      ),
-      _DashboardCardData(
-        title: 'API',
-        value: 'Express',
-        icon: Icons.api_outlined,
-      ),
-      _DashboardCardData(
-        title: 'Auth',
-        value: 'JWT',
-        icon: Icons.verified_user_outlined,
-      ),
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: fetchUsers,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          IconButton(
-            tooltip: 'Logout',
-            onPressed: logout,
-            icon: const Icon(Icons.logout_rounded),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${widget.userName}',
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Token is saved locally. Protected API routes are working.',
-              style: TextStyle(
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 22),
-            GridView.builder(
-              shrinkWrap: true,
-              itemCount: cards.length,
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 260,
-                mainAxisExtent: 140,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-              ),
-              itemBuilder: (context, index) {
-                final card = cards[index];
-
-                return Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 18,
-                        color: Colors.black.withOpacity(0.06),
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(card.icon, size: 34, color: Colors.blue),
-                      const Spacer(),
-                      Text(
-                        card.value,
-                        style: const TextStyle(
-                          fontSize: 23,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        card.title,
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Registered Users',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : message.isNotEmpty
-                      ? Center(child: Text(message))
-                      : users.isEmpty
-                          ? const Center(child: Text('No users yet'))
-                          : ListView.separated(
-                              itemCount: users.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final user = users[index];
-
-                                return Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: ListTile(
-                                    leading: const CircleAvatar(
-                                      child: Icon(Icons.person_outline),
-                                    ),
-                                    title: Text(
-                                      user['name']?.toString() ?? 'No name',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      user['email']?.toString() ?? 'No email',
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardCardData {
-  final String title;
-  final String value;
-  final IconData icon;
-
-  _DashboardCardData({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
 }

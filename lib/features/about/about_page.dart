@@ -129,7 +129,7 @@ class _AboutPageState extends State<AboutPage> {
             const SizedBox(height: 16),
             _developerCard(),
             const SizedBox(height: 16),
-            _feedbackCard(isAr),
+            _feedbackCardClean(isAr),
             const SizedBox(height: 16),
             _updatesCard(isAr, version, notes),
           ],
@@ -194,6 +194,47 @@ class _AboutPageState extends State<AboutPage> {
           GestureDetector(
             onLongPress: () => _copyText(developerMail),
             child: _infoRow("Email", developerMail, Icons.mail_rounded, const Color(0xFF5B5FEF)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _feedbackCardClean(bool isAr) {
+    final theme = Theme.of(context);
+    return ModernCard(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: const Color(0xFF00A6A6).withOpacity(0.14), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.feedback_rounded, color: Color(0xFF008B8B)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _label(isAr, "Reviews & Suggestions", "\u0645\u0631\u0627\u062c\u0639\u062a\u0643 \u0648\u0627\u0642\u062a\u0631\u0627\u062d\u0627\u062a\u0643"),
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  _label(
+                    isAr,
+                    "Send a review or feature idea through the server.",
+                    "\u0627\u0643\u062a\u0628 \u0645\u0631\u0627\u062c\u0639\u0629 \u0623\u0648 \u0641\u0643\u0631\u0629 \u062c\u062f\u064a\u062f\u0629\u060c \u0648\u0627\u0644\u0633\u064a\u0631\u0641\u0631 \u064a\u0648\u0635\u0644\u0647\u0627 \u0644\u0644\u0645\u0637\u0648\u0631 \u0645\u0628\u0627\u0634\u0631\u0629.",
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          IconButton.filledTonal(
+            onPressed: _openFeedbackDialogSafe,
+            tooltip: _label(isAr, "Send review", "\u0625\u0631\u0633\u0627\u0644 \u0645\u0631\u0627\u062c\u0639\u0629"),
+            icon: const Icon(Icons.send_rounded),
           ),
         ],
       ),
@@ -452,6 +493,104 @@ class _AboutPageState extends State<AboutPage> {
       if (rv < lv) return false;
     }
     return false;
+  }
+
+  Future<void> _openFeedbackDialogSafe() async {
+    final isAr = AppScope.of(context).isArabic;
+    final name = TextEditingController();
+    final message = TextEditingController();
+    int rating = 5;
+    final result = await showDialog<Map<String, Object?>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          title: Text(_label(isAr, "Send Review", "\u0625\u0631\u0633\u0627\u0644 \u0645\u0631\u0627\u062c\u0639\u0629 \u0623\u0648 \u0627\u0642\u062a\u0631\u0627\u062d")),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 460,
+              maxHeight: MediaQuery.of(context).size.height * 0.68,
+            ),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(labelText: _label(isAr, "Your name (optional)", "\u0627\u0633\u0645\u0643 \u0627\u062e\u062a\u064a\u0627\u0631\u064a")),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    value: rating,
+                    decoration: InputDecoration(labelText: _label(isAr, "Rating", "\u0627\u0644\u062a\u0642\u064a\u064a\u0645")),
+                    items: const [
+                      DropdownMenuItem(value: 5, child: Text("5 / 5")),
+                      DropdownMenuItem(value: 4, child: Text("4 / 5")),
+                      DropdownMenuItem(value: 3, child: Text("3 / 5")),
+                      DropdownMenuItem(value: 2, child: Text("2 / 5")),
+                      DropdownMenuItem(value: 1, child: Text("1 / 5")),
+                    ],
+                    onChanged: (value) => setDialogState(() => rating = value ?? 5),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: message,
+                    minLines: 4,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.newline,
+                    decoration: InputDecoration(labelText: _label(isAr, "Feedback or suggestion", "\u0631\u0623\u064a\u0643 \u0623\u0648 \u0627\u0642\u062a\u0631\u0627\u062d\u0643")),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(_label(isAr, "Cancel", "\u0625\u0644\u063a\u0627\u0621"))),
+            FilledButton(
+              onPressed: () {
+                final text = message.text.trim();
+                if (text.isEmpty) return;
+                Navigator.pop(ctx, {"name": name.text.trim(), "message": text, "rating": rating});
+              },
+              child: Text(_label(isAr, "Send", "\u0625\u0631\u0633\u0627\u0644")),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    message.dispose();
+    if (result == null) return;
+
+    try {
+      final raw = await widget.api.post("/feedback", {
+        "name": (result["name"] ?? "").toString(),
+        "message": (result["message"] ?? "").toString(),
+        "rating": result["rating"] is int ? result["rating"] : int.tryParse((result["rating"] ?? "5").toString()) ?? 5,
+        "appVersion": AppVersion.display,
+      });
+      final response = raw is Map ? Map<String, dynamic>.from(raw as Map) : <String, dynamic>{};
+      if (!mounted) return;
+      final sent = response["emailSent"] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            sent
+                ? _label(isAr, "Review sent directly to the developer.", "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0637\u0648\u0631.")
+                : _label(isAr, "Review saved. Configure SMTP on the server to receive it by email.", "\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629. \u0627\u0636\u0628\u0637 SMTP \u0639\u0644\u0649 \u0627\u0644\u0633\u064a\u0631\u0641\u0631 \u0644\u062a\u0635\u0644\u0643 \u0628\u0627\u0644\u0625\u064a\u0645\u064a\u0644."),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_label(isAr, "Could not send the review. Check the internet connection and try again.", "\u0644\u0645 \u064a\u0646\u062c\u062d \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629. \u062a\u0623\u0643\u062f \u0645\u0646 \u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0648\u062c\u0631\u0628 \u0645\u0631\u0629 \u062b\u0627\u0646\u064a\u0629.")),
+        ),
+      );
+    }
   }
 
   Future<void> _openFeedbackDialog() async {

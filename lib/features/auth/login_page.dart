@@ -77,53 +77,93 @@ class _LoginPageState extends State<LoginPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 430,
-          padding: const EdgeInsets.all(22),
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: Padding(
-              padding: const EdgeInsets.all(26),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Image.asset(
-                      "assets/brand/daftr_logo.jpeg",
-                      height: 118,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => CircleAvatar(
-                        radius: 42,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        child: Icon(Icons.account_balance_wallet_rounded, size: 42, color: theme.colorScheme.primary),
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 720;
+            final logoHeight = compact ? 132.0 : 168.0;
+
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(18, compact ? 14 : 28, 18, 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - (compact ? 28 : 52)),
+                child: Center(
+                  child: SizedBox(
+                    width: 430,
+                    child: Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      child: Padding(
+                        padding: EdgeInsets.all(compact ? 20 : 26),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.asset(
+                                "assets/brand/daftr_logo.jpeg",
+                                height: logoHeight,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => CircleAvatar(
+                                  radius: 48,
+                                  backgroundColor: theme.colorScheme.primaryContainer,
+                                  child: Icon(Icons.account_balance_wallet_rounded, size: 48, color: theme.colorScheme.primary),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: compact ? 12 : 18),
+                            Text(c.t("app"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: 0)),
+                            SizedBox(height: compact ? 14 : 18),
+                            TextField(
+                              controller: email,
+                              keyboardType: TextInputType.emailAddress,
+                              textDirection: TextDirection.ltr,
+                              textAlign: TextAlign.left,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              decoration: InputDecoration(labelText: c.t("email"), prefixIcon: const Icon(Icons.email)),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: password,
+                              obscureText: true,
+                              textDirection: TextDirection.ltr,
+                              textAlign: TextAlign.left,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              decoration: InputDecoration(labelText: c.t("password"), prefixIcon: const Icon(Icons.lock)),
+                            ),
+                            if (error != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.errorContainer.withOpacity(0.35),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(error!, style: TextStyle(color: theme.colorScheme.error), softWrap: true),
+                              ),
+                            ],
+                            SizedBox(height: compact ? 14 : 18),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: loading ? null : submit,
+                                child: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(c.t("login")),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Text(c.t("app"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: 0)),
-                  const SizedBox(height: 18),
-                  TextField(controller: email, decoration: InputDecoration(labelText: c.t("email"), prefixIcon: const Icon(Icons.email))),
-                  const SizedBox(height: 12),
-                  TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: c.t("password"), prefixIcon: const Icon(Icons.lock))),
-                  if (error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(error!, style: TextStyle(color: theme.colorScheme.error)),
-                  ],
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: loading ? null : submit,
-                      child: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(c.t("login")),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
