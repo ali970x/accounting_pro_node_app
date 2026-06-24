@@ -88,6 +88,8 @@ class _ReportsPageState extends State<ReportsPage> {
               _Metric(_label(isAr, "Avg. Invoice", "\u0645\u0639\u062f\u0644 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629"), _moneyBreakdown(_data["averageTicketByCurrency"]), Icons.analytics, Colors.indigo, onLongPress: () => _showAverageProfit(isAr)),
             ]),
             const SizedBox(height: 22),
+            _insightsSection(isAr),
+            const SizedBox(height: 22),
             _sectionTitle(_label(isAr, "Operations", "\u0627\u0644\u062a\u0634\u063a\u064a\u0644")),
             const SizedBox(height: 12),
             ModernCard(
@@ -128,6 +130,178 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _sectionTitle(String title) => Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
+
+  Widget _insightsSection(bool isAr) {
+    final insights = _map(_data["insights"]);
+    final topCustomer = _map(insights["topCustomerPaid"]);
+    final bestMonth = _map(insights["bestSalesMonth"]);
+    final alert = _map(insights["expenseAlert"]);
+    final comparison = _map(insights["monthComparison"]);
+    final current = _map(comparison["current"]);
+    final previous = _map(comparison["previous"]);
+    final monthly = _list(insights["monthly"]).map((row) {
+      final map = _map(row);
+      return _MonthlyPoint(
+        label: (map["label"] ?? "").toString(),
+        sales: _num(map["salesEquivalentLbp"]),
+        expenses: _num(map["expensesEquivalentLbp"]),
+      );
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle(_label(isAr, "Business Insights", "\u0645\u0624\u0634\u0631\u0627\u062a \u0627\u0644\u0639\u0645\u0644")),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 760;
+            final width = isWide ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: width,
+                  child: _insightCard(
+                    title: _label(isAr, "Top paying customer", "\u0623\u0643\u062b\u0631 \u0632\u0628\u0648\u0646 \u062f\u0641\u0639"),
+                    value: topCustomer.isEmpty ? "-" : (topCustomer["name"] ?? "-").toString(),
+                    subtitle: topCustomer.isEmpty ? _label(isAr, "No paid invoices yet", "\u0644\u0627 \u064a\u0648\u062c\u062f \u0641\u0648\u0627\u062a\u064a\u0631 \u0645\u062f\u0641\u0648\u0639\u0629 \u0628\u0639\u062f") : money(_num(topCustomer["totalEquivalentLbp"]), "LBP"),
+                    icon: Icons.emoji_events_rounded,
+                    color: Colors.amber.shade700,
+                  ),
+                ),
+                SizedBox(
+                  width: width,
+                  child: _insightCard(
+                    title: _label(isAr, "Best sales month", "\u0623\u0641\u0636\u0644 \u0634\u0647\u0631 \u0645\u0628\u064a\u0639\u0627\u062a"),
+                    value: bestMonth.isEmpty ? "-" : (bestMonth["label"] ?? "-").toString(),
+                    subtitle: bestMonth.isEmpty ? "-" : money(_num(bestMonth["salesEquivalentLbp"]), "LBP"),
+                    icon: Icons.calendar_month_rounded,
+                    color: Colors.blue,
+                  ),
+                ),
+                SizedBox(
+                  width: width,
+                  child: _insightCard(
+                    title: _label(isAr, "Expense alert", "\u062a\u0646\u0628\u064a\u0647 \u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"),
+                    value: alert["active"] == true ? _label(isAr, "Expenses increased", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641 \u0632\u0627\u062f\u062a") : _label(isAr, "Expenses stable", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641 \u0645\u0633\u062a\u0642\u0631\u0629"),
+                    subtitle: "${_formatPercent(_num(alert["percentChange"]))} ${_label(isAr, "vs previous month", "\u0645\u0642\u0627\u0631\u0646\u0629 \u0628\u0627\u0644\u0634\u0647\u0631 \u0627\u0644\u0633\u0627\u0628\u0642")}",
+                    icon: alert["active"] == true ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
+                    color: alert["active"] == true ? Colors.red : Colors.green,
+                  ),
+                ),
+                SizedBox(
+                  width: width,
+                  child: _insightCard(
+                    title: _label(isAr, "Current vs previous month", "\u0645\u0642\u0627\u0631\u0646\u0629 \u0627\u0644\u0634\u0647\u0631 \u0627\u0644\u062d\u0627\u0644\u064a \u0648\u0627\u0644\u0633\u0627\u0628\u0642"),
+                    value: "${current["label"] ?? "-"} / ${previous["label"] ?? "-"}",
+                    subtitle: "${_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639")}: ${_formatPercent(_num(comparison["salesChangePercent"]))} | ${_label(isAr, "Profit", "\u0627\u0644\u0631\u0628\u062d")}: ${_formatPercent(_num(comparison["profitChangePercent"]))}",
+                    icon: Icons.compare_arrows_rounded,
+                    color: Colors.purple,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _monthlyChart(monthly, isAr),
+      ],
+    );
+  }
+
+  Widget _insightCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    return ModernCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 4),
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 2),
+                Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _monthlyChart(List<_MonthlyPoint> points, bool isAr) {
+    final theme = Theme.of(context);
+    final clean = points.where((point) => point.label.isNotEmpty).toList();
+    return ModernCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bar_chart_rounded, color: Colors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _label(isAr, "Monthly Sales / Expenses Chart", "\u0631\u0633\u0645 \u0628\u064a\u0627\u0646\u064a \u0634\u0647\u0631\u064a \u0644\u0644\u0645\u0628\u064a\u0639 \u0648\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 230,
+            child: clean.isEmpty
+                ? Center(child: Text(_label(isAr, "No monthly data yet.", "\u0644\u0627 \u064a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u0634\u0647\u0631\u064a\u0629 \u0628\u0639\u062f.")))
+                : CustomPaint(
+                    painter: _MonthlyChartPainter(
+                      points: clean,
+                      salesColor: Colors.blue,
+                      expensesColor: Colors.red,
+                      axisColor: theme.colorScheme.outlineVariant,
+                      labelColor: theme.colorScheme.onSurfaceVariant,
+                      textDirection: Directionality.of(context),
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 14,
+            children: [
+              _legendDot(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639"), Colors.blue),
+              _legendDot(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), Colors.red),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
 
   Widget _metricGrid(List<_Metric> metrics) {
     return LayoutBuilder(
@@ -280,6 +454,21 @@ class _ReportsPageState extends State<ReportsPage> {
     return double.tryParse(v.toString()) ?? 0;
   }
 
+  Map<String, dynamic> _map(dynamic raw) {
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return <String, dynamic>{};
+  }
+
+  List<dynamic> _list(dynamic raw) {
+    if (raw is List) return raw;
+    return const [];
+  }
+
+  String _formatPercent(double value) {
+    final sign = value > 0 ? "+" : "";
+    return "$sign${value.toStringAsFixed(1)}%";
+  }
+
   String _moneyBreakdown(dynamic raw) {
     final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final lbp = _num(map["LBP"]);
@@ -301,6 +490,96 @@ class _Metric {
   final VoidCallback? onLongPress;
 
   const _Metric(this.title, this.value, this.icon, this.color, {this.onLongPress});
+}
+
+class _MonthlyPoint {
+  final String label;
+  final double sales;
+  final double expenses;
+
+  const _MonthlyPoint({
+    required this.label,
+    required this.sales,
+    required this.expenses,
+  });
+}
+
+class _MonthlyChartPainter extends CustomPainter {
+  final List<_MonthlyPoint> points;
+  final Color salesColor;
+  final Color expensesColor;
+  final Color axisColor;
+  final Color labelColor;
+  final TextDirection textDirection;
+
+  const _MonthlyChartPainter({
+    required this.points,
+    required this.salesColor,
+    required this.expensesColor,
+    required this.axisColor,
+    required this.labelColor,
+    required this.textDirection,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final maxValue = points.fold<double>(0, (max, point) {
+      final local = point.sales > point.expenses ? point.sales : point.expenses;
+      return local > max ? local : max;
+    });
+    final chartHeight = size.height - 36;
+    final chartTop = 8.0;
+    final chartBottom = chartTop + chartHeight;
+    final groupWidth = size.width / points.length;
+    final barWidth = ((groupWidth * 0.24).clamp(8.0, 20.0) as num).toDouble();
+    final axisPaint = Paint()
+      ..color = axisColor
+      ..strokeWidth = 1;
+
+    canvas.drawLine(Offset(0, chartBottom), Offset(size.width, chartBottom), axisPaint);
+    for (var i = 1; i <= 3; i += 1) {
+      final y = chartTop + chartHeight * i / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), axisPaint..color = axisColor.withOpacity(0.35));
+    }
+
+    for (var index = 0; index < points.length; index += 1) {
+      final point = points[index];
+      final center = groupWidth * index + groupWidth / 2;
+      _drawBar(canvas, center - barWidth * 0.6, chartBottom, barWidth, _height(point.sales, maxValue, chartHeight), salesColor);
+      _drawBar(canvas, center + barWidth * 0.6, chartBottom, barWidth, _height(point.expenses, maxValue, chartHeight), expensesColor);
+
+      final label = point.label.split(" ").first;
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: TextStyle(color: labelColor, fontSize: 10, fontWeight: FontWeight.w700)),
+        textDirection: textDirection,
+        maxLines: 1,
+      )..layout(maxWidth: groupWidth);
+      painter.paint(canvas, Offset(center - painter.width / 2, chartBottom + 8));
+    }
+  }
+
+  double _height(double value, double maxValue, double chartHeight) {
+    if (maxValue <= 0) return 0;
+    return ((value / maxValue * (chartHeight - 12)).clamp(0, chartHeight - 12) as num).toDouble();
+  }
+
+  void _drawBar(Canvas canvas, double centerX, double bottom, double width, double height, Color color) {
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(centerX - width / 2, bottom - height, width, height),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(rect, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MonthlyChartPainter oldDelegate) {
+    return oldDelegate.points != points ||
+        oldDelegate.salesColor != salesColor ||
+        oldDelegate.expensesColor != expensesColor ||
+        oldDelegate.axisColor != axisColor ||
+        oldDelegate.labelColor != labelColor ||
+        oldDelegate.textDirection != textDirection;
+  }
 }
 
 String _label(bool isAr, String en, String ar) => isAr ? ar : en;
