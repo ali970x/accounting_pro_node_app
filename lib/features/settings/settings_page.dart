@@ -49,8 +49,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _rateSet = true;
     }
 
-    final rate = _parseNumber(_rateController.text, fallback: c.exchangeRate);
-
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
@@ -85,7 +83,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
               const SizedBox(height: 22),
-              _titleRow(Icons.palette_rounded, isAr ? "لون التطبيق" : "App color"),
+              _titleRow(Icons.palette_rounded, isAr ? "\u0644\u0648\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642" : "App color"),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
@@ -100,28 +98,15 @@ class _SettingsPageState extends State<SettingsPage> {
               TextField(
                 controller: _rateController,
                 keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-                onEditingComplete: () {
-                  final parsed = _parseNumber(_rateController.text, fallback: rate);
-                  _rateController.text = number(parsed);
-                  FocusScope.of(context).unfocus();
-                },
+                onEditingComplete: _normalizeRateInput,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.attach_money_rounded),
                   suffixText: "LBP",
                   hintText: "90,000",
-                  helperText: isAr ? "استخدم الفواصل لتسهيل قراءة الأرقام الكبيرة." : "Commas are supported for easier reading.",
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
-              const SizedBox(height: 14),
-              _ratePreview(rate, isAr),
               const SizedBox(height: 22),
-              _infoStrip(
-                isAr ? "التغييرات تطبق مباشرة بعد الحفظ، وتبقى محفوظة على حسابك." : "Changes apply immediately after saving and stay attached to your account.",
-                Icons.info_outline_rounded,
-              ),
-              const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -150,8 +135,35 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        ModernCard(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.format_list_numbered_rtl_rounded, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isAr ? "\u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0637\u0648\u064a\u0644\u0629 \u062a\u0638\u0647\u0631 \u0628\u0641\u0648\u0627\u0635\u0644 \u0644\u0642\u0631\u0627\u0621\u0629 \u0623\u0648\u0636\u062d." : "Large numbers are displayed with commas for clearer reading.",
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
+  }
+
+  void _normalizeRateInput() {
+    final c = AppScope.of(context);
+    final parsed = _parseNumber(_rateController.text, fallback: c.exchangeRate);
+    _rateController.text = number(parsed);
+    FocusScope.of(context).unfocus();
   }
 
   Widget _themeChip(ThemeMode mode, String label, IconData icon) {
@@ -189,64 +201,12 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _ratePreview(num rate, bool isAr) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _miniCard(isAr ? "دولار واحد" : "One USD", "${number(rate)} LBP", Icons.payments_rounded),
-        _miniCard(isAr ? "١٠٠ دولار" : "100 USD", "${number(rate * 100)} LBP", Icons.calculate_rounded),
-      ],
-    );
-  }
-
-  Widget _miniCard(String title, String value, IconData icon) {
-    final color = _colorFromHex(_selectedAccent ?? "#0F766E");
-    return Container(
-      width: 190,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.bodySmall),
-                Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoStrip(String text, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 10),
-          Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700))),
-        ],
-      ),
-    );
-  }
-
   Widget _titleRow(IconData icon, String title) {
     return Row(
       children: [
         Icon(icon, size: 20),
         const SizedBox(width: 10),
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
       ],
     );
   }

@@ -331,6 +331,7 @@ class _ReportsPageState extends State<ReportsPage> {
         child: Container(
           constraints: const BoxConstraints(minHeight: 132),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -351,7 +352,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   ),
                 ],
               ),
-              const Spacer(),
+              const SizedBox(height: 18),
               for (final value in values)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -448,7 +449,15 @@ class _ReportsPageState extends State<ReportsPage> {
           Icon(icon, size: 20, color: color ?? Colors.grey),
           const SizedBox(width: 12),
           Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w500))),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );

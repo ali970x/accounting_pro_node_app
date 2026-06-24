@@ -225,8 +225,8 @@ class _AboutPageState extends State<AboutPage> {
                 Text(
                   _label(
                     isAr,
-                    "Send a review or feature idea through the server.",
-                    "\u0627\u0643\u062a\u0628 \u0645\u0631\u0627\u062c\u0639\u0629 \u0623\u0648 \u0641\u0643\u0631\u0629 \u062c\u062f\u064a\u062f\u0629\u060c \u0648\u0627\u0644\u0633\u064a\u0631\u0641\u0631 \u064a\u0648\u0635\u0644\u0647\u0627 \u0644\u0644\u0645\u0637\u0648\u0631 \u0645\u0628\u0627\u0634\u0631\u0629.",
+                    "Share your review or a feature idea.",
+                    "\u0627\u0643\u062a\u0628 \u0645\u0631\u0627\u062c\u0639\u062a\u0643 \u0623\u0648 \u0641\u0643\u0631\u0629 \u062c\u062f\u064a\u062f\u0629.",
                   ),
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
@@ -242,41 +242,6 @@ class _AboutPageState extends State<AboutPage> {
       ),
     );
   }
-
-  Widget _feedbackCard(bool isAr) {
-    final theme = Theme.of(context);
-    return ModernCard(
-      padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFF00A6A6).withOpacity(0.14), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.feedback_rounded, color: Color(0xFF008B8B)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(isAr ? "مراجعتك واقتراحاتك" : "Reviews & Suggestions", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                Text(
-                  isAr ? "اكتب مراجعة أو فكرة جديدة، والسيرفر يوصلها للمطور مباشرة." : "Send a review or feature idea through the server.",
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          IconButton.filledTonal(
-            onPressed: _openFeedbackDialog,
-            tooltip: isAr ? "إرسال مراجعة" : "Send review",
-            icon: const Icon(Icons.send_rounded),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _infoRow(String title, String value, IconData icon, Color iconColor, {bool isPhone = false}) {
     final theme = Theme.of(context);
     return Row(
@@ -371,11 +336,30 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   String _updatesText(String version) {
+    final latest = _releaseNotes.isEmpty ? null : _releaseNotes.first;
+    final latestChanges = latest == null ? const <dynamic>[] : (latest["changes"] is List ? latest["changes"] as List : const <dynamic>[]);
     final buffer = StringBuffer()
-      ..writeln("daftr")
+      ..writeln("DAFTR - PROFESSIONAL RELEASE NOTES")
+      ..writeln("==================================")
       ..writeln("Current version: $version")
       ..writeln("Generated: ${DateTime.now().toString().substring(0, 16)}")
-      ..writeln("");
+      ..writeln("Contact: +96176652276")
+      ..writeln("")
+      ..writeln("Latest update highlights")
+      ..writeln("------------------------");
+
+    if (latestChanges.isEmpty) {
+      buffer.writeln("- Stability and usability improvements.");
+    } else {
+      for (final change in latestChanges.take(6)) {
+        buffer.writeln("- ${change.toString()}");
+      }
+    }
+
+    buffer
+      ..writeln("")
+      ..writeln("Full change log")
+      ..writeln("---------------");
 
     for (final note in _releaseNotes) {
       buffer.writeln("Version ${note["version"] ?? ""} - ${note["date"] ?? ""}");
@@ -428,7 +412,7 @@ class _AboutPageState extends State<AboutPage> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(_label(isAr, "Update available", "\u064a\u0648\u062c\u062f \u062a\u062d\u062f\u064a\u062b")),
-          content: Text(_label(isAr, "Version $latest is available. Download it now?", "\u0627\u0644\u0625\u0635\u062f\u0627\u0631 $latest \u0645\u062a\u0627\u062d. \u0628\u062f\u0643 \u062a\u062d\u0645\u0644\u0647 \u0647\u0644\u0623\u061f")),
+          content: Text(_label(isAr, "New version: $latest", "\u064a\u0648\u062c\u062f \u0625\u0635\u062f\u0627\u0631 \u062c\u062f\u064a\u062f: $latest")),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(_label(isAr, "Cancel", "\u0625\u0644\u063a\u0627\u0621"))),
             FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(_label(isAr, "Download", "\u062a\u062d\u0645\u064a\u0644"))),
@@ -617,21 +601,17 @@ class _AboutPageState extends State<AboutPage> {
     if (result == null) return;
 
     try {
-      final raw = await widget.api.post("/feedback", {
+      await widget.api.post("/feedback", {
         "name": (result["name"] ?? "").toString(),
         "message": (result["message"] ?? "").toString(),
         "rating": result["rating"] is int ? result["rating"] : int.tryParse((result["rating"] ?? "5").toString()) ?? 5,
         "appVersion": AppVersion.display,
       });
-      final response = raw is Map ? Map<String, dynamic>.from(raw as Map) : <String, dynamic>{};
       if (!mounted) return;
-      final sent = response["emailSent"] == true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            sent
-                ? _label(isAr, "Review sent directly to the developer.", "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0637\u0648\u0631.")
-                : _label(isAr, "Review saved. Configure SMTP on the server to receive it by email.", "\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629. \u0627\u0636\u0628\u0637 SMTP \u0639\u0644\u0649 \u0627\u0644\u0633\u064a\u0631\u0641\u0631 \u0644\u062a\u0635\u0644\u0643 \u0628\u0627\u0644\u0625\u064a\u0645\u064a\u0644."),
+            _label(isAr, "Review sent. Thank you.", "\u0648\u0635\u0644\u062a \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629. \u0634\u0643\u0631\u0627\u064b \u0644\u0643."),
           ),
         ),
       );
@@ -644,91 +624,6 @@ class _AboutPageState extends State<AboutPage> {
       );
     }
   }
-
-  Future<void> _openFeedbackDialog() async {
-    final isAr = AppScope.of(context).isArabic;
-    final name = TextEditingController();
-    final message = TextEditingController();
-    int rating = 5;
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(isAr ? "إرسال مراجعة أو اقتراح" : "Send Review"),
-          content: SizedBox(
-            width: 460,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: name, decoration: InputDecoration(labelText: isAr ? "اسمك اختياري" : "Your name (optional)")),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<int>(
-                  value: rating,
-                  decoration: InputDecoration(labelText: isAr ? "التقييم" : "Rating"),
-                  items: const [
-                    DropdownMenuItem(value: 5, child: Text("5 / 5")),
-                    DropdownMenuItem(value: 4, child: Text("4 / 5")),
-                    DropdownMenuItem(value: 3, child: Text("3 / 5")),
-                    DropdownMenuItem(value: 2, child: Text("2 / 5")),
-                    DropdownMenuItem(value: 1, child: Text("1 / 5")),
-                  ],
-                  onChanged: (value) => setDialogState(() => rating = value ?? 5),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: message,
-                  minLines: 4,
-                  maxLines: 6,
-                  decoration: InputDecoration(labelText: isAr ? "رأيك أو اقتراحك" : "Feedback or suggestion"),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isAr ? "إلغاء" : "Cancel")),
-            FilledButton(
-              onPressed: () {
-                final text = message.text.trim();
-                if (text.isEmpty) return;
-                Navigator.pop(ctx, {"name": name.text.trim(), "message": text, "rating": rating.toString()});
-              },
-              child: Text(isAr ? "إرسال" : "Send"),
-            ),
-          ],
-        ),
-      ),
-    );
-    name.dispose();
-    message.dispose();
-    if (result == null) return;
-
-    try {
-      final raw = await widget.api.post("/feedback", {
-        "name": result["name"],
-        "message": result["message"],
-        "rating": int.tryParse(result["rating"] ?? "5") ?? 5,
-        "appVersion": AppVersion.display,
-      });
-      final response = Map<String, dynamic>.from(raw as Map);
-      if (!mounted) return;
-      final sent = response["emailSent"] == true;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            sent
-                ? _label(isAr, "Review sent directly to the developer.", "تم إرسال المراجعة مباشرة إلى المطور.")
-                : _label(isAr, "Review saved. Configure SMTP on the server to receive it by email.", "تم حفظ المراجعة. اضبط SMTP على السيرفر لتصلك بالإيميل."),
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
-  }
-
   String _preferredUpdateUrl(Map<String, dynamic> data) {
     if (kIsWeb) return (data["webUrl"] ?? data["updateUrl"] ?? "").toString();
     if (defaultTargetPlatform == TargetPlatform.android) {
