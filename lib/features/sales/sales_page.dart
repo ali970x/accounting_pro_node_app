@@ -29,6 +29,10 @@ class _SalesPageState extends State<SalesPage> {
 
   String? _selectedProductId;
   String? _selectedCustomerId;
+  String _productCategoryFilter = "";
+  String _productSubcategoryFilter = "";
+  final _productSearch = TextEditingController();
+  final _productFocusNode = FocusNode();
   final _manualCustomerName = TextEditingController();
   final _customerFocusNode = FocusNode();
   final _quantity = TextEditingController();
@@ -47,6 +51,8 @@ class _SalesPageState extends State<SalesPage> {
 
   @override
   void dispose() {
+    _productSearch.dispose();
+    _productFocusNode.dispose();
     _manualCustomerName.dispose();
     _customerFocusNode.dispose();
     _quantity.dispose();
@@ -90,6 +96,7 @@ class _SalesPageState extends State<SalesPage> {
       _selectedProductId = id;
       _activeChoice = choice;
       if (choice != null) {
+        _productSearch.text = choice.label;
         _unitPrice.text = choice.sellingPrice.toStringAsFixed(2);
         _updateTotal();
       }
@@ -240,6 +247,7 @@ class _SalesPageState extends State<SalesPage> {
     _quantity.clear();
     _unitPrice.clear();
     _totalPrice.clear();
+    _productSearch.clear();
     _selectedProductId = null;
     _selectedCustomerId = null;
     _activeChoice = null;
@@ -394,12 +402,7 @@ class _SalesPageState extends State<SalesPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _selectedProductId,
-                  decoration: InputDecoration(labelText: c.t("selectProduct")),
-                  items: _saleChoices().map((p) => DropdownMenuItem(value: p.id, child: Text(p.label))).toList(),
-                  onChanged: _onProductSelected,
-                ),
+                _productPicker(isAr),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -515,6 +518,141 @@ class _SalesPageState extends State<SalesPage> {
     );
   }
 
+  Widget _productPicker(bool isAr) {
+    final choices = _filteredSaleChoices();
+    final categories = _productCategoryOptions();
+    final subcategories = _productSubcategoryOptions();
+    final active = _activeChoice;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _productCategoryFilter,
+                decoration: InputDecoration(labelText: isAr ? "الصنف" : "Category", prefixIcon: const Icon(Icons.folder_rounded)),
+                items: [
+                  DropdownMenuItem(value: "", child: Text(isAr ? "كل الأصناف" : "All categories")),
+                  ...categories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
+                ],
+                onChanged: (value) => setState(() {
+                  _productCategoryFilter = value ?? "";
+                  _productSubcategoryFilter = "";
+                  _clearSelectedProductIfHidden();
+                }),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _productSubcategoryFilter,
+                decoration: InputDecoration(labelText: isAr ? "الصنف الفرعي" : "Subcategory", prefixIcon: const Icon(Icons.folder_copy_rounded)),
+                items: [
+                  DropdownMenuItem(value: "", child: Text(isAr ? "كل الأنواع" : "All subcategories")),
+                  ...subcategories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
+                ],
+                onChanged: (value) => setState(() {
+                  _productSubcategoryFilter = value ?? "";
+                  _clearSelectedProductIfHidden();
+                }),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        RawAutocomplete<_SaleProductChoice>(
+          textEditingController: _productSearch,
+          focusNode: _productFocusNode,
+          displayStringForOption: (choice) => choice.label,
+          optionsBuilder: (value) {
+            final q = value.text.trim().toLowerCase();
+            return choices.where((choice) {
+              if (q.isEmpty) return true;
+              return choice.searchText.contains(q);
+            }).take(10);
+          },
+          onSelected: (choice) => _onProductSelected(choice.id),
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: isAr ? "ابحث عن المنتج أو النوعية" : "Search product or quality",
+                prefixIcon: const Icon(Icons.manage_search_rounded),
+                suffixIcon: controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          controller.clear();
+                          setState(() {
+                            _selectedProductId = null;
+                            _activeChoice = null;
+                          });
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+              onChanged: (value) {
+                final selected = _activeChoice;
+                if (selected != null && selected.label != value) {
+                  setState(() {
+                    _selectedProductId = null;
+                    _activeChoice = null;
+                  });
+                }
+              },
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 10,
+                borderRadius: BorderRadius.circular(14),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320, maxWidth: 640),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      final choice = options.elementAt(index);
+                      return ListTile(
+                        leading: const CircleAvatar(child: Icon(Icons.inventory_2_rounded)),
+                        title: Text(choice.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text("${choice.category} > ${choice.subcategory}"),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text("${choice.quantity.toStringAsFixed(0)} ${choice.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                            Text(money(choice.sellingPrice, choice.currency), style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                        onTap: () => onSelected(choice),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        if (active != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            isAr
+                ? "المتوفر: ${active.quantity.toStringAsFixed(0)} ${active.unit} | السعر: ${money(active.sellingPrice, active.currency)}"
+                : "Available: ${active.quantity.toStringAsFixed(0)} ${active.unit} | Price: ${money(active.sellingPrice, active.currency)}",
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _saleItem(Sale s) {
     final isAr = AppScope.of(context).isArabic;
     return Padding(
@@ -568,29 +706,76 @@ class _SalesPageState extends State<SalesPage> {
     for (final product in _products) {
       if (product.hasVariants) {
         for (final variant in product.variants) {
+          if (variant.quantity <= 0) continue;
           rows.add(_SaleProductChoice(
             id: "${product.id}:${variant.id}",
             productId: product.id,
             variantId: variant.id,
-            label: "${product.name} - ${variant.name} (${variant.quantity.toStringAsFixed(0)} ${variant.unit})",
+            category: product.category,
+            subcategory: product.subcategory,
+            label: "${product.name} - ${variant.name}",
+            quantity: variant.quantity,
             sellingPrice: variant.sellingPrice,
             currency: variant.currency,
             unit: variant.unit,
           ));
         }
       } else {
+        if (product.quantity <= 0) continue;
         rows.add(_SaleProductChoice(
           id: product.id,
           productId: product.id,
           variantId: null,
-          label: "${product.name} (${product.quantity.toStringAsFixed(0)} ${product.unit})",
+          category: product.category,
+          subcategory: product.subcategory,
+          label: product.name,
+          quantity: product.quantity,
           sellingPrice: product.sellingPrice,
           currency: product.currency,
           unit: product.unit,
         ));
       }
     }
+    rows.sort((a, b) => a.label.compareTo(b.label));
     return rows;
+  }
+
+  List<_SaleProductChoice> _filteredSaleChoices() {
+    return _saleChoices().where((choice) {
+      if (_productCategoryFilter.isNotEmpty && choice.category != _productCategoryFilter) return false;
+      if (_productSubcategoryFilter.isNotEmpty && choice.subcategory != _productSubcategoryFilter) return false;
+      return true;
+    }).toList();
+  }
+
+  List<String> _productCategoryOptions() {
+    final rows = _saleChoices().map((choice) => choice.category).where((x) => x.trim().isNotEmpty).toSet().toList();
+    rows.sort();
+    return rows;
+  }
+
+  List<String> _productSubcategoryOptions() {
+    final rows = _saleChoices()
+        .where((choice) => _productCategoryFilter.isEmpty || choice.category == _productCategoryFilter)
+        .map((choice) => choice.subcategory)
+        .where((x) => x.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    rows.sort();
+    return rows;
+  }
+
+  void _clearSelectedProductIfHidden() {
+    final selected = _activeChoice;
+    if (selected == null) return;
+    final visible = _filteredSaleChoices().any((choice) => choice.id == selected.id);
+    if (!visible) {
+      _selectedProductId = null;
+      _activeChoice = null;
+      _productSearch.clear();
+      _unitPrice.clear();
+      _totalPrice.clear();
+    }
   }
 
   _SaleProductChoice? _firstSaleChoiceWhere(bool Function(_SaleProductChoice) test) {
@@ -633,7 +818,10 @@ class _SaleProductChoice {
   final String id;
   final String productId;
   final String? variantId;
+  final String category;
+  final String subcategory;
   final String label;
+  final double quantity;
   final double sellingPrice;
   final String currency;
   final String unit;
@@ -642,11 +830,16 @@ class _SaleProductChoice {
     required this.id,
     required this.productId,
     required this.variantId,
+    required this.category,
+    required this.subcategory,
     required this.label,
+    required this.quantity,
     required this.sellingPrice,
     required this.currency,
     required this.unit,
   });
+
+  String get searchText => "$label $category $subcategory".toLowerCase();
 }
 
 class _SaleEditDialog extends StatefulWidget {

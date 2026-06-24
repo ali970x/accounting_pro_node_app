@@ -8,7 +8,8 @@ class ReportsPage extends StatefulWidget {
   final ApiClient api;
   final VoidCallback? onOpenExpenses;
   final VoidCallback? onOpenRecords;
-  const ReportsPage({super.key, required this.api, this.onOpenExpenses, this.onOpenRecords});
+  final VoidCallback? onOpenDamages;
+  const ReportsPage({super.key, required this.api, this.onOpenExpenses, this.onOpenRecords, this.onOpenDamages});
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -76,6 +77,7 @@ class _ReportsPageState extends State<ReportsPage> {
             _metricGrid([
               _Metric(_label(isAr, "Sales", "\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"), _moneyBreakdown(_data["salesByCurrency"]), Icons.trending_up, Colors.blue, onLongPress: widget.onOpenRecords),
               _Metric(_label(isAr, "Expenses", "\u0627\u0644\u0645\u0635\u0627\u0631\u064a\u0641"), _moneyBreakdown(_data["expensesByCurrency"]), Icons.receipt_long, Colors.red, onLongPress: widget.onOpenExpenses),
+              _Metric(_label(isAr, "Damaged Goods", "\u0627\u0644\u0628\u0636\u0627\u0639\u0629 \u0627\u0644\u062a\u0627\u0644\u0641\u0629"), _moneyBreakdown(_data["damageLossByCurrency"]), Icons.report_problem_rounded, Colors.deepOrange, onLongPress: widget.onOpenDamages),
               _Metric(
                 _label(isAr, "Net Profit", "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d"),
                 _moneyBreakdown(_data["netProfitByCurrency"]),
@@ -131,12 +133,13 @@ class _ReportsPageState extends State<ReportsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 680;
-        final width = isWide ? (constraints.maxWidth - 24) / 4 : (constraints.maxWidth - 12) / 2;
+        final columns = isWide ? (metrics.length >= 4 ? 4 : metrics.length) : 2;
+        final width = (constraints.maxWidth - ((columns - 1) * 12)) / columns;
         return Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
-            for (final metric in metrics) SizedBox(width: metrics.length == 2 && isWide ? (constraints.maxWidth - 12) / 2 : width, child: _statCard(metric)),
+            for (final metric in metrics) SizedBox(width: width, child: _statCard(metric)),
           ],
         );
       },

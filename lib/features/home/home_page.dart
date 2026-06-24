@@ -5,6 +5,7 @@ import "../../core/app_controller.dart";
 import "../../core/local/local_store.dart";
 import "../../core/local/sync_service.dart";
 import "../auth/login_page.dart";
+import "../damaged/damaged_goods_page.dart";
 import "../inventory/inventory_page.dart";
 import "../sales/sales_page.dart";
 import "../invoice_template/invoice_template_page.dart";
@@ -69,6 +70,7 @@ class _HomePageState extends State<HomePage> {
 
     final labels = [
       c.t("inventory"),
+      c.t("damagedGoods"),
       c.t("sales"),
       c.t("invoiceTemplate"),
       c.t("reports"),
@@ -83,6 +85,7 @@ class _HomePageState extends State<HomePage> {
 
     final icons = const [
       Icons.inventory_2,
+      Icons.report_problem_rounded,
       Icons.point_of_sale,
       Icons.receipt_long,
       Icons.analytics,
@@ -175,12 +178,12 @@ class _HomePageState extends State<HomePage> {
           : NavigationBar(
               backgroundColor: theme.colorScheme.surface,
               indicatorColor: theme.colorScheme.primaryContainer,
-              selectedIndex: selected > 4 ? 4 : selected,
-              onDestinationSelected: (i) => setState(() => selected = i),
+              selectedIndex: _bottomSelectedIndex(),
+              onDestinationSelected: (i) => setState(() => selected = _pageIndexForBottom(i)),
               destinations: [
                 NavigationDestination(icon: const Icon(Icons.inventory_2), label: c.t("inventory")),
+                NavigationDestination(icon: const Icon(Icons.report_problem_rounded), label: c.t("damagedGoods")),
                 NavigationDestination(icon: const Icon(Icons.point_of_sale), label: c.t("sales")),
-                NavigationDestination(icon: const Icon(Icons.receipt_long), label: c.t("invoiceTemplate")),
                 NavigationDestination(icon: const Icon(Icons.analytics), label: c.t("reports")),
                 NavigationDestination(icon: const Icon(Icons.more_horiz), label: c.t("records")),
               ],
@@ -191,20 +194,42 @@ class _HomePageState extends State<HomePage> {
   Widget _pageFor(int index) {
     return switch (index) {
       0 => InventoryPage(api: widget.api),
-      1 => SalesPage(api: widget.api),
-      2 => InvoiceTemplatePage(api: widget.api),
-      3 => ReportsPage(
+      1 => DamagedGoodsPage(api: widget.api),
+      2 => SalesPage(api: widget.api),
+      3 => InvoiceTemplatePage(api: widget.api),
+      4 => ReportsPage(
           api: widget.api,
-          onOpenExpenses: () => setState(() => selected = 5),
-          onOpenRecords: () => setState(() => selected = 4),
+          onOpenExpenses: () => setState(() => selected = 6),
+          onOpenRecords: () => setState(() => selected = 5),
+          onOpenDamages: () => setState(() => selected = 1),
         ),
-      4 => RecordsPage(api: widget.api),
-      5 => ExpensesPage(api: widget.api),
-      6 => DebtsPage(api: widget.api),
-      7 => ContactsPage(api: widget.api),
-      8 => const HelpPage(),
-      9 => AboutPage(api: widget.api),
+      5 => RecordsPage(api: widget.api),
+      6 => ExpensesPage(api: widget.api),
+      7 => DebtsPage(api: widget.api),
+      8 => ContactsPage(api: widget.api),
+      9 => const HelpPage(),
+      10 => AboutPage(api: widget.api),
       _ => SettingsPage(api: widget.api),
+    };
+  }
+
+  int _bottomSelectedIndex() {
+    return switch (selected) {
+      0 => 0,
+      1 => 1,
+      2 => 2,
+      4 => 3,
+      _ => 4,
+    };
+  }
+
+  int _pageIndexForBottom(int index) {
+    return switch (index) {
+      0 => 0,
+      1 => 1,
+      2 => 2,
+      3 => 4,
+      _ => 5,
     };
   }
 }
