@@ -87,7 +87,7 @@ class _InvoiceTemplatePageState extends State<InvoiceTemplatePage> {
 
   InvoiceTemplateModel current() {
     return InvoiceTemplateModel(
-      businessName: businessName.text.trim().isEmpty ? "Accounting Pro" : businessName.text.trim(),
+      businessName: businessName.text.trim().isEmpty ? "daftr" : businessName.text.trim(),
       businessPhone: businessPhone.text.trim(),
       businessAddress: businessAddress.text.trim(),
       invoiceTitle: invoiceTitle.text.trim().isEmpty ? "Sales Invoice" : invoiceTitle.text.trim(),

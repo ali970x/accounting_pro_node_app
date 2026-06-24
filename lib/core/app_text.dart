@@ -3,7 +3,7 @@
 class AppText {
   static final Map<String, Map<String, String>> data = {
     "en": {
-      "app": "Accounting Pro",
+      "app": "daftr",
       "login": "Login",
       "register": "Register",
       "email": "Email",
@@ -88,7 +88,7 @@ class AppText {
       "refresh": "Refresh"
     },
     "ar": {
-      "app": "برنامج المحاسبة",
+      "app": "daftr",
       "login": "تسجيل الدخول",
       "register": "إنشاء حساب",
       "email": "البريد الإلكتروني",

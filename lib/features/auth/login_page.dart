@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "../../core/app_controller.dart";
 import "../../core/api_client.dart";
 import "../../core/session_store.dart";
+import "../admin/admin_page.dart";
 import "../home/home_page.dart";
 
 class LoginPage extends StatefulWidget {
@@ -19,17 +20,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  bool isLogin = true;
   bool loading = false;
   String? error;
 
-  final name = TextEditingController(text: "Aya");
-  final email = TextEditingController(text: "aya@test.com");
-  final password = TextEditingController(text: "123456");
+  final email = TextEditingController();
+  final password = TextEditingController();
 
   @override
   void dispose() {
-    name.dispose();
     email.dispose();
     password.dispose();
     super.dispose();
@@ -42,20 +40,18 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final path = isLogin ? "/auth/login" : "/auth/register";
-      final body = {
-        if (!isLogin) "name": name.text.trim(),
+      final data = await widget.api.post("/auth/login", {
         "email": email.text.trim(),
         "password": password.text.trim(),
-      };
-
-      final data = await widget.api.post(path, body);
+      });
       final user = Map<String, dynamic>.from(data["user"] as Map);
+      final role = (user["role"] ?? "owner").toString();
 
       await widget.sessionStore.saveSession(
         token: data["token"].toString(),
         name: (user["name"] ?? "").toString(),
         email: (user["email"] ?? "").toString(),
+        role: role,
       );
 
       if (!mounted) return;
@@ -64,7 +60,9 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => HomePage(api: widget.api, sessionStore: widget.sessionStore)),
+        MaterialPageRoute(
+          builder: (_) => role == "admin" ? AdminPage(api: widget.api, sessionStore: widget.sessionStore) : HomePage(api: widget.api, sessionStore: widget.sessionStore),
+        ),
       );
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
@@ -91,18 +89,22 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    radius: 42,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Icon(Icons.account_balance_wallet_rounded, size: 42, color: theme.colorScheme.primary),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.asset(
+                      "assets/brand/daftr_logo.jpeg",
+                      height: 118,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => CircleAvatar(
+                        radius: 42,
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        child: Icon(Icons.account_balance_wallet_rounded, size: 42, color: theme.colorScheme.primary),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 18),
-                  Text(c.t("app"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+                  Text(c.t("app"), style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900, letterSpacing: 0)),
                   const SizedBox(height: 18),
-                  if (!isLogin) ...[
-                    TextField(controller: name, decoration: InputDecoration(labelText: c.t("name"), prefixIcon: const Icon(Icons.person))),
-                    const SizedBox(height: 12),
-                  ],
                   TextField(controller: email, decoration: InputDecoration(labelText: c.t("email"), prefixIcon: const Icon(Icons.email))),
                   const SizedBox(height: 12),
                   TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: c.t("password"), prefixIcon: const Icon(Icons.lock))),
@@ -115,12 +117,8 @@ class _LoginPageState extends State<LoginPage> {
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: loading ? null : submit,
-                      child: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(isLogin ? c.t("login") : c.t("register")),
+                      child: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(c.t("login")),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: loading ? null : () => setState(() => isLogin = !isLogin),
-                    child: Text(isLogin ? c.t("register") : c.t("login")),
                   ),
                 ],
               ),

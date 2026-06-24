@@ -92,7 +92,7 @@ class _InventoryPageState extends State<InventoryPage> {
       isAr ? "فاتورة جردة عامة للمخزون" : "Full Inventory Invoice",
       "${isAr ? "رقم الفاتورة" : "Invoice No."}: $invoiceNo",
       "${isAr ? "التاريخ" : "Date"}: ${now.toString().substring(0, 16)}",
-      "${isAr ? "النظام" : "System"}: Accounting Pro",
+      "${isAr ? "النظام" : "System"}: daftr",
       "",
       "----------------------------------------",
     ];

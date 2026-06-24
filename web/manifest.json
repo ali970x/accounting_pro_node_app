@@ -1,11 +1,11 @@
 {
-    "name": "accounting_pro_node_app",
-    "short_name": "accounting_pro_node_app",
+    "name": "daftr",
+    "short_name": "daftr",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Business accounting, inventory, sales, debts, and reports.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

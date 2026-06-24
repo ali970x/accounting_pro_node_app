@@ -1,4 +1,6 @@
-# accounting_pro_node_app
+# daftr
+
+Business accounting, inventory, sales, debts, and reports.
 
 A new Flutter project.
 

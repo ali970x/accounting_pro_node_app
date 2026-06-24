@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "core/api_client.dart";
 import "core/session_store.dart";
 import "core/app_controller.dart";
+import "features/admin/admin_page.dart";
 import "features/auth/login_page.dart";
 import "features/home/home_page.dart";
 
@@ -17,26 +18,31 @@ Future<void> main() async {
     await controller.loadSettings();
   }
 
-  runApp(AccountingProApp(
+  final isAdmin = await sessionStore.isAdmin();
+
+  runApp(DaftrApp(
     api: api,
     sessionStore: sessionStore,
     controller: controller,
     isLoggedIn: isLoggedIn,
+    isAdmin: isAdmin,
   ));
 }
 
-class AccountingProApp extends StatelessWidget {
+class DaftrApp extends StatelessWidget {
   final ApiClient api;
   final SessionStore sessionStore;
   final AppController controller;
   final bool isLoggedIn;
+  final bool isAdmin;
 
-  const AccountingProApp({
+  const DaftrApp({
     super.key,
     required this.api,
     required this.sessionStore,
     required this.controller,
     required this.isLoggedIn,
+    required this.isAdmin,
   });
 
   @override
@@ -47,7 +53,7 @@ class AccountingProApp extends StatelessWidget {
         animation: controller,
         builder: (context, _) {
           return MaterialApp(
-            title: "Accounting Pro",
+            title: "daftr",
             debugShowCheckedModeBanner: false,
             themeMode: controller.themeMode,
             theme: ThemeData(
@@ -123,7 +129,11 @@ class AccountingProApp extends StatelessWidget {
                 child: child ?? const SizedBox(),
               );
             },
-            home: isLoggedIn ? HomePage(api: api, sessionStore: sessionStore) : LoginPage(api: api, sessionStore: sessionStore),
+            home: isLoggedIn
+                ? isAdmin
+                    ? AdminPage(api: api, sessionStore: sessionStore)
+                    : HomePage(api: api, sessionStore: sessionStore)
+                : LoginPage(api: api, sessionStore: sessionStore),
           );
         },
       ),

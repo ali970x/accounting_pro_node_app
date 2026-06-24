@@ -87,12 +87,17 @@ class _AboutPageState extends State<AboutPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(13),
+                    width: 86,
+                    height: 86,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.94),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(Icons.account_balance_wallet_rounded, size: 40, color: Colors.white),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset("assets/brand/daftr_logo.jpeg", fit: BoxFit.contain),
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Text(name, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900, color: Colors.white)),
@@ -323,7 +328,7 @@ class _AboutPageState extends State<AboutPage> {
 
   String _updatesText(String version) {
     final buffer = StringBuffer()
-      ..writeln("Accounting Pro")
+      ..writeln("daftr")
       ..writeln("Current version: $version")
       ..writeln("Generated: ${DateTime.now().toString().substring(0, 16)}")
       ..writeln("");
@@ -344,7 +349,7 @@ class _AboutPageState extends State<AboutPage> {
   Future<void> _downloadUpdatesTxt(String version) async {
     final isAr = AppScope.of(context).isArabic;
     final text = _updatesText(version);
-    final filename = "accounting-pro-updates-v$version.txt";
+    final filename = "daftr-updates-v$version.txt";
     final downloaded = await downloadTextFile(filename: filename, content: text);
     if (!downloaded) {
       await Clipboard.setData(ClipboardData(text: text));
@@ -489,13 +494,13 @@ class _AboutPageState extends State<AboutPage> {
     message.dispose();
     if (result == null) return;
 
-    final sender = result["name"]?.trim().isEmpty == false ? result["name"]!.trim() : "Accounting Pro user";
+    final sender = result["name"]?.trim().isEmpty == false ? result["name"]!.trim() : "daftr user";
     final body = "Sender: $sender\nVersion: ${AppVersion.display}\n\n${result["message"] ?? ""}";
     final uri = Uri(
       scheme: "mailto",
       path: "alimjdandash@gmail.com",
       queryParameters: {
-        "subject": "Accounting Pro Feedback",
+        "subject": "daftr Feedback",
         "body": body,
       },
     );

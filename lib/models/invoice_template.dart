@@ -25,7 +25,7 @@
 
   factory InvoiceTemplateModel.fromJson(Map<String, dynamic> json) {
     return InvoiceTemplateModel(
-      businessName: (json["businessName"] ?? "Accounting Pro").toString(),
+      businessName: (json["businessName"] ?? "daftr").toString(),
       businessPhone: (json["businessPhone"] ?? "").toString(),
       businessAddress: (json["businessAddress"] ?? "").toString(),
       invoiceTitle: (json["invoiceTitle"] ?? "Sales Invoice").toString(),
