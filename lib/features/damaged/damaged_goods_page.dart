@@ -19,6 +19,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   String? _error;
   List<Product> _products = [];
   List<_DamageMovement> _movements = [];
+  final List<_DamageDraftItem> _damageItems = [];
 
   final _productSearch = TextEditingController();
   final _productFocus = FocusNode();
@@ -71,32 +72,17 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   Future<void> _recordDamage() async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-    final choice = _activeChoice;
-    if (choice == null) {
-      return _showError(isAr ? "اختار البضاعة من القائمة أولاً" : "Choose an item first");
+    if (_damageItems.isEmpty && _activeChoice != null && _quantity.text.trim().isNotEmpty) {
+      if (!_addDamageItem()) return;
     }
-
-    final quantity = double.tryParse(_quantity.text.trim()) ?? 0;
-    final unitCost = double.tryParse(_unitCost.text.trim()) ?? 0;
-    if (quantity <= 0) {
-      return _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
-    }
-    if (quantity > choice.quantity) {
-      return _showError(isAr ? "الكمية أكبر من الموجود بالمخزون" : "Quantity is greater than available stock");
-    }
-    if (unitCost < 0) {
-      return _showError(isAr ? "سعر الخسارة غير صحيح" : "Invalid loss cost");
+    if (_damageItems.isEmpty) {
+      return _showError(isAr ? "أضف صنف واحد على الأقل" : "Add at least one item");
     }
 
     try {
-      final path = choice.variantId == null
-          ? "/products/${choice.productId}/damage"
-          : "/products/${choice.productId}/variants/${choice.variantId}/damage";
-      await widget.api.post(path, {
-        "quantity": quantity,
-        "unitCost": unitCost,
-        "currency": _currency,
+      await widget.api.post("/products/damage/bulk", {
         "reason": _reason.text.trim(),
+        "items": _damageItems.map((item) => item.toBody()).toList(),
       });
 
       _quantity.clear();
@@ -104,14 +90,57 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
       _productSearch.clear();
       _unitCost.clear();
       _activeChoice = null;
+      _damageItems.clear();
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isAr ? "تم نقل البضاعة إلى التالف وحساب الخسارة" : "Damaged stock was recorded")),
+        SnackBar(content: Text(isAr ? "تم تسجيل البضاعة التالفة" : "Damaged stock was recorded")),
       );
     } catch (e) {
       _showError(e);
     }
+  }
+
+  bool _addDamageItem() {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final choice = _activeChoice;
+    if (choice == null) {
+      _showError(isAr ? "اختار البضاعة من القائمة أولاً" : "Choose an item first");
+      return false;
+    }
+
+    final quantity = double.tryParse(_quantity.text.trim()) ?? 0;
+    final unitCost = double.tryParse(_unitCost.text.trim()) ?? 0;
+    if (quantity <= 0) {
+      _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
+      return false;
+    }
+    if (unitCost < 0) {
+      _showError(isAr ? "سعر الخسارة غير صحيح" : "Invalid loss cost");
+      return false;
+    }
+
+    final index = _damageItems.indexWhere((item) => item.id == choice.id);
+    final currentQty = index == -1 ? 0.0 : _damageItems[index].quantity;
+    final nextQty = currentQty + quantity;
+    if (nextQty > choice.quantity) {
+      _showError(isAr ? "الكمية أكبر من الموجود بالمخزون" : "Quantity is greater than available stock");
+      return false;
+    }
+
+    setState(() {
+      if (index == -1) {
+        _damageItems.add(_DamageDraftItem.fromChoice(choice, quantity: quantity, unitCost: unitCost, currency: _currency, reason: _reason.text.trim()));
+      } else {
+        _damageItems[index] = _damageItems[index].copyWith(quantity: nextQty, unitCost: unitCost, currency: _currency, reason: _reason.text.trim());
+      }
+      _productSearch.clear();
+      _quantity.clear();
+      _unitCost.clear();
+      _activeChoice = null;
+    });
+    return true;
   }
 
   Future<void> _resetDamagedData() async {
@@ -416,6 +445,17 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                   decoration: InputDecoration(labelText: isAr ? "سبب التلف" : "Damage reason", prefixIcon: const Icon(Icons.note_alt_rounded)),
                 ),
           ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _addDamageItem,
+              icon: const Icon(Icons.playlist_add_rounded),
+              label: Text(isAr ? "إضافة للسلة" : "Add item"),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _damageDraftCard(isAr),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
@@ -423,9 +463,64 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
             child: FilledButton.icon(
               onPressed: _recordDamage,
               icon: const Icon(Icons.report_problem_rounded),
-              label: Text(isAr ? "نقل إلى التالف وحساب الخسارة" : "Record Damaged Stock"),
+              label: Text(_damageItems.isEmpty ? (isAr ? "تسجيل التالف" : "Record Damaged Stock") : "${isAr ? "تسجيل التالف" : "Record Damaged Stock"} (${number(_damageItems.length)})"),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _damageDraftCard(bool isAr) {
+    if (_damageItems.isEmpty) {
+      return ModernCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.report_problem_rounded, color: Colors.deepOrange),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                isAr ? "أضف كل العناصر التالفة ثم سجلها مرة واحدة." : "Add all damaged items, then record them once.",
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    for (final item in _damageItems) {
+      totals[item.currency] = (totals[item.currency] ?? 0) + item.total;
+    }
+
+    return ModernCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.report_problem_rounded, color: Colors.deepOrange),
+              const SizedBox(width: 8),
+              Expanded(child: Text(isAr ? "سلة التالف" : "Damaged items", style: const TextStyle(fontWeight: FontWeight.w900))),
+              Text("${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}", style: const TextStyle(fontWeight: FontWeight.w900)),
+            ],
+          ),
+          const Divider(height: 18),
+          for (var i = 0; i < _damageItems.length; i++)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(_damageItems[i].label, style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text("${number(_damageItems[i].quantity)} ${_damageItems[i].unit} x ${money(_damageItems[i].unitCost, _damageItems[i].currency)}"),
+              trailing: IconButton(
+                tooltip: isAr ? "حذف" : "Remove",
+                onPressed: () => setState(() => _damageItems.removeAt(i)),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
         ],
       ),
     );
@@ -616,6 +711,71 @@ class _DamageChoice {
   });
 
   String get searchText => "$label $category $subcategory".toLowerCase();
+}
+
+class _DamageDraftItem {
+  final String id;
+  final String productId;
+  final String? variantId;
+  final String label;
+  final double quantity;
+  final String unit;
+  final double unitCost;
+  final String currency;
+  final String reason;
+
+  const _DamageDraftItem({
+    required this.id,
+    required this.productId,
+    required this.variantId,
+    required this.label,
+    required this.quantity,
+    required this.unit,
+    required this.unitCost,
+    required this.currency,
+    required this.reason,
+  });
+
+  factory _DamageDraftItem.fromChoice(_DamageChoice choice, {required double quantity, required double unitCost, required String currency, required String reason}) {
+    return _DamageDraftItem(
+      id: choice.id,
+      productId: choice.productId,
+      variantId: choice.variantId,
+      label: choice.label,
+      quantity: quantity,
+      unit: choice.unit,
+      unitCost: unitCost,
+      currency: currency,
+      reason: reason,
+    );
+  }
+
+  double get total => quantity * unitCost;
+
+  _DamageDraftItem copyWith({double? quantity, double? unitCost, String? currency, String? reason}) {
+    return _DamageDraftItem(
+      id: id,
+      productId: productId,
+      variantId: variantId,
+      label: label,
+      quantity: quantity ?? this.quantity,
+      unit: unit,
+      unitCost: unitCost ?? this.unitCost,
+      currency: currency ?? this.currency,
+      reason: reason ?? this.reason,
+    );
+  }
+
+  Map<String, dynamic> toBody() {
+    return {
+      "productId": productId,
+      if (variantId != null) "variantId": variantId,
+      "quantity": quantity,
+      "unitCost": unitCost,
+      "currency": currency,
+      "reason": reason,
+    };
+  }
 }
 
 class _DamageMovement {

@@ -39,6 +39,7 @@ class _SalesPageState extends State<SalesPage> {
   final _quantity = TextEditingController();
   final _unitPrice = TextEditingController();
   final _totalPrice = TextEditingController();
+  final List<_SaleDraftItem> _saleItems = [];
 
   bool _registerDebt = false;
   bool _showAllSales = false;
@@ -204,11 +205,11 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   Future<void> _createSale() async {
-    if (_activeChoice == null) return _showError("Select product");
+    if (_saleItems.isEmpty && _activeChoice != null && _quantity.text.trim().isNotEmpty) {
+      if (!_addCurrentItemToInvoice()) return;
+    }
+    if (_saleItems.isEmpty) return _showError("Add at least one item");
     final isAr = AppScope.of(context).isArabic;
-    final q = double.tryParse(_quantity.text) ?? 0;
-    final price = double.tryParse(_unitPrice.text) ?? 0;
-    if (q <= 0) return _showError("Invalid quantity");
 
     final selectedCustomer = _firstCustomerWhere((x) => x.id == _selectedCustomerId);
     final typedCustomer = _manualCustomerName.text.trim();
@@ -222,16 +223,9 @@ class _SalesPageState extends State<SalesPage> {
       final created = await widget.api.post("/sales", {
         "customerName": custName,
         if (selectedMatchesText && _selectedCustomerId != null) "contact": _selectedCustomerId,
-        "currency": _activeChoice!.currency,
+        "currency": _saleItems.first.currency,
         "paymentStatus": _registerDebt ? "debt" : "paid",
-        "items": [
-          {
-            "productId": _activeChoice!.productId,
-            if (_activeChoice!.variantId != null) "variantId": _activeChoice!.variantId,
-            "quantity": q,
-            "unitPrice": price,
-          }
-        ],
+        "items": _saleItems.map((item) => item.toBody()).toList(),
       });
       final sale = Sale.fromJson(Map<String, dynamic>.from(created as Map));
       _resetForm();
@@ -252,8 +246,64 @@ class _SalesPageState extends State<SalesPage> {
     _selectedProductId = null;
     _selectedCustomerId = null;
     _activeChoice = null;
+    _saleItems.clear();
     _registerDebt = false;
   }
+
+  bool _addCurrentItemToInvoice() {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final choice = _activeChoice;
+    if (choice == null) {
+      _showError(isAr ? "اختار منتج أولاً" : "Select a product first");
+      return false;
+    }
+    final quantity = _parseInput(_quantity.text);
+    final unitPrice = _parseInput(_unitPrice.text);
+    if (quantity <= 0) {
+      _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
+      return false;
+    }
+    if (unitPrice < 0) {
+      _showError(isAr ? "السعر غير صحيح" : "Invalid price");
+      return false;
+    }
+    if (_saleItems.isNotEmpty && _saleItems.first.currency != choice.currency) {
+      _showError(isAr ? "لا يمكن خلط عملتين بنفس فاتورة المبيع" : "Sales invoice items must use one currency");
+      return false;
+    }
+
+    final index = _saleItems.indexWhere((item) => item.id == choice.id);
+    final currentQty = index == -1 ? 0.0 : _saleItems[index].quantity;
+    final nextQty = currentQty + quantity;
+    if (nextQty > choice.quantity) {
+      _showError(isAr ? "الكمية أكبر من المتوفر بالمخزون" : "Quantity is greater than available stock");
+      return false;
+    }
+
+    setState(() {
+      if (index == -1) {
+        _saleItems.add(_SaleDraftItem.fromChoice(choice, quantity: quantity, unitPrice: unitPrice));
+      } else {
+        _saleItems[index] = _saleItems[index].copyWith(quantity: nextQty, unitPrice: unitPrice);
+      }
+      _clearProductEntry();
+    });
+    return true;
+  }
+
+  void _clearProductEntry() {
+    _quantity.clear();
+    _unitPrice.clear();
+    _totalPrice.clear();
+    _productSearch.clear();
+    _selectedProductId = null;
+    _activeChoice = null;
+  }
+
+  double _parseInput(String value) => double.tryParse(value.replaceAll(",", "").trim()) ?? 0;
+
+  double _saleItemsTotal() => _saleItems.fold<double>(0, (sum, item) => sum + item.total);
 
   Future<void> _showSaleSharePrompt(Sale sale, {bool created = true}) async {
     final c = AppScope.of(context);
@@ -437,6 +487,18 @@ class _SalesPageState extends State<SalesPage> {
                   ),
                   onChanged: (_) => _updateUnitPrice(),
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: OutlinedButton.icon(
+                    onPressed: _addCurrentItemToInvoice,
+                    icon: const Icon(Icons.add_shopping_cart_rounded),
+                    label: Text(isAr ? "إضافة للفاتورة" : "Add to invoice"),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _saleDraftCard(isAr),
                 const SizedBox(height: 8),
                 CheckboxListTile(
                   value: _registerDebt,
@@ -450,7 +512,14 @@ class _SalesPageState extends State<SalesPage> {
                 SizedBox(
                   width: double.infinity,
                   height: 50,
-                  child: FilledButton.icon(onPressed: _createSale, icon: const Icon(Icons.point_of_sale), label: Text(c.t("createSale"), style: const TextStyle(fontWeight: FontWeight.bold))),
+                  child: FilledButton.icon(
+                    onPressed: _createSale,
+                    icon: const Icon(Icons.point_of_sale),
+                    label: Text(
+                      _saleItems.isEmpty ? c.t("createSale") : "${c.t("createSale")} (${number(_saleItems.length)})",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -458,6 +527,65 @@ class _SalesPageState extends State<SalesPage> {
           const SizedBox(height: 24),
           _invoiceListCard(isAr),
           const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _saleDraftCard(bool isAr) {
+    final currency = _saleItems.isEmpty ? "LBP" : _saleItems.first.currency;
+    if (_saleItems.isEmpty) {
+      return ModernCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.receipt_long_rounded),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                isAr ? "أضف أكثر من صنف قبل إنشاء الفاتورة." : "Add one or more items before creating the invoice.",
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ModernCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded),
+              const SizedBox(width: 8),
+              Expanded(child: Text(isAr ? "عناصر الفاتورة" : "Invoice items", style: const TextStyle(fontWeight: FontWeight.w900))),
+              Text(money(_saleItemsTotal(), currency), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.blue)),
+            ],
+          ),
+          const Divider(height: 20),
+          for (var i = 0; i < _saleItems.length; i++) ...[
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(_saleItems[i].label, style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text("${number(_saleItems[i].quantity)} ${_saleItems[i].unit} x ${money(_saleItems[i].unitPrice, _saleItems[i].currency)}"),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(money(_saleItems[i].total, _saleItems[i].currency), style: const TextStyle(fontWeight: FontWeight.w900)),
+                  IconButton(
+                    tooltip: isAr ? "حذف" : "Remove",
+                    onPressed: () => setState(() => _saleItems.removeAt(i)),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            if (i != _saleItems.length - 1) const Divider(height: 12),
+          ],
         ],
       ),
     );
@@ -834,6 +962,65 @@ class _SalesPageState extends State<SalesPage> {
         );
       },
     );
+  }
+}
+
+class _SaleDraftItem {
+  final String id;
+  final String productId;
+  final String? variantId;
+  final String label;
+  final double quantity;
+  final double unitPrice;
+  final String currency;
+  final String unit;
+
+  const _SaleDraftItem({
+    required this.id,
+    required this.productId,
+    required this.variantId,
+    required this.label,
+    required this.quantity,
+    required this.unitPrice,
+    required this.currency,
+    required this.unit,
+  });
+
+  factory _SaleDraftItem.fromChoice(_SaleProductChoice choice, {required double quantity, required double unitPrice}) {
+    return _SaleDraftItem(
+      id: choice.id,
+      productId: choice.productId,
+      variantId: choice.variantId,
+      label: choice.label,
+      quantity: quantity,
+      unitPrice: unitPrice,
+      currency: choice.currency,
+      unit: choice.unit,
+    );
+  }
+
+  double get total => quantity * unitPrice;
+
+  _SaleDraftItem copyWith({double? quantity, double? unitPrice}) {
+    return _SaleDraftItem(
+      id: id,
+      productId: productId,
+      variantId: variantId,
+      label: label,
+      quantity: quantity ?? this.quantity,
+      unitPrice: unitPrice ?? this.unitPrice,
+      currency: currency,
+      unit: unit,
+    );
+  }
+
+  Map<String, dynamic> toBody() {
+    return {
+      "productId": productId,
+      if (variantId != null) "variantId": variantId,
+      "quantity": quantity,
+      "unitPrice": unitPrice,
+    };
   }
 }
 
