@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
+import "../../widgets/date_filter_bar.dart";
 import "../../widgets/modern_card.dart";
 import "../../widgets/page_header.dart";
 
@@ -21,6 +22,7 @@ class _ReportsPageState extends State<ReportsPage> {
   String? _error;
   Map<String, dynamic> _data = {};
   List<Map<String, dynamic>> _lowStock = [];
+  DateFilterValue _dateFilter = const DateFilterValue(preset: DateFilterPreset.month);
 
   @override
   void initState() {
@@ -35,7 +37,7 @@ class _ReportsPageState extends State<ReportsPage> {
     });
 
     try {
-      final res = await widget.api.get("/reports/summary");
+      final res = await widget.api.get(_summaryPath());
       final low = await widget.api.get("/reports/low-stock");
       _data = Map<String, dynamic>.from(res as Map);
       _lowStock = (low as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
@@ -44,6 +46,11 @@ class _ReportsPageState extends State<ReportsPage> {
     }
 
     if (mounted) setState(() => _loading = false);
+  }
+
+  String _summaryPath() {
+    final range = _dateFilter.range(DateTime.now());
+    return "/reports/summary?from=${Uri.encodeComponent(range.start.toUtc().toIso8601String())}&to=${Uri.encodeComponent(range.end.toUtc().toIso8601String())}";
   }
 
   @override
@@ -66,6 +73,15 @@ class _ReportsPageState extends State<ReportsPage> {
                 label: Text(_label(isAr, "Reset Profits", "\u062a\u0635\u0641\u064a\u0631 \u0627\u0644\u0623\u0631\u0628\u0627\u062d")),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          DateFilterBar(
+            isArabic: isAr,
+            value: _dateFilter,
+            onChanged: (value) {
+              setState(() => _dateFilter = value);
+              _load();
+            },
           ),
           const SizedBox(height: 20),
           if (_loading)

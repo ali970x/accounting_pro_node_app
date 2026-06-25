@@ -41,6 +41,8 @@ class Sale {
   final double debtBalanceAfterUsd;
   final String note;
   final List<SaleItem> items;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const Sale({
     required this.id,
@@ -59,6 +61,8 @@ class Sale {
     required this.debtBalanceAfterUsd,
     required this.note,
     required this.items,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Sale.fromJson(Map<String, dynamic> json) {
@@ -80,6 +84,8 @@ class Sale {
       debtBalanceAfterUsd: _num(json["debtBalanceAfterUsd"]),
       note: (json["note"] ?? "").toString(),
       items: raw is List ? raw.map((e) => SaleItem.fromJson(Map<String, dynamic>.from(e as Map))).toList() : [],
+      createdAt: _date(json["createdAt"]),
+      updatedAt: _date(json["updatedAt"]),
     );
   }
 }
@@ -92,4 +98,9 @@ String _id(dynamic value) {
 double _num(dynamic value) {
   if (value is num) return value.toDouble();
   return double.tryParse(value.toString()) ?? 0;
+}
+
+DateTime? _date(dynamic value) {
+  if (value == null) return null;
+  return DateTime.tryParse(value.toString());
 }

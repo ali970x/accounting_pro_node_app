@@ -9,6 +9,7 @@ import "../../models/invoice_template.dart";
 import "../../models/product.dart";
 import "../../models/sale.dart";
 import "../../models/contact.dart";
+import "../../widgets/date_filter_bar.dart";
 import "../../widgets/modern_card.dart";
 import "../../widgets/page_header.dart";
 import "../contacts/contacts_page.dart";
@@ -47,6 +48,7 @@ class _SalesPageState extends State<SalesPage> {
   bool _showAllSales = false;
   String _paymentMethod = "cash";
   String _debtPaymentCurrency = "LBP";
+  DateFilterValue _dateFilter = const DateFilterValue(preset: DateFilterPreset.month);
   _SaleProductChoice? _activeChoice;
 
   @override
@@ -323,6 +325,19 @@ class _SalesPageState extends State<SalesPage> {
 
   double _saleItemsTotal() => _saleItems.fold<double>(0, (sum, item) => sum + item.total);
 
+  List<Sale> _filteredSales() {
+    return _sales.where((sale) => _dateFilter.includes(sale.createdAt)).toList();
+  }
+
+  Map<String, double> _salesTotals(List<Sale> sales) {
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    for (final sale in sales) {
+      final currency = sale.currency == "USD" ? "USD" : "LBP";
+      totals[currency] = (totals[currency] ?? 0) + sale.total;
+    }
+    return totals;
+  }
+
   Map<String, double> _customerDebtTotals(String? contactId) {
     final totals = {"LBP": 0.0, "USD": 0.0};
     if (contactId == null || contactId.isEmpty) return totals;
@@ -434,6 +449,7 @@ class _SalesPageState extends State<SalesPage> {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
+    final visibleSales = _filteredSales();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -606,7 +622,9 @@ class _SalesPageState extends State<SalesPage> {
             ),
           ),
           const SizedBox(height: 24),
-          _invoiceListCard(isAr),
+          _salesReportCard(isAr, visibleSales),
+          const SizedBox(height: 14),
+          _invoiceListCard(isAr, visibleSales),
           const SizedBox(height: 80),
         ],
       ),
@@ -731,10 +749,115 @@ class _SalesPageState extends State<SalesPage> {
     );
   }
 
-  Widget _invoiceListCard(bool isAr) {
-    final c = AppScope.of(context);
-    final shownSales = _showAllSales ? _sales : _sales.take(5).toList();
-    final hasMore = _sales.length > 5;
+  Widget _salesReportCard(bool isAr, List<Sale> visibleSales) {
+    final totals = _salesTotals(visibleSales);
+    return ModernCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(child: Icon(Icons.query_stats_rounded)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isAr ? "تقرير المبيعات" : "Sales report",
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          DateFilterBar(
+            isArabic: isAr,
+            value: _dateFilter,
+            onChanged: (value) => setState(() {
+              _dateFilter = value;
+              _showAllSales = false;
+            }),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 760 ? 3 : 1;
+              final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: width,
+                    child: _salesReportTile(
+                      icon: Icons.receipt_long_rounded,
+                      label: isAr ? "عدد الفواتير" : "Invoices",
+                      value: number(visibleSales.length),
+                      color: Colors.indigo,
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: _salesReportTile(
+                      icon: Icons.payments_rounded,
+                      label: isAr ? "المبيع بالليرة" : "LBP sales",
+                      value: money(totals["LBP"] ?? 0, "LBP"),
+                      color: Colors.blue,
+                    ),
+                  ),
+                  SizedBox(
+                    width: width,
+                    child: _salesReportTile(
+                      icon: Icons.attach_money_rounded,
+                      label: isAr ? "المبيع بالدولار" : "USD sales",
+                      value: money(totals["USD"] ?? 0, "USD"),
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _salesReportTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.22)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(color: color, fontWeight: FontWeight.w900)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _invoiceListCard(bool isAr, List<Sale> visibleSales) {
+    final shownSales = _showAllSales ? visibleSales : visibleSales.take(5).toList();
+    final hasMore = visibleSales.length > 5;
 
     return ModernCard(
       padding: EdgeInsets.zero,
@@ -743,7 +866,7 @@ class _SalesPageState extends State<SalesPage> {
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: const CircleAvatar(child: Icon(Icons.receipt_long_rounded)),
         title: Text(isAr ? "آخر الفواتير" : "Latest invoices", style: const TextStyle(fontWeight: FontWeight.w900)),
-        subtitle: Text(isAr ? "${_sales.length} فاتورة محفوظة" : "${_sales.length} saved invoices"),
+        subtitle: Text(isAr ? "${visibleSales.length} فاتورة ضمن الفترة" : "${visibleSales.length} invoices in period"),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
         children: [
           if (_loading)
@@ -756,10 +879,10 @@ class _SalesPageState extends State<SalesPage> {
               padding: const EdgeInsets.all(12),
               child: Text(_error!, style: const TextStyle(color: Colors.red)),
             )
-          else if (_sales.isEmpty)
+          else if (visibleSales.isEmpty)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(c.t("empty")),
+              child: Text(isAr ? "لا يوجد فواتير ضمن الفترة المحددة" : "No invoices in the selected period"),
             )
           else ...[
             Row(
@@ -926,7 +1049,7 @@ class _SalesPageState extends State<SalesPage> {
         child: ListTile(
           leading: const CircleAvatar(child: Icon(Icons.receipt_long)),
           title: Text(s.invoiceNo, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text("${s.customerName}${s.paymentStatus == "debt" ? (isAr ? "\nدين" : "\nDebt") : ""}"),
+          subtitle: Text("${s.customerName}\n${_formatTime(s.createdAt)}${s.paymentStatus == "debt" ? (isAr ? "\nدين" : "\nDebt") : ""}"),
           trailing: SizedBox(
             width: 132,
             child: Row(
@@ -964,6 +1087,17 @@ class _SalesPageState extends State<SalesPage> {
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime? value) {
+    if (value == null) return "-";
+    final local = value.toLocal();
+    final y = local.year.toString().padLeft(4, "0");
+    final m = local.month.toString().padLeft(2, "0");
+    final d = local.day.toString().padLeft(2, "0");
+    final h = local.hour.toString().padLeft(2, "0");
+    final min = local.minute.toString().padLeft(2, "0");
+    return "$y-$m-$d $h:$min";
   }
 
   List<_SaleProductChoice> _saleChoices() {
