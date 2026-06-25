@@ -65,52 +65,40 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
+        margin: const pw.EdgeInsets.fromLTRB(26, 22, 26, 22),
         build: (_) => [
           pw.Directionality(
             textDirection: isArabic ? pw.TextDirection.rtl : pw.TextDirection.ltr,
-            child: pw.Container(
-              decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300)),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                children: [
-                  _header(template, primary, logo, isArabic),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(18),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                      children: [
-                        _text(template.invoiceTitle, isArabic, size: 25, bold: true),
-                        pw.SizedBox(height: 12),
-                        _labelValue(isArabic ? "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice No.", sale.invoiceNo, isArabic),
-                        _labelValue(isArabic ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u0625\u0644\u0649" : "Bill To", sale.customerName, isArabic),
-                        pw.SizedBox(height: 20),
-                        _itemsTable(sale, isArabic),
-                        pw.SizedBox(height: 22),
-                        pw.Align(
-                          alignment: isArabic ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
-                          child: _text("${isArabic ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639" : "Total"}: ${money(sale.total, sale.currency)}", isArabic, size: 18, bold: true),
-                        ),
-                        if (template.footerNote.isNotEmpty) ...[
-                          pw.SizedBox(height: 18),
-                          _text(template.footerNote, isArabic),
-                        ],
-                        if (template.terms.isNotEmpty) ...[
-                          pw.SizedBox(height: 10),
-                          _text(template.terms, isArabic, size: 10),
-                        ],
-                        if (template.showSignature) ...[
-                          pw.SizedBox(height: 38),
-                          pw.Align(
-                            alignment: isArabic ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
-                            child: _text("____________________\n${isArabic ? "\u0627\u0644\u062a\u0648\u0642\u064a\u0639" : "Signature"}", isArabic, align: pw.TextAlign.center),
-                          ),
-                        ],
-                      ],
-                    ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                _compactHeader(template, primary, logo, isArabic),
+                pw.SizedBox(height: 10),
+                _invoiceMeta(sale, isArabic),
+                pw.Divider(color: PdfColors.grey500, thickness: 0.7),
+                pw.SizedBox(height: 8),
+                _text("${isArabic ? "\u0627\u0644\u0645\u0637\u0644\u0648\u0628 \u0645\u0646" : "Bill To"}: ${sale.customerName}", isArabic, size: 13, bold: true),
+                pw.SizedBox(height: 10),
+                _itemsTable(sale, isArabic),
+                pw.SizedBox(height: 28),
+                pw.Divider(color: PdfColors.grey400, thickness: 0.5),
+                _invoiceTotalsBlock(sale, isArabic),
+                if (template.footerNote.isNotEmpty) ...[
+                  pw.SizedBox(height: 10),
+                  _text(template.footerNote, isArabic, size: 10),
+                ],
+                if (template.terms.isNotEmpty) ...[
+                  pw.SizedBox(height: 6),
+                  _text(template.terms, isArabic, size: 9),
+                ],
+                if (template.showSignature) ...[
+                  pw.SizedBox(height: 24),
+                  pw.Align(
+                    alignment: isArabic ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
+                    child: _text("____________________\n${isArabic ? "\u0627\u0644\u062a\u0648\u0642\u064a\u0639" : "Signature"}", isArabic, align: pw.TextAlign.center),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -118,6 +106,114 @@ class PdfService {
     );
 
     return pdf.save();
+  }
+
+  static pw.Widget _compactHeader(InvoiceTemplateModel template, PdfColor primary, pw.ImageProvider? logo, bool isArabic) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            if (template.showLogo)
+              pw.Container(
+                width: 54,
+                height: 54,
+                decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
+                child: logo == null ? _cargoLogo(primary) : pw.Image(logo, fit: pw.BoxFit.cover),
+              ),
+            if (template.showLogo) pw.SizedBox(width: 12),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  _text(template.businessName, isArabic, size: 18, bold: true, align: pw.TextAlign.center),
+                  if (template.businessAddress.isNotEmpty) _text(template.businessAddress, isArabic, size: 10, align: pw.TextAlign.center),
+                  if (template.businessPhone.isNotEmpty) _text(template.businessPhone, isArabic, size: 10, align: pw.TextAlign.center),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _invoiceMeta(Sale sale, bool isArabic) {
+    final now = DateTime.now();
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        _text("${isArabic ? "\u0635\u0641\u062d\u0629" : "Page"} 1", isArabic, size: 10),
+        _text("${isArabic ? "\u0641.\u0645\u0628\u064a\u0639 \u0631\u0642\u0645" : "Sales invoice"} ${sale.invoiceNo}", isArabic, size: 11, bold: true),
+        _text("${isArabic ? "\u0627\u0644\u062a\u0627\u0631\u064a\u062e" : "Date"}: ${_dateText(now).substring(0, 10)}", isArabic, size: 10),
+      ],
+    );
+  }
+
+  static pw.Widget _invoiceTotalsBlock(Sale sale, bool isArabic) {
+    final hasDebtInfo = sale.debtBalanceBeforeLbp != 0 || sale.debtBalanceBeforeUsd != 0 || sale.debtBalanceAfterLbp != 0 || sale.debtBalanceAfterUsd != 0 || sale.debtPaymentAmount > 0;
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: isArabic ? pw.CrossAxisAlignment.end : pw.CrossAxisAlignment.start,
+                children: [
+                  _text("${isArabic ? "\u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u062f\u0641\u0639" : "Payment method"}: ${_paymentMethodLabel(sale.paymentMethod, isArabic)}", isArabic, bold: true),
+                  _text("${isArabic ? "\u062d\u0627\u0644\u0629 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice status"}: ${sale.paymentStatus == "debt" ? (isArabic ? "\u062f\u064a\u0646" : "Debt") : (isArabic ? "\u0645\u062f\u0641\u0648\u0639" : "Paid")}", isArabic),
+                  if (sale.debtPaymentAmount > 0)
+                    _text("${isArabic ? "\u062f\u0641\u0639 \u0645\u0646 \u0627\u0644\u062f\u064a\u0648\u0646" : "Debt payment"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}", isArabic, bold: true),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 18),
+            pw.Container(
+              width: 230,
+              child: pw.Column(
+                crossAxisAlignment: isArabic ? pw.CrossAxisAlignment.start : pw.CrossAxisAlignment.end,
+                children: [
+                  _text("${isArabic ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639" : "Invoice total"}: ${money(sale.total, sale.currency)}", isArabic, size: 15, bold: true),
+                  if (hasDebtInfo) ...[
+                    pw.SizedBox(height: 5),
+                    _text("${isArabic ? "\u0631\u0635\u064a\u062f \u0633\u0627\u0628\u0642" : "Previous balance"}: ${money(sale.debtBalanceBeforeLbp, "LBP")} / ${money(sale.debtBalanceBeforeUsd, "USD")}", isArabic, size: 10),
+                    _text("${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${money(sale.debtBalanceAfterLbp, "LBP")} / ${money(sale.debtBalanceAfterUsd, "USD")}", isArabic, size: 10, bold: true),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 14),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            _text("${isArabic ? "\u0627\u0644\u0648\u0642\u062a" : "Time"}: ${_dateText(DateTime.now()).substring(11)}", isArabic, size: 10),
+            _text("${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${money(sale.debtBalanceAfterLbp, "LBP")} ${sale.debtBalanceAfterUsd != 0 ? " / ${money(sale.debtBalanceAfterUsd, "USD")}" : ""}", isArabic, size: 13, bold: true),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static String _paymentMethodLabel(String value, bool isArabic) {
+    switch (value) {
+      case "debt":
+        return isArabic ? "\u062f\u064a\u0646" : "Debt";
+      case "bank":
+        return isArabic ? "\u062a\u062d\u0648\u064a\u0644 \u0628\u0646\u0643\u064a" : "Bank";
+      case "card":
+        return isArabic ? "\u0628\u0637\u0627\u0642\u0629" : "Card";
+      case "transfer":
+        return isArabic ? "\u062a\u062d\u0648\u064a\u0644" : "Transfer";
+      case "other":
+        return isArabic ? "\u0623\u062e\u0631\u0649" : "Other";
+      default:
+        return isArabic ? "\u0646\u0642\u062f\u0627\u064b" : "Cash";
+    }
   }
 
   static Future<void> printGoodsMovementInvoice({

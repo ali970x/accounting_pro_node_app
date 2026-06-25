@@ -23,6 +23,7 @@ class _InventoryPageState extends State<InventoryPage> {
   String? _error;
   List<Product> _products = [];
   List<ContactModel> _suppliers = [];
+  List<Map<String, dynamic>> _debts = [];
   final _searchController = TextEditingController();
   final Set<String> _closedCategories = {};
   final Set<String> _closedSubcategories = {};
@@ -50,12 +51,14 @@ class _InventoryPageState extends State<InventoryPage> {
       final results = await Future.wait([
         widget.api.get("/products"),
         widget.api.get("/contacts"),
+        widget.api.get("/debts"),
       ]);
       _products = (results[0] as List).map((e) => Product.fromJson(Map<String, dynamic>.from(e as Map))).toList();
       _suppliers = (results[1] as List)
           .map((e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)))
           .where((contact) => contact.type == "supplier")
           .toList();
+      _debts = (results[2] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
     } catch (e) {
       _error = e.toString();
     }
@@ -93,35 +96,51 @@ class _InventoryPageState extends State<InventoryPage> {
 
     final result = await showDialog<_BulkSupplyResult>(
       context: context,
-      builder: (_) => _BulkSupplyDialog(products: _products, suppliers: _suppliers),
+      builder: (_) => _BulkSupplyDialog(products: _products, suppliers: _suppliers, debts: _debts),
     );
     if (result == null) return;
 
     try {
       await widget.api.post("/products/stock/bulk", result.toBody());
+      Map<String, dynamic>? paymentInfo;
+      if (result.debtPaymentAmount > 0) {
+        final raw = await widget.api.post("/debts/contact/${result.supplier.id}/payments", {
+          "type": "payable",
+          "amount": result.debtPaymentAmount,
+          "currency": result.debtPaymentCurrency,
+          "note": "Payment on purchase invoice: ${result.invoiceNo}",
+        });
+        if (raw is Map) paymentInfo = Map<String, dynamic>.from(raw);
+      }
       await _loadProducts();
       if (!mounted) return;
-      await _showBulkSupplyInvoice(result);
+      await _showBulkSupplyInvoice(result, paymentInfo: paymentInfo);
     } catch (e) {
       _showError(e);
     }
   }
 
-  Future<void> _showBulkSupplyInvoice(_BulkSupplyResult result) async {
+  Future<void> _showBulkSupplyInvoice(_BulkSupplyResult result, {Map<String, dynamic>? paymentInfo}) async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final totals = result.totalsByCurrency();
+    final before = result.debtTotalsBefore;
+    final after = _mapTotals(paymentInfo?["after"]) ?? result.estimatedDebtAfter();
     final lines = <String>[
       isAr ? "فاتورة توريد" : "Stock purchase invoice",
       "${isAr ? "المورد" : "Supplier"}: ${result.supplier.name}",
       if (result.invoiceNo.isNotEmpty) "${isAr ? "رقم الفاتورة" : "Invoice"}: ${result.invoiceNo}",
       "${isAr ? "الحالة" : "Status"}: ${result.isDebt ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
+      "${isAr ? "طريقة الدفع" : "Payment method"}: ${result.isDebt ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
+      if (result.debtPaymentAmount > 0) "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(result.debtPaymentAmount, result.debtPaymentCurrency)}",
       "",
       for (final item in result.items)
         "- ${item.label}: ${number(item.quantity)} ${item.unit} x ${money(item.unitCost, item.currency)} = ${money(item.total, item.currency)}",
       "",
       "${isAr ? "الإجمالي باللبناني" : "Total LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
       "${isAr ? "الإجمالي بالدولار" : "Total USD"}: ${money(totals["USD"] ?? 0, "USD")}",
+      "${isAr ? "رصيد سابق" : "Previous balance"}: ${money(before["LBP"] ?? 0, "LBP")} / ${money(before["USD"] ?? 0, "USD")}",
+      "${isAr ? "رصيد نهائي" : "Final balance"}: ${money(after["LBP"] ?? 0, "LBP")} / ${money(after["USD"] ?? 0, "USD")}",
     ];
     final message = lines.join("\n");
     await showDialog<void>(
@@ -144,6 +163,14 @@ class _InventoryPageState extends State<InventoryPage> {
         ],
       ),
     );
+  }
+
+  Map<String, double>? _mapTotals(dynamic raw) {
+    if (raw is! Map) return null;
+    return {
+      "LBP": _numValue(raw["LBP"]),
+      "USD": _numValue(raw["USD"]),
+    };
   }
 
   Future<void> _shareSupplyWhatsapp(ContactModel supplier, String message) async {
@@ -589,8 +616,9 @@ class _InventoryPageState extends State<InventoryPage> {
 class _BulkSupplyDialog extends StatefulWidget {
   final List<Product> products;
   final List<ContactModel> suppliers;
+  final List<Map<String, dynamic>> debts;
 
-  const _BulkSupplyDialog({required this.products, required this.suppliers});
+  const _BulkSupplyDialog({required this.products, required this.suppliers, required this.debts});
 
   @override
   State<_BulkSupplyDialog> createState() => _BulkSupplyDialogState();
@@ -603,12 +631,14 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
   final _unitCost = TextEditingController();
   final _invoiceNo = TextEditingController();
   final _reason = TextEditingController();
+  final _debtPayment = TextEditingController();
   final List<_SupplyDraftItem> _items = [];
 
   String? _supplierId;
   String _category = "";
   String _subcategory = "";
   String _currency = "LBP";
+  String _debtPaymentCurrency = "LBP";
   bool _registerDebt = false;
   _SupplyChoice? _activeChoice;
 
@@ -620,6 +650,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     _unitCost.dispose();
     _invoiceNo.dispose();
     _reason.dispose();
+    _debtPayment.dispose();
     super.dispose();
   }
 
@@ -658,6 +689,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 title: Text(isAr ? "تسجيل كدين على المورد" : "Register as supplier debt"),
                 onChanged: (value) => setState(() => _registerDebt = value ?? false),
               ),
+              _supplierDebtPanel(isAr),
               const Divider(height: 24),
               _responsiveFields([
                 DropdownButtonFormField<String>(
@@ -828,6 +860,57 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
         invoiceNo: _invoiceNo.text.trim(),
         reason: _reason.text.trim(),
         isDebt: _registerDebt,
+        debtTotalsBefore: _supplierDebtTotals(_supplierId),
+        debtPaymentAmount: _numInput(_debtPayment.text),
+        debtPaymentCurrency: _debtPaymentCurrency,
+      ),
+    );
+  }
+
+  Widget _supplierDebtPanel(bool isAr) {
+    final supplier = _supplierById(_supplierId);
+    final totals = _supplierDebtTotals(_supplierId);
+    final hasDebt = (totals["LBP"] ?? 0) > 0 || (totals["USD"] ?? 0) > 0;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            supplier == null ? (isAr ? "اختار مورد لعرض دينه" : "Select supplier to show debt") : "${isAr ? "دين" : "Debt"} ${supplier.name}",
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "${isAr ? "المتبقي" : "Remaining"}: ${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}",
+            style: TextStyle(fontWeight: FontWeight.w800, color: hasDebt ? Colors.red.shade700 : Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          _responsiveFields([
+            TextField(
+              controller: _debtPayment,
+              enabled: supplier != null,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: isAr ? "دفعة من دين المورد" : "Supplier debt payment"),
+            ),
+            DropdownButtonFormField<String>(
+              value: _debtPaymentCurrency,
+              decoration: InputDecoration(labelText: isAr ? "عملة الدفعة" : "Payment currency"),
+              items: const [
+                DropdownMenuItem(value: "LBP", child: Text("LBP")),
+                DropdownMenuItem(value: "USD", child: Text("USD")),
+              ],
+              onChanged: supplier == null ? null : (value) => setState(() => _debtPaymentCurrency = value ?? "LBP"),
+            ),
+          ]),
+        ],
       ),
     );
   }
@@ -876,6 +959,25 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
       if (supplier.id == id) return supplier;
     }
     return null;
+  }
+
+  Map<String, double> _supplierDebtTotals(String? supplierId) {
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    if (supplierId == null || supplierId.isEmpty) return totals;
+    for (final debt in widget.debts) {
+      if ((debt["type"] ?? "").toString() != "payable") continue;
+      if ((debt["status"] ?? "").toString() == "paid") continue;
+      if (_debtContactId(debt) != supplierId) continue;
+      final currency = (debt["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      totals[currency] = (totals[currency] ?? 0) + _numValue(debt["remainingAmount"]);
+    }
+    return totals;
+  }
+
+  String _debtContactId(Map<String, dynamic> debt) {
+    final raw = debt["contact"];
+    if (raw is Map) return (raw["_id"] ?? raw["id"] ?? "").toString();
+    return (raw ?? "").toString();
   }
 
   List<_SupplyChoice> _choices() {
@@ -1055,6 +1157,9 @@ class _BulkSupplyResult {
   final String invoiceNo;
   final String reason;
   final bool isDebt;
+  final Map<String, double> debtTotalsBefore;
+  final double debtPaymentAmount;
+  final String debtPaymentCurrency;
 
   const _BulkSupplyResult({
     required this.supplier,
@@ -1062,6 +1167,9 @@ class _BulkSupplyResult {
     required this.invoiceNo,
     required this.reason,
     required this.isDebt,
+    required this.debtTotalsBefore,
+    required this.debtPaymentAmount,
+    required this.debtPaymentCurrency,
   });
 
   Map<String, dynamic> toBody() {
@@ -1081,6 +1189,22 @@ class _BulkSupplyResult {
     }
     return totals;
   }
+
+  Map<String, double> estimatedDebtAfter() {
+    final totals = Map<String, double>.from(debtTotalsBefore);
+    if (isDebt) {
+      final purchaseTotals = totalsByCurrency();
+      totals["LBP"] = (totals["LBP"] ?? 0) + (purchaseTotals["LBP"] ?? 0);
+      totals["USD"] = (totals["USD"] ?? 0) + (purchaseTotals["USD"] ?? 0);
+    }
+    totals[debtPaymentCurrency] = ((totals[debtPaymentCurrency] ?? 0) - debtPaymentAmount).clamp(0, double.infinity).toDouble();
+    return totals;
+  }
 }
 
 double _numInput(String value) => double.tryParse(value.replaceAll(",", "").trim()) ?? 0;
+
+double _numValue(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString()) ?? 0;
+}

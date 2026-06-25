@@ -32,6 +32,13 @@ class Sale {
   final double total;
   final String currency;
   final String paymentStatus;
+  final String paymentMethod;
+  final double debtPaymentAmount;
+  final String debtPaymentCurrency;
+  final double debtBalanceBeforeLbp;
+  final double debtBalanceBeforeUsd;
+  final double debtBalanceAfterLbp;
+  final double debtBalanceAfterUsd;
   final String note;
   final List<SaleItem> items;
 
@@ -43,6 +50,13 @@ class Sale {
     required this.total,
     required this.currency,
     required this.paymentStatus,
+    required this.paymentMethod,
+    required this.debtPaymentAmount,
+    required this.debtPaymentCurrency,
+    required this.debtBalanceBeforeLbp,
+    required this.debtBalanceBeforeUsd,
+    required this.debtBalanceAfterLbp,
+    required this.debtBalanceAfterUsd,
     required this.note,
     required this.items,
   });
@@ -57,6 +71,13 @@ class Sale {
       total: _num(json["total"]),
       currency: (json["currency"] ?? "LBP").toString(),
       paymentStatus: (json["paymentStatus"] ?? "paid").toString(),
+      paymentMethod: (json["paymentMethod"] ?? (json["paymentStatus"] == "debt" ? "debt" : "cash")).toString(),
+      debtPaymentAmount: _num(json["debtPaymentAmount"]),
+      debtPaymentCurrency: (json["debtPaymentCurrency"] ?? "LBP").toString(),
+      debtBalanceBeforeLbp: _num(json["debtBalanceBeforeLbp"]),
+      debtBalanceBeforeUsd: _num(json["debtBalanceBeforeUsd"]),
+      debtBalanceAfterLbp: _num(json["debtBalanceAfterLbp"]),
+      debtBalanceAfterUsd: _num(json["debtBalanceAfterUsd"]),
       note: (json["note"] ?? "").toString(),
       items: raw is List ? raw.map((e) => SaleItem.fromJson(Map<String, dynamic>.from(e as Map))).toList() : [],
     );

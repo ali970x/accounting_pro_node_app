@@ -27,6 +27,7 @@ class _SalesPageState extends State<SalesPage> {
   List<Product> _products = [];
   List<Sale> _sales = [];
   List<ContactModel> _customers = [];
+  List<Map<String, dynamic>> _debts = [];
 
   String? _selectedProductId;
   String? _selectedCustomerId;
@@ -39,10 +40,13 @@ class _SalesPageState extends State<SalesPage> {
   final _quantity = TextEditingController();
   final _unitPrice = TextEditingController();
   final _totalPrice = TextEditingController();
+  final _debtPayment = TextEditingController();
   final List<_SaleDraftItem> _saleItems = [];
 
   bool _registerDebt = false;
   bool _showAllSales = false;
+  String _paymentMethod = "cash";
+  String _debtPaymentCurrency = "LBP";
   _SaleProductChoice? _activeChoice;
 
   @override
@@ -60,6 +64,7 @@ class _SalesPageState extends State<SalesPage> {
     _quantity.dispose();
     _unitPrice.dispose();
     _totalPrice.dispose();
+    _debtPayment.dispose();
     super.dispose();
   }
 
@@ -73,6 +78,7 @@ class _SalesPageState extends State<SalesPage> {
         widget.api.get("/products"),
         widget.api.get("/sales"),
         widget.api.get("/contacts"),
+        widget.api.get("/debts"),
       ]);
 
       final pData = data[0];
@@ -86,6 +92,8 @@ class _SalesPageState extends State<SalesPage> {
           .map((e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)))
           .where((c) => c.type == "customer")
           .toList();
+
+      _debts = (data[3] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
     } catch (e) {
       _error = e.toString();
     }
@@ -218,6 +226,10 @@ class _SalesPageState extends State<SalesPage> {
     if (_registerDebt && !(selectedMatchesText && _selectedCustomerId != null)) {
       return _showError(isAr ? "اختار الزبون من القائمة قبل تسجيل الدين" : "Select the customer from the list before registering debt");
     }
+    final debtPayment = _parseInput(_debtPayment.text);
+    if (debtPayment > 0 && !(selectedMatchesText && _selectedCustomerId != null)) {
+      return _showError(isAr ? "اختار الزبون من القائمة قبل تسجيل دفعة من الدين" : "Select the customer before recording a debt payment");
+    }
 
     try {
       final created = await widget.api.post("/sales", {
@@ -225,6 +237,9 @@ class _SalesPageState extends State<SalesPage> {
         if (selectedMatchesText && _selectedCustomerId != null) "contact": _selectedCustomerId,
         "currency": _saleItems.first.currency,
         "paymentStatus": _registerDebt ? "debt" : "paid",
+        "paymentMethod": _registerDebt ? "debt" : _paymentMethod,
+        "debtPaymentAmount": debtPayment,
+        "debtPaymentCurrency": _debtPaymentCurrency,
         "items": _saleItems.map((item) => item.toBody()).toList(),
       });
       final sale = Sale.fromJson(Map<String, dynamic>.from(created as Map));
@@ -247,7 +262,10 @@ class _SalesPageState extends State<SalesPage> {
     _selectedCustomerId = null;
     _activeChoice = null;
     _saleItems.clear();
+    _debtPayment.clear();
     _registerDebt = false;
+    _paymentMethod = "cash";
+    _debtPaymentCurrency = "LBP";
   }
 
   bool _addCurrentItemToInvoice() {
@@ -305,6 +323,30 @@ class _SalesPageState extends State<SalesPage> {
 
   double _saleItemsTotal() => _saleItems.fold<double>(0, (sum, item) => sum + item.total);
 
+  Map<String, double> _customerDebtTotals(String? contactId) {
+    final totals = {"LBP": 0.0, "USD": 0.0};
+    if (contactId == null || contactId.isEmpty) return totals;
+    for (final debt in _debts) {
+      if ((debt["type"] ?? "").toString() != "receivable") continue;
+      if ((debt["status"] ?? "").toString() == "paid") continue;
+      if (_debtContactId(debt) != contactId) continue;
+      final currency = (debt["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      totals[currency] = (totals[currency] ?? 0) + _parseDebtNumber(debt["remainingAmount"]);
+    }
+    return totals;
+  }
+
+  String _debtContactId(Map<String, dynamic> debt) {
+    final raw = debt["contact"];
+    if (raw is Map) return (raw["_id"] ?? raw["id"] ?? "").toString();
+    return (raw ?? "").toString();
+  }
+
+  double _parseDebtNumber(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
+  }
+
   Future<void> _showSaleSharePrompt(Sale sale, {bool created = true}) async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
@@ -343,12 +385,33 @@ class _SalesPageState extends State<SalesPage> {
       "${isAr ? "الزبون" : "Customer"}: ${sale.customerName}",
       "${isAr ? "المجموع" : "Total"}: ${money(sale.total, sale.currency)}",
       "${isAr ? "الحالة" : "Status"}: ${sale.paymentStatus == "debt" ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
+      "${isAr ? "طريقة الدفع" : "Payment method"}: ${_paymentMethodLabel(sale.paymentMethod, isAr)}",
+      if (sale.debtPaymentAmount > 0) "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
+      "${isAr ? "الرصيد السابق" : "Previous balance"}: ${money(sale.debtBalanceBeforeLbp, "LBP")} / ${money(sale.debtBalanceBeforeUsd, "USD")}",
+      "${isAr ? "الرصيد النهائي" : "Final balance"}: ${money(sale.debtBalanceAfterLbp, "LBP")} / ${money(sale.debtBalanceAfterUsd, "USD")}",
       "",
     ];
     for (final item in sale.items) {
       lines.add("- ${item.productName}: ${number(item.quantity)} x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}");
     }
     return lines.join("\n");
+  }
+
+  String _paymentMethodLabel(String value, bool isAr) {
+    switch (value) {
+      case "debt":
+        return isAr ? "دين" : "Debt";
+      case "bank":
+        return isAr ? "تحويل بنكي" : "Bank";
+      case "card":
+        return isAr ? "بطاقة" : "Card";
+      case "transfer":
+        return isAr ? "تحويل" : "Transfer";
+      case "other":
+        return isAr ? "أخرى" : "Other";
+      default:
+        return isAr ? "نقداً" : "Cash";
+    }
   }
 
   Future<void> _printSale(Sale sale) async {
@@ -453,6 +516,8 @@ class _SalesPageState extends State<SalesPage> {
                   },
                 ),
                 const SizedBox(height: 16),
+                _customerDebtPanel(isAr),
+                const SizedBox(height: 16),
                 _productPicker(isAr),
                 const SizedBox(height: 16),
                 Row(
@@ -506,7 +571,23 @@ class _SalesPageState extends State<SalesPage> {
                   controlAffinity: ListTileControlAffinity.leading,
                   title: Text(isAr ? "تسجيل الفاتورة كدين على الزبون" : "Register invoice as customer debt"),
                   subtitle: Text(isAr ? "الافتراضي مدفوع، فعّلها فقط إذا بقي المبلغ دين" : "Default is paid. Enable only when this remains unpaid."),
-                  onChanged: (v) => setState(() => _registerDebt = v ?? false),
+                  onChanged: (v) => setState(() {
+                    _registerDebt = v ?? false;
+                    _paymentMethod = _registerDebt ? "debt" : "cash";
+                  }),
+                ),
+                DropdownButtonFormField<String>(
+                  value: _registerDebt ? "debt" : _paymentMethod,
+                  decoration: InputDecoration(labelText: isAr ? "طريقة الدفع" : "Payment method", prefixIcon: const Icon(Icons.payments_rounded)),
+                  items: [
+                    DropdownMenuItem(value: "cash", child: Text(isAr ? "نقداً" : "Cash")),
+                    DropdownMenuItem(value: "bank", child: Text(isAr ? "تحويل بنكي" : "Bank")),
+                    DropdownMenuItem(value: "card", child: Text(isAr ? "بطاقة" : "Card")),
+                    DropdownMenuItem(value: "transfer", child: Text(isAr ? "تحويل" : "Transfer")),
+                    DropdownMenuItem(value: "other", child: Text(isAr ? "أخرى" : "Other")),
+                    DropdownMenuItem(value: "debt", child: Text(isAr ? "دين" : "Debt")),
+                  ],
+                  onChanged: _registerDebt ? null : (value) => setState(() => _paymentMethod = value ?? "cash"),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -527,6 +608,65 @@ class _SalesPageState extends State<SalesPage> {
           const SizedBox(height: 24),
           _invoiceListCard(isAr),
           const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _customerDebtPanel(bool isAr) {
+    final theme = Theme.of(context);
+    final selected = _firstCustomerWhere((customer) => customer.id == _selectedCustomerId);
+    final totals = _customerDebtTotals(_selectedCustomerId);
+    final hasDebt = (totals["LBP"] ?? 0) > 0 || (totals["USD"] ?? 0) > 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_balance_wallet_rounded, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  selected == null ? (isAr ? "اختار زبون محفوظ لعرض ديونه" : "Select a saved customer to show debts") : (isAr ? "ديون ${selected.name}" : "${selected.name} debts"),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            selected == null
+                ? (isAr ? "دفعات الدين تحتاج زبون من صفحة الأسماء." : "Debt payments require a customer from Contacts.")
+                : "${isAr ? "المتبقي" : "Remaining"}: ${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}",
+            style: TextStyle(fontWeight: FontWeight.w800, color: hasDebt ? Colors.red.shade700 : theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          _responsiveFields([
+            TextField(
+              controller: _debtPayment,
+              enabled: selected != null,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: isAr ? "دفعة من الدين" : "Debt payment"),
+            ),
+            DropdownButtonFormField<String>(
+              value: _debtPaymentCurrency,
+              decoration: InputDecoration(labelText: isAr ? "عملة الدفعة" : "Payment currency"),
+              items: const [
+                DropdownMenuItem(value: "LBP", child: Text("LBP")),
+                DropdownMenuItem(value: "USD", child: Text("USD")),
+              ],
+              onChanged: selected == null ? null : (value) => setState(() => _debtPaymentCurrency = value ?? "LBP"),
+            ),
+          ]),
         ],
       ),
     );
