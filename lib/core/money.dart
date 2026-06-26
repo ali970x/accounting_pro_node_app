@@ -6,6 +6,13 @@ String number(num value, {int decimals = 0}) {
   return NumberFormat(pattern, "en_US").format(value);
 }
 
+String numberDecimal(num value, {int maxDecimals = 3}) {
+  final decimals = maxDecimals <= 0
+      ? ""
+      : ".${List.filled(maxDecimals, "#").join()}";
+  return NumberFormat("#,##0$decimals", "en_US").format(value);
+}
+
 String money(num value, String currency) {
   final usd = NumberFormat("#,##0.00", "en_US");
   final lbp = NumberFormat("#,##0", "en_US");

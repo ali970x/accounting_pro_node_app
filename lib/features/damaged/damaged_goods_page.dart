@@ -736,7 +736,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                 [
                   "${number(_damageItems[i].quantity)} ${_damageItems[i].unit} x ${money(_damageItems[i].unitCost, _damageItems[i].currency)}",
                   if (_damageItems[i].weight > 0)
-                    "${isAr ? "وزن" : "Weight"}: ${number(_damageItems[i].weight)} ${isAr ? "كغ" : "kg"}",
+                    "${isAr ? "وزن" : "Weight"}: ${numberDecimal(_damageItems[i].weight)} ${isAr ? "كغ" : "kg"}",
                 ].join(" | "),
               ),
               trailing: IconButton(
@@ -812,7 +812,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                         ),
                         if (row.weight > 0)
                           Text(
-                            "${number(row.weight)} ${isAr ? "كغ" : "kg"}",
+                            "${numberDecimal(row.weight)} ${isAr ? "كغ" : "kg"}",
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,

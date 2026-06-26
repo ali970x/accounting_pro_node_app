@@ -657,8 +657,12 @@ class PdfService {
           (i) => pw.TableRow(
             children: [
               _cell(i.productName, isArabic, false),
-              _cell(number(i.quantity), isArabic, false),
-              _cell(i.weight > 0 ? number(i.weight) : "-", isArabic, false),
+              _cell(numberDecimal(i.quantity), isArabic, false),
+              _cell(
+                i.weight > 0 ? numberDecimal(i.weight) : "-",
+                isArabic,
+                false,
+              ),
               _cell(money(i.unitPrice, i.currency), isArabic, false),
               _cell(money(i.total, i.currency), isArabic, false),
             ],
@@ -728,13 +732,15 @@ class PdfService {
               _cell(number(_num(row["difference"]).abs()), isArabic, false),
               _cell(
                 _num(row["packageCount"]) > 0
-                    ? number(_num(row["packageCount"]))
+                    ? numberDecimal(_num(row["packageCount"]))
                     : "-",
                 isArabic,
                 false,
               ),
               _cell(
-                _num(row["weight"]) > 0 ? number(_num(row["weight"])) : "-",
+                _num(row["weight"]) > 0
+                    ? numberDecimal(_num(row["weight"]))
+                    : "-",
                 isArabic,
                 false,
               ),

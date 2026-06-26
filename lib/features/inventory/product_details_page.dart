@@ -409,9 +409,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       "${isAr ? "\u0627\u0644\u0635\u0646\u0641" : "Item"}: $itemName",
       "${isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Quantity"}: ${number(quantity)}",
       if (packageCount > 0)
-        "${isAr ? "\u0639\u062f\u062f \u0627\u0644\u0637\u0631\u0648\u062f" : "Packages"}: ${number(packageCount)}",
+        "${isAr ? "\u0639\u062f\u062f \u0627\u0644\u0637\u0631\u0648\u062f" : "Packages"}: ${numberDecimal(packageCount)}",
       if (weight > 0)
-        "${isAr ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${number(weight)} ${isAr ? "\u0643\u063a" : "kg"}",
+        "${isAr ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${numberDecimal(weight)} ${isAr ? "\u0643\u063a" : "kg"}",
       "${isAr ? "\u0633\u0639\u0631 \u0627\u0644\u0634\u0631\u0627\u0621" : "Unit cost"}: ${money(unitCost, currency)}",
       "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u062f\u0648\u0644\u0627\u0631" : "Total USD"}: ${money(totalUsd, "USD")}",
       "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064a" : "Total LBP"}: ${money(totalLbp, "LBP")}",
@@ -591,7 +591,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             c.isArabic
                                 ? "\u0627\u0644\u0648\u0632\u0646"
                                 : "Weight",
-                            "${number(_product!.weight)} ${c.isArabic ? "\u0643\u063a" : "kg"}",
+                            "${numberDecimal(_product!.weight)} ${c.isArabic ? "\u0643\u063a" : "kg"}",
                             theme,
                           ),
                           const SizedBox(height: 20),
@@ -668,7 +668,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         style: theme.textTheme.bodySmall,
                                       ),
                                       Text(
-                                        "${c.isArabic ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${number(v.weight)} ${c.isArabic ? "\u0643\u063a" : "kg"}",
+                                        "${c.isArabic ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${numberDecimal(v.weight)} ${c.isArabic ? "\u0643\u063a" : "kg"}",
                                         style: theme.textTheme.bodySmall,
                                       ),
                                     ],

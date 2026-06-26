@@ -162,8 +162,8 @@ class _InventoryPageState extends State<InventoryPage> {
       "",
       for (final item in result.items)
         "- ${item.label}: ${number(item.quantity)} ${item.unit}"
-            "${item.packageCount > 0 ? " | ${isAr ? "طرود" : "Packages"}: ${number(item.packageCount)}" : ""}"
-            "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${number(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
+            "${item.packageCount > 0 ? " | ${isAr ? "طرود" : "Packages"}: ${numberDecimal(item.packageCount)}" : ""}"
+            "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${numberDecimal(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
             " x ${money(item.unitCost, item.currency)} = ${money(item.total, item.currency)}",
       "",
       "${isAr ? "الإجمالي باللبناني" : "Total LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
@@ -454,7 +454,7 @@ class _InventoryPageState extends State<InventoryPage> {
                               width: width,
                               child: _metricCard(
                                 isAr ? "الوزن" : "Weight",
-                                number(totalWeight),
+                                numberDecimal(totalWeight),
                                 Icons.scale_rounded,
                                 Colors.blueGrey,
                               ),
@@ -753,7 +753,7 @@ class _InventoryPageState extends State<InventoryPage> {
                   ),
                   if (weight > 0)
                     Text(
-                      "${number(weight)} ${c.isArabic ? "كغ" : "kg"}",
+                      "${numberDecimal(weight)} ${c.isArabic ? "كغ" : "kg"}",
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w800,
@@ -1389,9 +1389,9 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 [
                   "${number(_items[i].quantity)} ${_items[i].unit} x ${money(_items[i].unitCost, _items[i].currency)}",
                   if (_items[i].packageCount > 0)
-                    "${isAr ? "طرود" : "Packages"}: ${number(_items[i].packageCount)}",
+                    "${isAr ? "طرود" : "Packages"}: ${numberDecimal(_items[i].packageCount)}",
                   if (_items[i].weight > 0)
-                    "${isAr ? "وزن" : "Weight"}: ${number(_items[i].weight)} ${isAr ? "كغ" : "kg"}",
+                    "${isAr ? "وزن" : "Weight"}: ${numberDecimal(_items[i].weight)} ${isAr ? "كغ" : "kg"}",
                 ].join(" | "),
               ),
               trailing: IconButton(

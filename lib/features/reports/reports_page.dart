@@ -216,7 +216,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       "Current Stock Weight",
                       "\u0648\u0632\u0646 \u0627\u0644\u0645\u062e\u0632\u0648\u0646",
                     ),
-                    "${number(_num(_data["totalWeight"]))} ${_label(isAr, "kg", "\u0643\u063a")}",
+                    "${numberDecimal(_num(_data["totalWeight"]))} ${_label(isAr, "kg", "\u0643\u063a")}",
                     Icons.scale_rounded,
                   ),
                   const Divider(),
@@ -802,7 +802,7 @@ class _ReportsPageState extends State<ReportsPage> {
         style: const TextStyle(fontWeight: FontWeight.w800),
       ),
       subtitle: Text(
-        "${number(quantity)} / ${number(minStock)} ${(row["unit"] ?? "").toString()}${weight > 0 ? " | ${number(weight)} ${_label(AppScope.of(context).isArabic, "kg", "\u0643\u063a")}" : ""}",
+        "${numberDecimal(quantity)} / ${numberDecimal(minStock)} ${(row["unit"] ?? "").toString()}${weight > 0 ? " | ${numberDecimal(weight)} ${_label(AppScope.of(context).isArabic, "kg", "\u0643\u063a")}" : ""}",
       ),
     );
   }

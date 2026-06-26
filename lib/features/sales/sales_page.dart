@@ -130,16 +130,24 @@ class _SalesPageState extends State<SalesPage> {
 
   void _updateTotal() {
     final q = parseNumberInput(_quantity.text);
+    final w = parseNumberInput(_weight.text);
     final p = parseNumberInput(_unitPrice.text);
-    _totalPrice.text = (q * p).toStringAsFixed(2);
+    _totalPrice.text = (_billableAmount(quantity: q, weight: w) * p)
+        .toStringAsFixed(2);
   }
 
   void _updateUnitPrice() {
     final q = parseNumberInput(_quantity.text, fallback: 1);
+    final w = parseNumberInput(_weight.text);
     final t = parseNumberInput(_totalPrice.text);
-    if (q > 0) {
-      _unitPrice.text = (t / q).toStringAsFixed(2);
+    final billable = _billableAmount(quantity: q, weight: w);
+    if (billable > 0) {
+      _unitPrice.text = (t / billable).toStringAsFixed(2);
     }
+  }
+
+  double _billableAmount({required double quantity, required double weight}) {
+    return weight > 0 ? weight : quantity;
   }
 
   Future<void> _createNewContact() async {
@@ -268,7 +276,9 @@ class _SalesPageState extends State<SalesPage> {
             : "Select the customer from the list before registering debt",
       );
     }
-    final debtPayment = _parseInput(_debtPayment.text);
+    final debtPayment = _shouldShowCustomerDebtPanel()
+        ? _parseInput(_debtPayment.text)
+        : 0.0;
     if (debtPayment > 0 &&
         !(selectedMatchesText && _selectedCustomerId != null)) {
       return _showError(
@@ -431,6 +441,11 @@ class _SalesPageState extends State<SalesPage> {
     return totals;
   }
 
+  bool _shouldShowCustomerDebtPanel() {
+    final totals = _customerDebtTotals(_selectedCustomerId);
+    return (totals["LBP"] ?? 0) > 0 || (totals["USD"] ?? 0) > 0;
+  }
+
   String _debtContactId(Map<String, dynamic> debt) {
     final raw = debt["contact"];
     if (raw is Map) return (raw["_id"] ?? raw["id"] ?? "").toString();
@@ -496,8 +511,8 @@ class _SalesPageState extends State<SalesPage> {
     ];
     for (final item in sale.items) {
       lines.add(
-        "- ${item.productName}: ${number(item.quantity)}"
-        "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${number(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
+        "- ${item.productName}: ${numberDecimal(item.quantity)}"
+        "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${numberDecimal(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
         " x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}",
       );
     }
@@ -661,8 +676,10 @@ class _SalesPageState extends State<SalesPage> {
                     );
                   },
                 ),
-                const SizedBox(height: 16),
-                _customerDebtPanel(isAr),
+                if (_shouldShowCustomerDebtPanel()) ...[
+                  const SizedBox(height: 16),
+                  _customerDebtPanel(isAr),
+                ],
                 const SizedBox(height: 16),
                 _productPicker(isAr),
                 const SizedBox(height: 16),
@@ -678,6 +695,7 @@ class _SalesPageState extends State<SalesPage> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    onChanged: (_) => _updateTotal(),
                     decoration: InputDecoration(
                       labelText: isAr ? "الوزن" : "Weight",
                     ),
@@ -815,6 +833,7 @@ class _SalesPageState extends State<SalesPage> {
     );
     final totals = _customerDebtTotals(_selectedCustomerId);
     final hasDebt = (totals["LBP"] ?? 0) > 0 || (totals["USD"] ?? 0) > 0;
+    if (selected == null || !hasDebt) return const SizedBox.shrink();
 
     return Container(
       width: double.infinity,
@@ -836,13 +855,7 @@ class _SalesPageState extends State<SalesPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  selected == null
-                      ? (isAr
-                            ? "اختار زبون محفوظ لعرض ديونه"
-                            : "Select a saved customer to show debts")
-                      : (isAr
-                            ? "ديون ${selected.name}"
-                            : "${selected.name} debts"),
+                  isAr ? "ديون ${selected.name}" : "${selected.name} debts",
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
@@ -850,23 +863,16 @@ class _SalesPageState extends State<SalesPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            selected == null
-                ? (isAr
-                      ? "دفعات الدين تحتاج زبون من صفحة الأسماء."
-                      : "Debt payments require a customer from Contacts.")
-                : "${isAr ? "المتبقي" : "Remaining"}: ${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}",
+            "${isAr ? "المتبقي" : "Remaining"}: ${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}",
             style: TextStyle(
               fontWeight: FontWeight.w800,
-              color: hasDebt
-                  ? Colors.red.shade700
-                  : theme.colorScheme.onSurfaceVariant,
+              color: Colors.red.shade700,
             ),
           ),
           const SizedBox(height: 10),
           _responsiveFields([
             TextField(
               controller: _debtPayment,
-              enabled: selected != null,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: isAr ? "دفعة من الدين" : "Debt payment",
@@ -881,10 +887,8 @@ class _SalesPageState extends State<SalesPage> {
                 DropdownMenuItem(value: "LBP", child: Text("LBP")),
                 DropdownMenuItem(value: "USD", child: Text("USD")),
               ],
-              onChanged: selected == null
-                  ? null
-                  : (value) =>
-                        setState(() => _debtPaymentCurrency = value ?? "LBP"),
+              onChanged: (value) =>
+                  setState(() => _debtPaymentCurrency = value ?? "LBP"),
             ),
           ]),
         ],
@@ -949,9 +953,9 @@ class _SalesPageState extends State<SalesPage> {
               ),
               subtitle: Text(
                 [
-                  "${number(_saleItems[i].quantity)} ${_saleItems[i].unit} x ${money(_saleItems[i].unitPrice, _saleItems[i].currency)}",
+                  "${numberDecimal(_saleItems[i].quantity)} ${_saleItems[i].unit}${_saleItems[i].weight > 0 ? "" : " x ${money(_saleItems[i].unitPrice, _saleItems[i].currency)}"}",
                   if (_saleItems[i].weight > 0)
-                    "${isAr ? "وزن" : "Weight"}: ${number(_saleItems[i].weight)} ${isAr ? "كغ" : "kg"}",
+                    _draftWeightText(_saleItems[i], isAr),
                 ].join(" | "),
               ),
               trailing: Row(
@@ -974,6 +978,10 @@ class _SalesPageState extends State<SalesPage> {
         ],
       ),
     );
+  }
+
+  String _draftWeightText(_SaleDraftItem item, bool isAr) {
+    return "${isAr ? "وزن" : "Weight"}: ${numberDecimal(item.weight)} ${isAr ? "كغ" : "kg"} x ${money(item.unitPrice, item.currency)}";
   }
 
   Widget _salesReportCard(bool isAr, List<Sale> visibleSales) {
@@ -1659,7 +1667,9 @@ class _SaleDraftItem {
     );
   }
 
-  double get total => quantity * unitPrice;
+  double get billableAmount => weight > 0 ? weight : quantity;
+
+  double get total => billableAmount * unitPrice;
 
   _SaleDraftItem copyWith({
     double? quantity,
