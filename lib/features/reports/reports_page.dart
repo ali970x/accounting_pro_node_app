@@ -116,6 +116,8 @@ class _ReportsPageState extends State<ReportsPage> {
                   const Divider(),
                   _rowItem(_label(isAr, "Products Count", "\u0639\u062f\u062f \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a"), number(_num(_data["productsCount"])), Icons.inventory_2),
                   const Divider(),
+                  _rowItem(_label(isAr, "Current Stock Weight", "\u0648\u0632\u0646 \u0627\u0644\u0645\u062e\u0632\u0648\u0646"), "${number(_num(_data["totalWeight"]))} ${_label(isAr, "kg", "\u0643\u063a")}", Icons.scale_rounded),
+                  const Divider(),
                   _rowItem(_label(isAr, "Current Stock Value", "\u0642\u064a\u0645\u0629 \u0627\u0644\u0645\u062e\u0632\u0648\u0646"), money(_num(_data["inventoryValue"]), "USD"), Icons.warehouse),
                   const Divider(),
                   _rowItem(_label(isAr, "Low Stock Items", "\u0645\u062e\u0632\u0648\u0646 \u0645\u0646\u062e\u0641\u0636"), number(_num(_data["lowStockCount"])), Icons.warning_amber, color: Colors.orange),
@@ -481,12 +483,13 @@ class _ReportsPageState extends State<ReportsPage> {
 
   Widget _lowStockRow(Map<String, dynamic> row) {
     final quantity = _num(row["quantity"]);
+    final weight = _num(row["weight"]);
     final minStock = _num(row["minStock"]);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const CircleAvatar(child: Icon(Icons.warning_amber_rounded)),
       title: Text((row["name"] ?? "").toString(), style: const TextStyle(fontWeight: FontWeight.w800)),
-      subtitle: Text("${number(quantity)} / ${number(minStock)} ${(row["unit"] ?? "").toString()}"),
+      subtitle: Text("${number(quantity)} / ${number(minStock)} ${(row["unit"] ?? "").toString()}${weight > 0 ? " | ${number(weight)} ${_label(AppScope.of(context).isArabic, "kg", "\u0643\u063a")}" : ""}"),
     );
   }
 

@@ -6,6 +6,8 @@
   final double oldQuantity;
   final double newQuantity;
   final double difference;
+  final double packageCount;
+  final double weight;
   final String reason;
   final String customerName;
   final String supplierName;
@@ -23,6 +25,8 @@
     required this.oldQuantity,
     required this.newQuantity,
     required this.difference,
+    required this.packageCount,
+    required this.weight,
     required this.reason,
     required this.customerName,
     required this.supplierName,
@@ -42,6 +46,8 @@
       oldQuantity: 0,
       newQuantity: 0,
       difference: 0,
+      packageCount: 0,
+      weight: 0,
       reason: "",
       customerName: "",
       supplierName: "",
@@ -62,6 +68,8 @@
       oldQuantity: _num(json["oldQuantity"]),
       newQuantity: _num(json["newQuantity"]),
       difference: _num(json["difference"]),
+      packageCount: _num(json["packageCount"]),
+      weight: _num(json["weight"]),
       reason: (json["reason"] ?? "").toString(),
       customerName: (json["customerName"] ?? "").toString(),
       supplierName: (json["supplierName"] ?? "").toString(),

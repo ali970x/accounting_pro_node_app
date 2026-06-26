@@ -14,17 +14,20 @@ class ModernCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: isDark ? scheme.surfaceContainerLow : Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.10)),
+        border: Border.all(color: scheme.outlineVariant.withOpacity(isDark ? 0.45 : 0.72)),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+            color: Colors.black.withOpacity(isDark ? 0.22 : 0.055),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),

@@ -22,6 +22,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   final sku = TextEditingController();
   final purchase = TextEditingController(text: "0");
   final selling = TextEditingController(text: "0");
+  final weight = TextEditingController(text: "0");
   final minStock = TextEditingController(text: "0");
   final customUnit = TextEditingController();
 
@@ -67,6 +68,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       sku.text = product.sku;
       purchase.text = product.purchasePrice.toStringAsFixed(2);
       selling.text = product.sellingPrice.toStringAsFixed(2);
+      weight.text = product.weight.toStringAsFixed(2);
       minStock.text = product.minStock.toStringAsFixed(0);
       currency = product.currency;
       unit = product.unit;
@@ -84,6 +86,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       sku.text = variant.sku;
       purchase.text = variant.purchasePrice.toStringAsFixed(2);
       selling.text = variant.sellingPrice.toStringAsFixed(2);
+      weight.text = variant.weight.toStringAsFixed(2);
       minStock.text = variant.minStock.toStringAsFixed(0);
       currency = variant.currency;
       unit = variant.unit;
@@ -100,6 +103,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     sku.dispose();
     purchase.dispose();
     selling.dispose();
+    weight.dispose();
     minStock.dispose();
     customUnit.dispose();
     super.dispose();
@@ -191,6 +195,12 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                TextField(
+                  controller: weight,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: isAr ? "\u0627\u0644\u0648\u0632\u0646" : "Weight", prefixIcon: const Icon(Icons.scale_rounded)),
+                ),
+                const SizedBox(height: 10),
                 TextField(controller: minStock, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: c.t("minStock"))),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
@@ -239,6 +249,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               "purchasePrice": double.tryParse(purchase.text.trim()) ?? 0,
               "purchaseCurrency": currency,
               "sellingPrice": double.tryParse(selling.text.trim()) ?? 0,
+              "weight": _numInput(weight.text),
               "minStock": double.tryParse(minStock.text.trim()) ?? 0,
               "currency": currency,
               "unit": isOtherUnit ? customUnit.text.trim() : unit,
@@ -250,5 +261,11 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         ),
       ],
     );
+  }
+
+  double _numInput(String value) {
+    final clean = value.trim();
+    if (clean.contains(",") && !clean.contains(".")) return double.tryParse(clean.replaceAll(",", ".")) ?? 0;
+    return double.tryParse(clean.replaceAll(",", "")) ?? 0;
   }
 }

@@ -121,12 +121,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final qty = TextEditingController();
+    final weight = TextEditingController();
     final unitCost = TextEditingController(text: item.purchasePrice.toStringAsFixed(2));
     final invoiceNo = TextEditingController();
     final note = TextEditingController();
     String? supplierId;
     String purchaseCurrency = item.purchaseCurrency;
     bool registerDebt = false;
+    bool receiveByPackage = false;
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -147,14 +149,28 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     onChanged: (v) => setDialogState(() => supplierId = v),
                   ),
                   const SizedBox(height: 12),
+                  SwitchListTile(
+                    value: receiveByPackage,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(isAr ? "\u062a\u0648\u0631\u064a\u062f \u0628\u0627\u0644\u0637\u0631\u062f" : "Receive by package"),
+                    subtitle: Text(isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629 \u062a\u0635\u064a\u0631 \u0639\u062f\u062f \u0627\u0644\u0637\u0631\u0648\u062f \u0648\u0627\u0644\u0648\u0632\u0646 \u064a\u0646\u0632\u0644 \u0628\u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Quantity becomes package count and weight appears on the invoice"),
+                    onChanged: (v) => setDialogState(() => receiveByPackage = v),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: qty,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629" : "Quantity to add",
+                      labelText: receiveByPackage ? (isAr ? "\u0639\u062f\u062f \u0627\u0644\u0637\u0631\u0648\u062f" : "Packages count") : (isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629" : "Quantity to add"),
                       helperText: "${isAr ? "\u0627\u0644\u0631\u0635\u064a\u062f \u0628\u0639\u062f \u0627\u0644\u062a\u0648\u0631\u064a\u062f" : "Stock after"}: ${number(totalAfter)}",
                     ),
                     onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: weight,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(labelText: isAr ? "\u0627\u0644\u0648\u0632\u0646" : "Weight", prefixIcon: const Icon(Icons.scale_rounded)),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -203,6 +219,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     "currency": purchaseCurrency,
                     "paymentStatus": registerDebt ? "debt" : "paid",
                     "invoiceNo": invoiceNo.text.trim(),
+                    "packageCount": receiveByPackage ? parsedQty : 0,
+                    "weight": _decimalInput(weight.text),
                   });
                 },
                 child: Text(c.t("save")),
@@ -214,8 +232,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     );
 
     final addedQuantity = double.tryParse(qty.text.trim()) ?? 0;
+    final addedWeight = _decimalInput(weight.text);
     final cost = double.tryParse(unitCost.text.trim()) ?? 0;
     qty.dispose();
+    weight.dispose();
     unitCost.dispose();
     invoiceNo.dispose();
     note.dispose();
@@ -230,6 +250,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       await _showSupplyInvoice(
         itemName: item.name,
         quantity: addedQuantity,
+        packageCount: _numValue(result["packageCount"]),
+        weight: addedWeight,
         unitCost: cost,
         currency: (result["currency"] ?? "LBP").toString(),
         invoiceNo: (result["invoiceNo"] ?? "").toString(),
@@ -251,6 +273,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   Future<void> _showSupplyInvoice({
     required String itemName,
     required double quantity,
+    required double packageCount,
+    required double weight,
     required double unitCost,
     required String currency,
     required String invoiceNo,
@@ -268,6 +292,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       "${isAr ? "\u0627\u0644\u0645\u0648\u0631\u062f" : "Supplier"}: ${supplier?.name ?? "-"}",
       "${isAr ? "\u0627\u0644\u0635\u0646\u0641" : "Item"}: $itemName",
       "${isAr ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Quantity"}: ${number(quantity)}",
+      if (packageCount > 0) "${isAr ? "\u0639\u062f\u062f \u0627\u0644\u0637\u0631\u0648\u062f" : "Packages"}: ${number(packageCount)}",
+      if (weight > 0) "${isAr ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${number(weight)} ${isAr ? "\u0643\u063a" : "kg"}",
       "${isAr ? "\u0633\u0639\u0631 \u0627\u0644\u0634\u0631\u0627\u0621" : "Unit cost"}: ${money(unitCost, currency)}",
       "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u062f\u0648\u0644\u0627\u0631" : "Total USD"}: ${money(totalUsd, "USD")}",
       "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064a" : "Total LBP"}: ${money(totalLbp, "LBP")}",
@@ -304,6 +330,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       await Clipboard.setData(ClipboardData(text: message));
       _showError("Could not open WhatsApp. Invoice copied.");
     }
+  }
+
+  double _decimalInput(String value) {
+    final clean = value.trim();
+    if (clean.contains(",") && !clean.contains(".")) return double.tryParse(clean.replaceAll(",", ".")) ?? 0;
+    return double.tryParse(clean.replaceAll(",", "")) ?? 0;
+  }
+
+  double _numValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
   }
 
   void _showError(Object e) {
@@ -360,6 +397,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   _detailRow(c.t("purchasePrice"), money(_product!.purchasePrice, _product!.purchaseCurrency), theme),
                                   _detailRow(c.t("sellingPrice"), money(_product!.sellingPrice, _product!.currency), theme, valueColor: theme.colorScheme.primary),
                                   _detailRow(c.t("quantity"), "${number(_product!.quantity)} ${_product!.unit}", theme),
+                                  _detailRow(c.isArabic ? "\u0627\u0644\u0648\u0632\u0646" : "Weight", "${number(_product!.weight)} ${c.isArabic ? "\u0643\u063a" : "kg"}", theme),
                                   const SizedBox(height: 20),
                                   SizedBox(
                                     width: double.infinity,
@@ -396,6 +434,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                                 Text(v.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                                                 Text("${c.t("sellingPrice")}: ${money(v.sellingPrice, v.currency)}", style: theme.textTheme.bodySmall),
                                                 Text("${c.t("purchasePrice")}: ${money(v.purchasePrice, v.purchaseCurrency)}", style: theme.textTheme.bodySmall),
+                                                Text("${c.isArabic ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${number(v.weight)} ${c.isArabic ? "\u0643\u063a" : "kg"}", style: theme.textTheme.bodySmall),
                                               ],
                                             ),
                                           ),

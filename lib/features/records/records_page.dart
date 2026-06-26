@@ -112,6 +112,8 @@ class _RecordsPageState extends State<RecordsPage> {
     final details = <String>[
       "${_label(isAr, "Customer", "\u0627\u0644\u0632\u0628\u0648\u0646")}: $customer",
       "${_label(isAr, "Quantity", "\u0627\u0644\u0643\u0645\u064a\u0629")}: $qty",
+      if (row.packageCount > 0) "${_label(isAr, "Packages", "\u0627\u0644\u0637\u0631\u0648\u062f")}: ${number(row.packageCount)}",
+      if (row.weight > 0) "${_label(isAr, "Weight", "\u0627\u0644\u0648\u0632\u0646")}: ${number(row.weight)} ${_label(isAr, "kg", "\u0643\u063a")}",
       if (row.totalCost > 0) "${_label(isAr, "Total", "\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a")}: ${money(row.totalCost, row.currency)}",
       if (row.paymentStatus == "paid") _label(isAr, "Paid", "\u0645\u062f\u0641\u0648\u0639"),
       if (row.paymentStatus == "debt") _label(isAr, "Customer debt", "\u062f\u064a\u0646 \u0639\u0644\u0649 \u0627\u0644\u0632\u0628\u0648\u0646"),
@@ -132,6 +134,8 @@ class _RecordsPageState extends State<RecordsPage> {
     final isAr = AppScope.of(context).isArabic;
     final details = <String>[
       "${_label(isAr, "Quantity", "\u0627\u0644\u0643\u0645\u064a\u0629")}: ${number(row.difference)}",
+      if (row.packageCount > 0) "${_label(isAr, "Packages", "\u0627\u0644\u0637\u0631\u0648\u062f")}: ${number(row.packageCount)}",
+      if (row.weight > 0) "${_label(isAr, "Weight", "\u0627\u0644\u0648\u0632\u0646")}: ${number(row.weight)} ${_label(isAr, "kg", "\u0643\u063a")}",
       if (row.supplierName.isNotEmpty) "${_label(isAr, "Supplier", "\u0627\u0644\u0645\u0648\u0631\u062f")}: ${row.supplierName}",
       if (row.totalCost > 0) "${_label(isAr, "Total", "\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a")}: ${money(row.totalCost, row.currency)}",
       if (row.paymentStatus == "paid") _label(isAr, "Paid", "\u0645\u062f\u0641\u0648\u0639"),

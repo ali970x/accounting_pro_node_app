@@ -414,6 +414,7 @@ class PdfService {
     final headers = [
       isArabic ? "\u0627\u0644\u0645\u0646\u062a\u062c" : "Product",
       isArabic ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Qty",
+      isArabic ? "\u0627\u0644\u0648\u0632\u0646" : "Weight",
       isArabic ? "\u0633\u0639\u0631 \u0627\u0644\u0648\u062d\u062f\u0629" : "Unit Price",
       isArabic ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639" : "Total",
     ];
@@ -421,10 +422,11 @@ class PdfService {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400),
       columnWidths: const {
-        0: pw.FlexColumnWidth(2.6),
-        1: pw.FlexColumnWidth(1),
-        2: pw.FlexColumnWidth(1.4),
-        3: pw.FlexColumnWidth(1.4),
+        0: pw.FlexColumnWidth(2.4),
+        1: pw.FlexColumnWidth(0.85),
+        2: pw.FlexColumnWidth(0.9),
+        3: pw.FlexColumnWidth(1.25),
+        4: pw.FlexColumnWidth(1.25),
       },
       children: [
         pw.TableRow(
@@ -434,6 +436,7 @@ class PdfService {
         ...sale.items.map((i) => pw.TableRow(children: [
               _cell(i.productName, isArabic, false),
               _cell(number(i.quantity), isArabic, false),
+              _cell(i.weight > 0 ? number(i.weight) : "-", isArabic, false),
               _cell(money(i.unitPrice, i.currency), isArabic, false),
               _cell(money(i.total, i.currency), isArabic, false),
             ])),
@@ -447,6 +450,8 @@ class PdfService {
       isArabic ? "الحركة" : "Movement",
       isArabic ? "البضاعة" : "Item",
       isArabic ? "الكمية" : "Qty",
+      isArabic ? "طرد" : "Pkg",
+      isArabic ? "وزن" : "Weight",
       isArabic ? "الفاتورة" : "Invoice",
       isArabic ? "المبلغ" : "Amount",
     ];
@@ -464,10 +469,12 @@ class PdfService {
       columnWidths: const {
         0: pw.FlexColumnWidth(1.25),
         1: pw.FlexColumnWidth(1.05),
-        2: pw.FlexColumnWidth(2.4),
-        3: pw.FlexColumnWidth(0.8),
-        4: pw.FlexColumnWidth(1.2),
-        5: pw.FlexColumnWidth(1.45),
+        2: pw.FlexColumnWidth(2.1),
+        3: pw.FlexColumnWidth(0.75),
+        4: pw.FlexColumnWidth(0.7),
+        5: pw.FlexColumnWidth(0.85),
+        6: pw.FlexColumnWidth(1.1),
+        7: pw.FlexColumnWidth(1.35),
       },
       children: [
         pw.TableRow(
@@ -482,6 +489,8 @@ class PdfService {
             _cell(_movementTypeLabel((row["type"] ?? "").toString(), isArabic), isArabic, false),
             _cell((row["productName"] ?? "").toString(), isArabic, false),
             _cell(number(_num(row["difference"]).abs()), isArabic, false),
+            _cell(_num(row["packageCount"]) > 0 ? number(_num(row["packageCount"])) : "-", isArabic, false),
+            _cell(_num(row["weight"]) > 0 ? number(_num(row["weight"])) : "-", isArabic, false),
             _cell((row["invoiceNo"] ?? "").toString(), isArabic, false),
             _cell(total > 0 ? money(total, currency) : "-", isArabic, false),
           ]);

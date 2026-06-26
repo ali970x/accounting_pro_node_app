@@ -135,7 +135,10 @@ class _InventoryPageState extends State<InventoryPage> {
       if (result.debtPaymentAmount > 0) "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(result.debtPaymentAmount, result.debtPaymentCurrency)}",
       "",
       for (final item in result.items)
-        "- ${item.label}: ${number(item.quantity)} ${item.unit} x ${money(item.unitCost, item.currency)} = ${money(item.total, item.currency)}",
+        "- ${item.label}: ${number(item.quantity)} ${item.unit}"
+            "${item.packageCount > 0 ? " | ${isAr ? "طرود" : "Packages"}: ${number(item.packageCount)}" : ""}"
+            "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${number(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
+            " x ${money(item.unitCost, item.currency)} = ${money(item.total, item.currency)}",
       "",
       "${isAr ? "الإجمالي باللبناني" : "Total LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
       "${isAr ? "الإجمالي بالدولار" : "Total USD"}: ${money(totals["USD"] ?? 0, "USD")}",
@@ -279,6 +282,10 @@ class _InventoryPageState extends State<InventoryPage> {
       if (p.hasVariants) return sum + p.variants.fold<double>(0, (inner, v) => inner + v.quantity);
       return sum + p.quantity;
     });
+    final totalWeight = filtered.fold<double>(0, (sum, p) {
+      if (p.hasVariants) return sum + p.variants.fold<double>(0, (inner, v) => inner + v.weight);
+      return sum + p.weight;
+    });
     final lowStockCount = filtered.where((p) => p.isLowStock || p.variants.any((v) => v.isLowStock)).length;
 
     return Scaffold(
@@ -336,14 +343,21 @@ class _InventoryPageState extends State<InventoryPage> {
                       ],
                     ),
                     const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(child: _metricCard(isAr ? "النوعيات" : "Qualities", totalQualities.toString(), Icons.category_rounded, theme.colorScheme.primary)),
-                        const SizedBox(width: 10),
-                        Expanded(child: _metricCard(isAr ? "الكمية" : "Quantity", number(totalQuantity), Icons.inventory_2_rounded, Colors.teal)),
-                        const SizedBox(width: 10),
-                        Expanded(child: _metricCard(isAr ? "منخفض" : "Low", lowStockCount.toString(), Icons.warning_amber_rounded, Colors.orange)),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth >= 760 ? 4 : 2;
+                        final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+                        return Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            SizedBox(width: width, child: _metricCard(isAr ? "النوعيات" : "Qualities", totalQualities.toString(), Icons.category_rounded, theme.colorScheme.primary)),
+                            SizedBox(width: width, child: _metricCard(isAr ? "الكمية" : "Quantity", number(totalQuantity), Icons.inventory_2_rounded, Colors.teal)),
+                            SizedBox(width: width, child: _metricCard(isAr ? "الوزن" : "Weight", number(totalWeight), Icons.scale_rounded, Colors.blueGrey)),
+                            SizedBox(width: width, child: _metricCard(isAr ? "منخفض" : "Low", lowStockCount.toString(), Icons.warning_amber_rounded, Colors.orange)),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -510,6 +524,7 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _qualityRow(Product p, AppController c) {
     final theme = Theme.of(context);
     final qty = p.hasVariants ? p.variants.fold<double>(0, (sum, v) => sum + v.quantity) : p.quantity;
+    final weight = p.hasVariants ? p.variants.fold<double>(0, (sum, v) => sum + v.weight) : p.weight;
     final low = p.isLowStock || p.variants.any((v) => v.isLowStock);
 
     return Material(
@@ -548,6 +563,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text("${number(qty)} ${p.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                  if (weight > 0) Text("${number(weight)} ${c.isArabic ? "كغ" : "kg"}", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w800)),
                   if (low) Text(c.t("lowStock"), style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w900)),
                 ],
               ),
@@ -628,6 +644,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
   final _search = TextEditingController();
   final _focus = FocusNode();
   final _quantity = TextEditingController();
+  final _weight = TextEditingController();
   final _unitCost = TextEditingController();
   final _invoiceNo = TextEditingController();
   final _reason = TextEditingController();
@@ -640,6 +657,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
   String _currency = "LBP";
   String _debtPaymentCurrency = "LBP";
   bool _registerDebt = false;
+  bool _receiveByPackage = false;
   _SupplyChoice? _activeChoice;
 
   @override
@@ -647,6 +665,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     _search.dispose();
     _focus.dispose();
     _quantity.dispose();
+    _weight.dispose();
     _unitCost.dispose();
     _invoiceNo.dispose();
     _reason.dispose();
@@ -771,12 +790,29 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                   );
                 },
               ),
+              if (_category.isNotEmpty && _subcategory.isNotEmpty && _activeChoice == null) ...[
+                const SizedBox(height: 8),
+                _quickSupplyChoices(choices, isAr),
+              ],
               const SizedBox(height: 12),
+              SwitchListTile(
+                value: _receiveByPackage,
+                contentPadding: EdgeInsets.zero,
+                title: Text(isAr ? "توريد بالطرد" : "Receive by package"),
+                subtitle: Text(isAr ? "أدخل عدد الطرود والوزن ليظهرا على فاتورة التوريد" : "Enter packages and weight for the purchase invoice"),
+                onChanged: (value) => setState(() => _receiveByPackage = value),
+              ),
+              const SizedBox(height: 8),
               _responsiveFields([
                 TextField(
                   controller: _quantity,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: isAr ? "الكمية" : "Quantity"),
+                  decoration: InputDecoration(labelText: _receiveByPackage ? (isAr ? "عدد الطرود" : "Packages count") : (isAr ? "الكمية" : "Quantity")),
+                ),
+                TextField(
+                  controller: _weight,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: isAr ? "الوزن" : "Weight"),
                 ),
                 TextField(
                   controller: _unitCost,
@@ -824,22 +860,55 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     });
   }
 
+  Widget _quickSupplyChoices(List<_SupplyChoice> choices, bool isAr) {
+    final shown = choices.take(8).toList();
+    if (shown.isEmpty) {
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(isAr ? "لا يوجد منتجات ضمن هذا الصنف." : "No products in this category.", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      );
+    }
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: shown
+            .map((choice) => ActionChip(
+                  avatar: const Icon(Icons.inventory_2_rounded, size: 18),
+                  label: Text(choice.label, overflow: TextOverflow.ellipsis),
+                  onPressed: () => _selectChoice(choice),
+                ))
+            .toList(),
+      ),
+    );
+  }
+
   void _addItem() {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final choice = _activeChoice;
     if (choice == null) return _showError(isAr ? "اختار المنتج أولاً" : "Choose an item first");
     final quantity = _numInput(_quantity.text);
+    final packageCount = _receiveByPackage ? quantity : 0.0;
+    final weight = _decimalInput(_weight.text);
     final unitCost = _numInput(_unitCost.text);
     if (quantity <= 0) return _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
+    if (weight < 0) return _showError(isAr ? "الوزن غير صحيح" : "Invalid weight");
     if (unitCost < 0) return _showError(isAr ? "سعر الشراء غير صحيح" : "Invalid unit cost");
 
     final index = _items.indexWhere((item) => item.id == choice.id);
     setState(() {
       if (index == -1) {
-        _items.add(_SupplyDraftItem.fromChoice(choice, quantity: quantity, unitCost: unitCost, currency: _currency));
+        _items.add(_SupplyDraftItem.fromChoice(choice, quantity: quantity, packageCount: packageCount, weight: weight, unitCost: unitCost, currency: _currency));
       } else {
-        _items[index] = _items[index].copyWith(quantity: _items[index].quantity + quantity, unitCost: unitCost, currency: _currency);
+        _items[index] = _items[index].copyWith(
+          quantity: _items[index].quantity + quantity,
+          packageCount: _items[index].packageCount + packageCount,
+          weight: _items[index].weight + weight,
+          unitCost: unitCost,
+          currency: _currency,
+        );
       }
       _clearChoice();
     });
@@ -932,7 +1001,11 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(_items[i].label, style: const TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text("${number(_items[i].quantity)} ${_items[i].unit} x ${money(_items[i].unitCost, _items[i].currency)}"),
+              subtitle: Text([
+                "${number(_items[i].quantity)} ${_items[i].unit} x ${money(_items[i].unitCost, _items[i].currency)}",
+                if (_items[i].packageCount > 0) "${isAr ? "طرود" : "Packages"}: ${number(_items[i].packageCount)}",
+                if (_items[i].weight > 0) "${isAr ? "وزن" : "Weight"}: ${number(_items[i].weight)} ${isAr ? "كغ" : "kg"}",
+              ].join(" | ")),
               trailing: IconButton(onPressed: () => setState(() => _items.removeAt(i)), icon: const Icon(Icons.close_rounded)),
             ),
           const Divider(),
@@ -951,6 +1024,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     _activeChoice = null;
     _search.clear();
     _quantity.clear();
+    _weight.clear();
     _unitCost.clear();
   }
 
@@ -1097,6 +1171,8 @@ class _SupplyDraftItem {
   final String? variantId;
   final String label;
   final double quantity;
+  final double packageCount;
+  final double weight;
   final double unitCost;
   final String currency;
   final String unit;
@@ -1107,18 +1183,22 @@ class _SupplyDraftItem {
     required this.variantId,
     required this.label,
     required this.quantity,
+    required this.packageCount,
+    required this.weight,
     required this.unitCost,
     required this.currency,
     required this.unit,
   });
 
-  factory _SupplyDraftItem.fromChoice(_SupplyChoice choice, {required double quantity, required double unitCost, required String currency}) {
+  factory _SupplyDraftItem.fromChoice(_SupplyChoice choice, {required double quantity, required double packageCount, required double weight, required double unitCost, required String currency}) {
     return _SupplyDraftItem(
       id: choice.id,
       productId: choice.productId,
       variantId: choice.variantId,
       label: choice.label,
       quantity: quantity,
+      packageCount: packageCount,
+      weight: weight,
       unitCost: unitCost,
       currency: currency,
       unit: choice.unit,
@@ -1127,13 +1207,15 @@ class _SupplyDraftItem {
 
   double get total => quantity * unitCost;
 
-  _SupplyDraftItem copyWith({double? quantity, double? unitCost, String? currency}) {
+  _SupplyDraftItem copyWith({double? quantity, double? packageCount, double? weight, double? unitCost, String? currency}) {
     return _SupplyDraftItem(
       id: id,
       productId: productId,
       variantId: variantId,
       label: label,
       quantity: quantity ?? this.quantity,
+      packageCount: packageCount ?? this.packageCount,
+      weight: weight ?? this.weight,
       unitCost: unitCost ?? this.unitCost,
       currency: currency ?? this.currency,
       unit: unit,
@@ -1145,6 +1227,8 @@ class _SupplyDraftItem {
       "productId": productId,
       if (variantId != null) "variantId": variantId,
       "quantity": quantity,
+      "packageCount": packageCount,
+      "weight": weight,
       "unitCost": unitCost,
       "currency": currency,
     };
@@ -1203,6 +1287,12 @@ class _BulkSupplyResult {
 }
 
 double _numInput(String value) => double.tryParse(value.replaceAll(",", "").trim()) ?? 0;
+
+double _decimalInput(String value) {
+  final clean = value.trim();
+  if (clean.contains(",") && !clean.contains(".")) return double.tryParse(clean.replaceAll(",", ".")) ?? 0;
+  return double.tryParse(clean.replaceAll(",", "")) ?? 0;
+}
 
 double _numValue(dynamic value) {
   if (value is num) return value.toDouble();

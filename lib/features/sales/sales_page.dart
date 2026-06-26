@@ -39,6 +39,7 @@ class _SalesPageState extends State<SalesPage> {
   final _manualCustomerName = TextEditingController();
   final _customerFocusNode = FocusNode();
   final _quantity = TextEditingController();
+  final _weight = TextEditingController();
   final _unitPrice = TextEditingController();
   final _totalPrice = TextEditingController();
   final _debtPayment = TextEditingController();
@@ -64,6 +65,7 @@ class _SalesPageState extends State<SalesPage> {
     _manualCustomerName.dispose();
     _customerFocusNode.dispose();
     _quantity.dispose();
+    _weight.dispose();
     _unitPrice.dispose();
     _totalPrice.dispose();
     _debtPayment.dispose();
@@ -257,6 +259,7 @@ class _SalesPageState extends State<SalesPage> {
   void _resetForm() {
     _manualCustomerName.clear();
     _quantity.clear();
+    _weight.clear();
     _unitPrice.clear();
     _totalPrice.clear();
     _productSearch.clear();
@@ -279,6 +282,7 @@ class _SalesPageState extends State<SalesPage> {
       return false;
     }
     final quantity = _parseInput(_quantity.text);
+    final weight = _decimalInput(_weight.text);
     final unitPrice = _parseInput(_unitPrice.text);
     if (quantity <= 0) {
       _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
@@ -286,6 +290,10 @@ class _SalesPageState extends State<SalesPage> {
     }
     if (unitPrice < 0) {
       _showError(isAr ? "السعر غير صحيح" : "Invalid price");
+      return false;
+    }
+    if (weight < 0) {
+      _showError(isAr ? "الوزن غير صحيح" : "Invalid weight");
       return false;
     }
     if (_saleItems.isNotEmpty && _saleItems.first.currency != choice.currency) {
@@ -303,9 +311,9 @@ class _SalesPageState extends State<SalesPage> {
 
     setState(() {
       if (index == -1) {
-        _saleItems.add(_SaleDraftItem.fromChoice(choice, quantity: quantity, unitPrice: unitPrice));
+        _saleItems.add(_SaleDraftItem.fromChoice(choice, quantity: quantity, weight: weight, unitPrice: unitPrice));
       } else {
-        _saleItems[index] = _saleItems[index].copyWith(quantity: nextQty, unitPrice: unitPrice);
+        _saleItems[index] = _saleItems[index].copyWith(quantity: nextQty, weight: _saleItems[index].weight + weight, unitPrice: unitPrice);
       }
       _clearProductEntry();
     });
@@ -314,6 +322,7 @@ class _SalesPageState extends State<SalesPage> {
 
   void _clearProductEntry() {
     _quantity.clear();
+    _weight.clear();
     _unitPrice.clear();
     _totalPrice.clear();
     _productSearch.clear();
@@ -322,6 +331,12 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   double _parseInput(String value) => double.tryParse(value.replaceAll(",", "").trim()) ?? 0;
+
+  double _decimalInput(String value) {
+    final clean = value.trim();
+    if (clean.contains(",") && !clean.contains(".")) return double.tryParse(clean.replaceAll(",", ".")) ?? 0;
+    return double.tryParse(clean.replaceAll(",", "")) ?? 0;
+  }
 
   double _saleItemsTotal() => _saleItems.fold<double>(0, (sum, item) => sum + item.total);
 
@@ -407,7 +422,11 @@ class _SalesPageState extends State<SalesPage> {
       "",
     ];
     for (final item in sale.items) {
-      lines.add("- ${item.productName}: ${number(item.quantity)} x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}");
+      lines.add(
+        "- ${item.productName}: ${number(item.quantity)}"
+        "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${number(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
+        " x ${money(item.unitPrice, item.currency)} = ${money(item.total, item.currency)}",
+      );
     }
     return lines.join("\n");
   }
@@ -536,27 +555,25 @@ class _SalesPageState extends State<SalesPage> {
                 const SizedBox(height: 16),
                 _productPicker(isAr),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _quantity,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(labelText: c.t("quantity")),
-                        onChanged: (_) => _updateTotal(),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _unitPrice,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(labelText: _unitPriceLabel(isAr)),
-                        onChanged: (_) => _updateTotal(),
-                      ),
-                    ),
-                  ],
-                ),
+                _responsiveFields([
+                  TextField(
+                    controller: _quantity,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: c.t("quantity")),
+                    onChanged: (_) => _updateTotal(),
+                  ),
+                  TextField(
+                    controller: _weight,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(labelText: isAr ? "الوزن" : "Weight"),
+                  ),
+                  TextField(
+                    controller: _unitPrice,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: _unitPriceLabel(isAr)),
+                    onChanged: (_) => _updateTotal(),
+                  ),
+                ]),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _totalPrice,
@@ -729,7 +746,10 @@ class _SalesPageState extends State<SalesPage> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(_saleItems[i].label, style: const TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text("${number(_saleItems[i].quantity)} ${_saleItems[i].unit} x ${money(_saleItems[i].unitPrice, _saleItems[i].currency)}"),
+              subtitle: Text([
+                "${number(_saleItems[i].quantity)} ${_saleItems[i].unit} x ${money(_saleItems[i].unitPrice, _saleItems[i].currency)}",
+                if (_saleItems[i].weight > 0) "${isAr ? "وزن" : "Weight"}: ${number(_saleItems[i].weight)} ${isAr ? "كغ" : "kg"}",
+              ].join(" | ")),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1028,6 +1048,10 @@ class _SalesPageState extends State<SalesPage> {
             );
           },
         ),
+        if (_productCategoryFilter.isNotEmpty && _productSubcategoryFilter.isNotEmpty && active == null) ...[
+          const SizedBox(height: 8),
+          _quickProductChoices(choices, isAr),
+        ],
         if (active != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -1038,6 +1062,24 @@ class _SalesPageState extends State<SalesPage> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _quickProductChoices(List<_SaleProductChoice> choices, bool isAr) {
+    final shown = choices.take(8).toList();
+    if (shown.isEmpty) {
+      return Text(isAr ? "لا يوجد منتجات ضمن هذا الصنف." : "No products in this category.", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant));
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: shown.map((choice) {
+        return ActionChip(
+          avatar: const Icon(Icons.inventory_2_rounded, size: 18),
+          label: Text(choice.label, overflow: TextOverflow.ellipsis),
+          onPressed: () => _onProductSelected(choice.id),
+        );
+      }).toList(),
     );
   }
 
@@ -1245,6 +1287,7 @@ class _SaleDraftItem {
   final String? variantId;
   final String label;
   final double quantity;
+  final double weight;
   final double unitPrice;
   final String currency;
   final String unit;
@@ -1255,18 +1298,20 @@ class _SaleDraftItem {
     required this.variantId,
     required this.label,
     required this.quantity,
+    required this.weight,
     required this.unitPrice,
     required this.currency,
     required this.unit,
   });
 
-  factory _SaleDraftItem.fromChoice(_SaleProductChoice choice, {required double quantity, required double unitPrice}) {
+  factory _SaleDraftItem.fromChoice(_SaleProductChoice choice, {required double quantity, required double weight, required double unitPrice}) {
     return _SaleDraftItem(
       id: choice.id,
       productId: choice.productId,
       variantId: choice.variantId,
       label: choice.label,
       quantity: quantity,
+      weight: weight,
       unitPrice: unitPrice,
       currency: choice.currency,
       unit: choice.unit,
@@ -1275,13 +1320,14 @@ class _SaleDraftItem {
 
   double get total => quantity * unitPrice;
 
-  _SaleDraftItem copyWith({double? quantity, double? unitPrice}) {
+  _SaleDraftItem copyWith({double? quantity, double? weight, double? unitPrice}) {
     return _SaleDraftItem(
       id: id,
       productId: productId,
       variantId: variantId,
       label: label,
       quantity: quantity ?? this.quantity,
+      weight: weight ?? this.weight,
       unitPrice: unitPrice ?? this.unitPrice,
       currency: currency,
       unit: unit,
@@ -1293,6 +1339,7 @@ class _SaleDraftItem {
       "productId": productId,
       if (variantId != null) "variantId": variantId,
       "quantity": quantity,
+      "weight": weight,
       "unitPrice": unitPrice,
     };
   }

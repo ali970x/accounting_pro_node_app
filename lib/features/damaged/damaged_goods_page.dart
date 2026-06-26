@@ -24,6 +24,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   final _productSearch = TextEditingController();
   final _productFocus = FocusNode();
   final _quantity = TextEditingController();
+  final _weight = TextEditingController();
   final _unitCost = TextEditingController();
   final _reason = TextEditingController();
 
@@ -43,6 +44,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
     _productSearch.dispose();
     _productFocus.dispose();
     _quantity.dispose();
+    _weight.dispose();
     _unitCost.dispose();
     _reason.dispose();
     super.dispose();
@@ -86,6 +88,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
       });
 
       _quantity.clear();
+      _weight.clear();
       _reason.clear();
       _productSearch.clear();
       _unitCost.clear();
@@ -111,6 +114,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
     }
 
     final quantity = double.tryParse(_quantity.text.trim()) ?? 0;
+    final weight = _decimalInput(_weight.text);
     final unitCost = double.tryParse(_unitCost.text.trim()) ?? 0;
     if (quantity <= 0) {
       _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
@@ -118,6 +122,10 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
     }
     if (unitCost < 0) {
       _showError(isAr ? "سعر الخسارة غير صحيح" : "Invalid loss cost");
+      return false;
+    }
+    if (weight < 0) {
+      _showError(isAr ? "الوزن غير صحيح" : "Invalid weight");
       return false;
     }
 
@@ -131,12 +139,13 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
 
     setState(() {
       if (index == -1) {
-        _damageItems.add(_DamageDraftItem.fromChoice(choice, quantity: quantity, unitCost: unitCost, currency: _currency, reason: _reason.text.trim()));
+        _damageItems.add(_DamageDraftItem.fromChoice(choice, quantity: quantity, weight: weight, unitCost: unitCost, currency: _currency, reason: _reason.text.trim()));
       } else {
-        _damageItems[index] = _damageItems[index].copyWith(quantity: nextQty, unitCost: unitCost, currency: _currency, reason: _reason.text.trim());
+        _damageItems[index] = _damageItems[index].copyWith(quantity: nextQty, weight: _damageItems[index].weight + weight, unitCost: unitCost, currency: _currency, reason: _reason.text.trim());
       }
       _productSearch.clear();
       _quantity.clear();
+      _weight.clear();
       _unitCost.clear();
       _activeChoice = null;
     });
@@ -424,6 +433,11 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                   decoration: InputDecoration(labelText: isAr ? "الكمية التالفة" : "Damaged quantity", prefixIcon: const Icon(Icons.remove_circle_outline_rounded)),
                 ),
             TextField(
+                  controller: _weight,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: isAr ? "الوزن" : "Weight", prefixIcon: const Icon(Icons.scale_rounded)),
+                ),
+            TextField(
                   controller: _unitCost,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(labelText: isAr ? "خسارة الوحدة" : "Loss per unit", prefixIcon: const Icon(Icons.payments_rounded)),
@@ -514,7 +528,10 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(_damageItems[i].label, style: const TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text("${number(_damageItems[i].quantity)} ${_damageItems[i].unit} x ${money(_damageItems[i].unitCost, _damageItems[i].currency)}"),
+              subtitle: Text([
+                "${number(_damageItems[i].quantity)} ${_damageItems[i].unit} x ${money(_damageItems[i].unitCost, _damageItems[i].currency)}",
+                if (_damageItems[i].weight > 0) "${isAr ? "وزن" : "Weight"}: ${number(_damageItems[i].weight)} ${isAr ? "كغ" : "kg"}",
+              ].join(" | ")),
               trailing: IconButton(
                 tooltip: isAr ? "حذف" : "Remove",
                 onPressed: () => setState(() => _damageItems.removeAt(i)),
@@ -559,6 +576,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(number(row.quantity), style: const TextStyle(fontWeight: FontWeight.w900)),
+                      if (row.weight > 0) Text("${number(row.weight)} ${isAr ? "كغ" : "kg"}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                       Text(money(row.totalCost, row.currency), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w900)),
                     ],
                   ),
@@ -583,6 +601,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
             subcategory: product.subcategory,
             label: "${product.name} - ${variant.name}",
             quantity: variant.quantity,
+            weight: variant.weight,
             unit: variant.unit,
             purchasePrice: variant.purchasePrice,
             purchaseCurrency: variant.purchaseCurrency,
@@ -598,6 +617,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
           subcategory: product.subcategory,
           label: product.name,
           quantity: product.quantity,
+          weight: product.weight,
           unit: product.unit,
           purchasePrice: product.purchasePrice,
           purchaseCurrency: product.purchaseCurrency,
@@ -683,6 +703,12 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
       },
     );
   }
+
+  double _decimalInput(String value) {
+    final clean = value.trim();
+    if (clean.contains(",") && !clean.contains(".")) return double.tryParse(clean.replaceAll(",", ".")) ?? 0;
+    return double.tryParse(clean.replaceAll(",", "")) ?? 0;
+  }
 }
 
 class _DamageChoice {
@@ -693,6 +719,7 @@ class _DamageChoice {
   final String subcategory;
   final String label;
   final double quantity;
+  final double weight;
   final String unit;
   final double purchasePrice;
   final String purchaseCurrency;
@@ -705,6 +732,7 @@ class _DamageChoice {
     required this.subcategory,
     required this.label,
     required this.quantity,
+    required this.weight,
     required this.unit,
     required this.purchasePrice,
     required this.purchaseCurrency,
@@ -719,6 +747,7 @@ class _DamageDraftItem {
   final String? variantId;
   final String label;
   final double quantity;
+  final double weight;
   final String unit;
   final double unitCost;
   final String currency;
@@ -730,19 +759,21 @@ class _DamageDraftItem {
     required this.variantId,
     required this.label,
     required this.quantity,
+    required this.weight,
     required this.unit,
     required this.unitCost,
     required this.currency,
     required this.reason,
   });
 
-  factory _DamageDraftItem.fromChoice(_DamageChoice choice, {required double quantity, required double unitCost, required String currency, required String reason}) {
+  factory _DamageDraftItem.fromChoice(_DamageChoice choice, {required double quantity, required double weight, required double unitCost, required String currency, required String reason}) {
     return _DamageDraftItem(
       id: choice.id,
       productId: choice.productId,
       variantId: choice.variantId,
       label: choice.label,
       quantity: quantity,
+      weight: weight,
       unit: choice.unit,
       unitCost: unitCost,
       currency: currency,
@@ -752,13 +783,14 @@ class _DamageDraftItem {
 
   double get total => quantity * unitCost;
 
-  _DamageDraftItem copyWith({double? quantity, double? unitCost, String? currency, String? reason}) {
+  _DamageDraftItem copyWith({double? quantity, double? weight, double? unitCost, String? currency, String? reason}) {
     return _DamageDraftItem(
       id: id,
       productId: productId,
       variantId: variantId,
       label: label,
       quantity: quantity ?? this.quantity,
+      weight: weight ?? this.weight,
       unit: unit,
       unitCost: unitCost ?? this.unitCost,
       currency: currency ?? this.currency,
@@ -771,6 +803,7 @@ class _DamageDraftItem {
       "productId": productId,
       if (variantId != null) "variantId": variantId,
       "quantity": quantity,
+      "weight": weight,
       "unitCost": unitCost,
       "currency": currency,
       "reason": reason,
@@ -782,6 +815,7 @@ class _DamageMovement {
   final String id;
   final String productName;
   final double quantity;
+  final double weight;
   final double unitCost;
   final double totalCost;
   final String currency;
@@ -792,6 +826,7 @@ class _DamageMovement {
     required this.id,
     required this.productName,
     required this.quantity,
+    required this.weight,
     required this.unitCost,
     required this.totalCost,
     required this.currency,
@@ -804,6 +839,7 @@ class _DamageMovement {
       id: (json["_id"] ?? json["id"] ?? "").toString(),
       productName: (json["productName"] ?? "").toString(),
       quantity: (_num(json["difference"])).abs(),
+      weight: _num(json["weight"]),
       unitCost: _num(json["unitCost"]),
       totalCost: _num(json["totalCost"]),
       currency: (json["currency"] ?? "LBP").toString(),

@@ -20,12 +20,19 @@ class _DebtsPageState extends State<DebtsPage> {
   String? _error;
   List<Map<String, dynamic>> _debts = [];
   List<ContactModel> _contacts = [];
+  final _search = TextEditingController();
   DateFilterValue _dateFilter = const DateFilterValue(preset: DateFilterPreset.month);
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -180,6 +187,21 @@ class _DebtsPageState extends State<DebtsPage> {
             value: _dateFilter,
             onChanged: (value) => setState(() => _dateFilter = value),
           ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _search,
+            decoration: InputDecoration(
+              labelText: _label(isAr, "Search by name or phone", "\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0631\u0642\u0645"),
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () => setState(_search.clear),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
           const SizedBox(height: 14),
           _summaryGrid(isAr, receivable, payable),
           const SizedBox(height: 14),
@@ -198,10 +220,33 @@ class _DebtsPageState extends State<DebtsPage> {
   }
 
   List<Map<String, dynamic>> _filteredDebts() {
+    final query = _search.text.trim().toLowerCase();
+    final queryDigits = _search.text.replaceAll(RegExp(r"[^0-9+]"), "");
     return _debts.where((debt) {
       final rawDate = (debt["updatedAt"] ?? debt["createdAt"] ?? "").toString();
-      return _dateFilter.includes(DateTime.tryParse(rawDate));
+      if (!_dateFilter.includes(DateTime.tryParse(rawDate))) return false;
+      if (query.isEmpty && queryDigits.isEmpty) return true;
+      final contact = _contactForDebt(debt);
+      final text = [
+        (debt["personName"] ?? "").toString(),
+        contact?.name ?? "",
+        contact?.phone ?? "",
+        contact?.fullPhone ?? "",
+      ].join(" ").toLowerCase();
+      final digits = text.replaceAll(RegExp(r"[^0-9+]"), "");
+      return text.contains(query) || (queryDigits.isNotEmpty && digits.contains(queryDigits));
     }).toList();
+  }
+
+  ContactModel? _contactForDebt(Map<String, dynamic> debt) {
+    final raw = debt["contact"];
+    final id = raw is Map ? (raw["_id"] ?? raw["id"] ?? "").toString() : (raw ?? "").toString();
+    final name = (debt["personName"] ?? "").toString();
+    for (final contact in _contacts) {
+      if (id.isNotEmpty && contact.id == id) return contact;
+      if (name.isNotEmpty && contact.name == name) return contact;
+    }
+    return null;
   }
 
   Map<String, List<Map<String, dynamic>>> _groupDebts(List<Map<String, dynamic>> debts) {

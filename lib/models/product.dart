@@ -7,6 +7,7 @@
   final String purchaseCurrency;
   final double sellingPrice;
   final double quantity;
+  final double weight;
   final double minStock;
   final String currency;
   final String unit;
@@ -20,6 +21,7 @@
     required this.purchaseCurrency,
     required this.sellingPrice,
     required this.quantity,
+    required this.weight,
     required this.minStock,
     required this.currency,
     required this.unit,
@@ -37,6 +39,7 @@
       purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP").toString(),
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
+      weight: _num(json["weight"]),
       minStock: _num(json["minStock"]),
       currency: (json["currency"] ?? "LBP").toString(),
       unit: (json["unit"] ?? "Piece").toString(),
@@ -56,6 +59,7 @@ class Product {
   final String purchaseCurrency;
   final double sellingPrice;
   final double quantity;
+  final double weight;
   final double minStock;
   final String currency;
   final String unit;
@@ -73,6 +77,7 @@ class Product {
     required this.purchaseCurrency,
     required this.sellingPrice,
     required this.quantity,
+    required this.weight,
     required this.minStock,
     required this.currency,
     required this.unit,
@@ -95,6 +100,7 @@ class Product {
       purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP").toString(),
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
+      weight: _num(json["weight"]),
       minStock: _num(json["minStock"]),
       currency: (json["currency"] ?? "LBP").toString(),
       unit: (json["unit"] ?? "Piece").toString(),

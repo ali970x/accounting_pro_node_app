@@ -1,6 +1,8 @@
 ﻿class SaleItem {
   final String productName;
   final double quantity;
+  final double packageCount;
+  final double weight;
   final double unitPrice;
   final double total;
   final String currency;
@@ -8,6 +10,8 @@
   const SaleItem({
     required this.productName,
     required this.quantity,
+    required this.packageCount,
+    required this.weight,
     required this.unitPrice,
     required this.total,
     required this.currency,
@@ -17,6 +21,8 @@
     return SaleItem(
       productName: (json["productName"] ?? "").toString(),
       quantity: _num(json["quantity"]),
+      packageCount: _num(json["packageCount"]),
+      weight: _num(json["weight"]),
       unitPrice: _num(json["unitPrice"]),
       total: _num(json["total"]),
       currency: (json["currency"] ?? "LBP").toString(),
