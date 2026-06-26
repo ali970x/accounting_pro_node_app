@@ -1,4 +1,6 @@
-﻿class AppRecord {
+import "../core/money.dart";
+
+class AppRecord {
   final String id;
   final String type;
   final String message;
@@ -82,10 +84,7 @@
   }
 }
 
-double _num(dynamic value) {
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? 0;
-}
+double _num(dynamic value) => numFromDynamic(value);
 
 DateTime? _date(dynamic value) {
   if (value == null) return null;

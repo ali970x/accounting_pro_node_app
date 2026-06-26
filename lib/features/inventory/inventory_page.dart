@@ -53,12 +53,19 @@ class _InventoryPageState extends State<InventoryPage> {
         widget.api.get("/contacts"),
         widget.api.get("/debts"),
       ]);
-      _products = (results[0] as List).map((e) => Product.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+      _products = (results[0] as List)
+          .map((e) => Product.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
       _suppliers = (results[1] as List)
-          .map((e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .where((contact) => contact.type == "supplier")
           .toList();
-      _debts = (results[2] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      _debts = (results[2] as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
     } catch (e) {
       _error = e.toString();
     }
@@ -84,19 +91,31 @@ class _InventoryPageState extends State<InventoryPage> {
   Future<void> _openProduct(Product p) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ProductDetailsPage(api: widget.api, productId: p.id)),
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsPage(api: widget.api, productId: p.id),
+      ),
     );
     await _loadProducts();
   }
 
   Future<void> _openBulkSupply() async {
     final isAr = AppScope.of(context).isArabic;
-    if (_products.isEmpty) return _showError(isAr ? "لا يوجد منتجات للتوريد" : "No products available");
-    if (_suppliers.isEmpty) return _showError(isAr ? "أضف مورد أولاً من صفحة الأسماء" : "Add a supplier first");
+    if (_products.isEmpty)
+      return _showError(
+        isAr ? "لا يوجد منتجات للتوريد" : "No products available",
+      );
+    if (_suppliers.isEmpty)
+      return _showError(
+        isAr ? "أضف مورد أولاً من صفحة الأسماء" : "Add a supplier first",
+      );
 
     final result = await showDialog<_BulkSupplyResult>(
       context: context,
-      builder: (_) => _BulkSupplyDialog(products: _products, suppliers: _suppliers, debts: _debts),
+      builder: (_) => _BulkSupplyDialog(
+        products: _products,
+        suppliers: _suppliers,
+        debts: _debts,
+      ),
     );
     if (result == null) return;
 
@@ -104,12 +123,13 @@ class _InventoryPageState extends State<InventoryPage> {
       await widget.api.post("/products/stock/bulk", result.toBody());
       Map<String, dynamic>? paymentInfo;
       if (result.debtPaymentAmount > 0) {
-        final raw = await widget.api.post("/debts/contact/${result.supplier.id}/payments", {
-          "type": "payable",
-          "amount": result.debtPaymentAmount,
-          "currency": result.debtPaymentCurrency,
-          "note": "Payment on purchase invoice: ${result.invoiceNo}",
-        });
+        final raw = await widget.api
+            .post("/debts/contact/${result.supplier.id}/payments", {
+              "type": "payable",
+              "amount": result.debtPaymentAmount,
+              "currency": result.debtPaymentCurrency,
+              "note": "Payment on purchase invoice: ${result.invoiceNo}",
+            });
         if (raw is Map) paymentInfo = Map<String, dynamic>.from(raw);
       }
       await _loadProducts();
@@ -120,19 +140,25 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  Future<void> _showBulkSupplyInvoice(_BulkSupplyResult result, {Map<String, dynamic>? paymentInfo}) async {
+  Future<void> _showBulkSupplyInvoice(
+    _BulkSupplyResult result, {
+    Map<String, dynamic>? paymentInfo,
+  }) async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final totals = result.totalsByCurrency();
     final before = result.debtTotalsBefore;
-    final after = _mapTotals(paymentInfo?["after"]) ?? result.estimatedDebtAfter();
+    final after =
+        _mapTotals(paymentInfo?["after"]) ?? result.estimatedDebtAfter();
     final lines = <String>[
       isAr ? "فاتورة توريد" : "Stock purchase invoice",
       "${isAr ? "المورد" : "Supplier"}: ${result.supplier.name}",
-      if (result.invoiceNo.isNotEmpty) "${isAr ? "رقم الفاتورة" : "Invoice"}: ${result.invoiceNo}",
+      if (result.invoiceNo.isNotEmpty)
+        "${isAr ? "رقم الفاتورة" : "Invoice"}: ${result.invoiceNo}",
       "${isAr ? "الحالة" : "Status"}: ${result.isDebt ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
       "${isAr ? "طريقة الدفع" : "Payment method"}: ${result.isDebt ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
-      if (result.debtPaymentAmount > 0) "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(result.debtPaymentAmount, result.debtPaymentCurrency)}",
+      if (result.debtPaymentAmount > 0)
+        "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(result.debtPaymentAmount, result.debtPaymentCurrency)}",
       "",
       for (final item in result.items)
         "- ${item.label}: ${number(item.quantity)} ${item.unit}"
@@ -152,14 +178,20 @@ class _InventoryPageState extends State<InventoryPage> {
         title: Text(isAr ? "تم توريد البضاعة" : "Stock received"),
         content: SingleChildScrollView(child: SelectableText(message)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(c.t("cancel"))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(c.t("cancel")),
+          ),
           OutlinedButton.icon(
-            onPressed: () async => Clipboard.setData(ClipboardData(text: message)),
+            onPressed: () async =>
+                Clipboard.setData(ClipboardData(text: message)),
             icon: const Icon(Icons.copy_rounded),
             label: Text(isAr ? "نسخ" : "Copy"),
           ),
           FilledButton.icon(
-            onPressed: result.supplier.phone.trim().isEmpty ? null : () => _shareSupplyWhatsapp(result.supplier, message),
+            onPressed: result.supplier.phone.trim().isEmpty
+                ? null
+                : () => _shareSupplyWhatsapp(result.supplier, message),
             icon: const Icon(Icons.send_rounded),
             label: Text(isAr ? "واتساب" : "WhatsApp"),
           ),
@@ -170,15 +202,17 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Map<String, double>? _mapTotals(dynamic raw) {
     if (raw is! Map) return null;
-    return {
-      "LBP": _numValue(raw["LBP"]),
-      "USD": _numValue(raw["USD"]),
-    };
+    return {"LBP": _numValue(raw["LBP"]), "USD": _numValue(raw["USD"])};
   }
 
-  Future<void> _shareSupplyWhatsapp(ContactModel supplier, String message) async {
+  Future<void> _shareSupplyWhatsapp(
+    ContactModel supplier,
+    String message,
+  ) async {
     final digits = supplier.fullPhone.replaceAll(RegExp(r"[^0-9]"), "");
-    final uri = Uri.parse("https://wa.me/$digits?text=${Uri.encodeComponent(message)}");
+    final uri = Uri.parse(
+      "https://wa.me/$digits?text=${Uri.encodeComponent(message)}",
+    );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       await Clipboard.setData(ClipboardData(text: message));
       _showError("Could not open WhatsApp. Invoice copied.");
@@ -186,14 +220,17 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   void _showError(Object e) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 
   Future<void> _showInventorySnapshot() async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final now = DateTime.now();
-    final invoiceNo = "INV-STOCK-${now.millisecondsSinceEpoch.toString().substring(5)}";
+    final invoiceNo =
+        "INV-STOCK-${now.millisecondsSinceEpoch.toString().substring(5)}";
     var totalQuantity = 0.0;
     final totals = {"LBP": 0.0, "USD": 0.0};
     final lines = <String>[
@@ -209,31 +246,44 @@ class _InventoryPageState extends State<InventoryPage> {
     for (final category in grouped.entries) {
       lines.add("${isAr ? "التصنيف" : "Category"}: ${category.key}");
       for (final subcategory in category.value.entries) {
-        lines.add("  ${isAr ? "التصنيف الفرعي" : "Subcategory"}: ${subcategory.key}");
+        lines.add(
+          "  ${isAr ? "التصنيف الفرعي" : "Subcategory"}: ${subcategory.key}",
+        );
         for (final product in subcategory.value) {
           if (product.hasVariants) {
             for (final variant in product.variants) {
               final value = variant.quantity * variant.sellingPrice;
               totalQuantity += variant.quantity;
-              totals[variant.currency] = (totals[variant.currency] ?? 0) + value;
+              totals[variant.currency] =
+                  (totals[variant.currency] ?? 0) + value;
               lines.add("    - ${product.name} / ${variant.name}");
-              lines.add("      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}");
+              lines.add(
+                "      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}",
+              );
             }
           } else {
             final value = product.quantity * product.sellingPrice;
             totalQuantity += product.quantity;
             totals[product.currency] = (totals[product.currency] ?? 0) + value;
             lines.add("    - ${product.name}");
-            lines.add("      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}");
+            lines.add(
+              "      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}",
+            );
           }
         }
       }
       lines.add("");
     }
     lines.add("----------------------------------------");
-    lines.add("${isAr ? "إجمالي الكمية" : "Total quantity"}: ${number(totalQuantity)}");
-    lines.add("${isAr ? "إجمالي القيمة باللبناني" : "Total value LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}");
-    lines.add("${isAr ? "إجمالي القيمة بالدولار" : "Total value USD"}: ${money(totals["USD"] ?? 0, "USD")}");
+    lines.add(
+      "${isAr ? "إجمالي الكمية" : "Total quantity"}: ${number(totalQuantity)}",
+    );
+    lines.add(
+      "${isAr ? "إجمالي القيمة باللبناني" : "Total value LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
+    );
+    lines.add(
+      "${isAr ? "إجمالي القيمة بالدولار" : "Total value USD"}: ${money(totals["USD"] ?? 0, "USD")}",
+    );
 
     final message = lines.join("\n");
     if (!mounted) return;
@@ -246,9 +296,13 @@ class _InventoryPageState extends State<InventoryPage> {
           child: SingleChildScrollView(child: SelectableText(message)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(c.t("cancel"))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(c.t("cancel")),
+          ),
           OutlinedButton.icon(
-            onPressed: () async => Clipboard.setData(ClipboardData(text: message)),
+            onPressed: () async =>
+                Clipboard.setData(ClipboardData(text: message)),
             icon: const Icon(Icons.copy_rounded),
             label: Text(isAr ? "نسخ" : "Copy"),
           ),
@@ -263,7 +317,9 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Future<void> _shareInventorySnapshot(String message) async {
-    final uri = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
+    final uri = Uri.parse(
+      "https://wa.me/?text=${Uri.encodeComponent(message)}",
+    );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       await Clipboard.setData(ClipboardData(text: message));
       _showError("Could not open sharing app. Inventory copied.");
@@ -277,16 +333,24 @@ class _InventoryPageState extends State<InventoryPage> {
     final theme = Theme.of(context);
     final filtered = _filteredProducts();
     final grouped = _groupProducts(filtered);
-    final totalQualities = filtered.fold<int>(0, (sum, p) => sum + (p.hasVariants ? p.variants.length : 1));
+    final totalQualities = filtered.fold<int>(
+      0,
+      (sum, p) => sum + (p.hasVariants ? p.variants.length : 1),
+    );
     final totalQuantity = filtered.fold<double>(0, (sum, p) {
-      if (p.hasVariants) return sum + p.variants.fold<double>(0, (inner, v) => inner + v.quantity);
+      if (p.hasVariants)
+        return sum +
+            p.variants.fold<double>(0, (inner, v) => inner + v.quantity);
       return sum + p.quantity;
     });
     final totalWeight = filtered.fold<double>(0, (sum, p) {
-      if (p.hasVariants) return sum + p.variants.fold<double>(0, (inner, v) => inner + v.weight);
+      if (p.hasVariants)
+        return sum + p.variants.fold<double>(0, (inner, v) => inner + v.weight);
       return sum + p.weight;
     });
-    final lowStockCount = filtered.where((p) => p.isLowStock || p.variants.any((v) => v.isLowStock)).length;
+    final lowStockCount = filtered
+        .where((p) => p.isLowStock || p.variants.any((v) => v.isLowStock))
+        .length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -314,17 +378,30 @@ class _InventoryPageState extends State<InventoryPage> {
                             color: theme.colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Icon(Icons.warehouse_rounded, color: theme.colorScheme.primary, size: 30),
+                          child: Icon(
+                            Icons.warehouse_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 30,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(isAr ? "المخزون" : "Inventory", style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
                               Text(
-                                isAr ? "تصنيف > تصنيف فرعي > نوعية صنف" : "Category > Subcategory > Item quality",
-                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                isAr ? "المخزون" : "Inventory",
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                isAr
+                                    ? "تصنيف > تصنيف فرعي > نوعية صنف"
+                                    : "Category > Subcategory > Item quality",
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -336,7 +413,9 @@ class _InventoryPageState extends State<InventoryPage> {
                         ),
                         const SizedBox(width: 8),
                         IconButton.filledTonal(
-                          onPressed: _products.isEmpty ? null : _showInventorySnapshot,
+                          onPressed: _products.isEmpty
+                              ? null
+                              : _showInventorySnapshot,
                           tooltip: isAr ? "جردة عامة" : "Inventory Snapshot",
                           icon: const Icon(Icons.ios_share_rounded),
                         ),
@@ -346,15 +425,49 @@ class _InventoryPageState extends State<InventoryPage> {
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final columns = constraints.maxWidth >= 760 ? 4 : 2;
-                        final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+                        final width =
+                            (constraints.maxWidth - ((columns - 1) * 10)) /
+                            columns;
                         return Wrap(
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            SizedBox(width: width, child: _metricCard(isAr ? "النوعيات" : "Qualities", totalQualities.toString(), Icons.category_rounded, theme.colorScheme.primary)),
-                            SizedBox(width: width, child: _metricCard(isAr ? "الكمية" : "Quantity", number(totalQuantity), Icons.inventory_2_rounded, Colors.teal)),
-                            SizedBox(width: width, child: _metricCard(isAr ? "الوزن" : "Weight", number(totalWeight), Icons.scale_rounded, Colors.blueGrey)),
-                            SizedBox(width: width, child: _metricCard(isAr ? "منخفض" : "Low", lowStockCount.toString(), Icons.warning_amber_rounded, Colors.orange)),
+                            SizedBox(
+                              width: width,
+                              child: _metricCard(
+                                isAr ? "النوعيات" : "Qualities",
+                                totalQualities.toString(),
+                                Icons.category_rounded,
+                                theme.colorScheme.primary,
+                              ),
+                            ),
+                            SizedBox(
+                              width: width,
+                              child: _metricCard(
+                                isAr ? "الكمية" : "Quantity",
+                                number(totalQuantity),
+                                Icons.inventory_2_rounded,
+                                Colors.teal,
+                              ),
+                            ),
+                            SizedBox(
+                              width: width,
+                              child: _metricCard(
+                                isAr ? "الوزن" : "Weight",
+                                number(totalWeight),
+                                Icons.scale_rounded,
+                                Colors.blueGrey,
+                              ),
+                            ),
+                            SizedBox(
+                              width: width,
+                              child: _metricCard(
+                                isAr ? "منخفض" : "Low",
+                                lowStockCount.toString(),
+                                Icons.warning_amber_rounded,
+                                Colors.orange,
+                              ),
+                            ),
                           ],
                         );
                       },
@@ -363,7 +476,9 @@ class _InventoryPageState extends State<InventoryPage> {
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: isAr ? "بحث بالتصنيف، النوعية، أو الكود..." : "Search category, quality, or SKU...",
+                        hintText: isAr
+                            ? "بحث بالتصنيف، النوعية، أو الكود..."
+                            : "Search category, quality, or SKU...",
                         prefixIcon: const Icon(Icons.search_rounded),
                         suffixIcon: _searchController.text.isEmpty
                             ? null
@@ -378,29 +493,31 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
             ),
             if (_loading)
-              const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
             else if (_error != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
-                  child: ModernCard(child: Text(_error!, style: const TextStyle(color: Colors.red))),
+                  child: ModernCard(
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
                 ),
               )
             else if (filtered.isEmpty)
-              SliverFillRemaining(
-                child: _emptyState(isAr, theme),
-              )
+              SliverFillRemaining(child: _emptyState(isAr, theme))
             else
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final entry = grouped.entries.elementAt(index);
-                      return _categoryBlock(entry.key, entry.value);
-                    },
-                    childCount: grouped.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final entry = grouped.entries.elementAt(index);
+                    return _categoryBlock(entry.key, entry.value);
+                  }, childCount: grouped.length),
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -422,11 +539,17 @@ class _InventoryPageState extends State<InventoryPage> {
     }).toList();
   }
 
-  Map<String, Map<String, List<Product>>> _groupProducts(List<Product> products) {
+  Map<String, Map<String, List<Product>>> _groupProducts(
+    List<Product> products,
+  ) {
     final grouped = <String, Map<String, List<Product>>>{};
     for (final product in products) {
-      final category = product.category.trim().isEmpty ? "General" : product.category.trim();
-      final subcategory = product.subcategory.trim().isEmpty ? "General" : product.subcategory.trim();
+      final category = product.category.trim().isEmpty
+          ? "General"
+          : product.category.trim();
+      final subcategory = product.subcategory.trim().isEmpty
+          ? "General"
+          : product.subcategory.trim();
       grouped.putIfAbsent(category, () => <String, List<Product>>{});
       grouped[category]!.putIfAbsent(subcategory, () => <Product>[]);
       grouped[category]![subcategory]!.add(product);
@@ -434,9 +557,15 @@ class _InventoryPageState extends State<InventoryPage> {
     return grouped;
   }
 
-  Widget _categoryBlock(String category, Map<String, List<Product>> subcategories) {
+  Widget _categoryBlock(
+    String category,
+    Map<String, List<Product>> subcategories,
+  ) {
     final theme = Theme.of(context);
-    final count = subcategories.values.fold<int>(0, (sum, rows) => sum + rows.length);
+    final count = subcategories.values.fold<int>(
+      0,
+      (sum, rows) => sum + rows.length,
+    );
     final isClosed = _closedCategories.contains(category);
 
     return Padding(
@@ -459,19 +588,37 @@ class _InventoryPageState extends State<InventoryPage> {
                 children: [
                   CircleAvatar(
                     backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Icon(isClosed ? Icons.folder_rounded : Icons.folder_open_rounded, color: theme.colorScheme.onPrimaryContainer),
+                    child: Icon(
+                      isClosed
+                          ? Icons.folder_rounded
+                          : Icons.folder_open_rounded,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(category, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900))),
+                  Expanded(
+                    child: Text(
+                      category,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
                   _countPill("$count"),
                   const SizedBox(width: 6),
-                  Icon(isClosed ? Icons.expand_more_rounded : Icons.expand_less_rounded),
+                  Icon(
+                    isClosed
+                        ? Icons.expand_more_rounded
+                        : Icons.expand_less_rounded,
+                  ),
                 ],
               ),
             ),
             if (!isClosed) ...[
               const SizedBox(height: 12),
-              ...subcategories.entries.map((entry) => _subcategoryBlock(category, entry.key, entry.value)),
+              ...subcategories.entries.map(
+                (entry) => _subcategoryBlock(category, entry.key, entry.value),
+              ),
             ],
           ],
         ),
@@ -479,7 +626,11 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _subcategoryBlock(String category, String subcategory, List<Product> products) {
+  Widget _subcategoryBlock(
+    String category,
+    String subcategory,
+    List<Product> products,
+  ) {
     final theme = Theme.of(context);
     final c = AppScope.of(context);
     final key = "$category/$subcategory";
@@ -505,10 +656,28 @@ class _InventoryPageState extends State<InventoryPage> {
             }),
             child: Row(
               children: [
-                Icon(isClosed ? Icons.chevron_right_rounded : Icons.keyboard_arrow_down_rounded, color: theme.colorScheme.primary, size: 22),
+                Icon(
+                  isClosed
+                      ? Icons.chevron_right_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(subcategory, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900))),
-                Text("${products.length}", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                Expanded(
+                  child: Text(
+                    subcategory,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Text(
+                  "${products.length}",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -523,8 +692,12 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Widget _qualityRow(Product p, AppController c) {
     final theme = Theme.of(context);
-    final qty = p.hasVariants ? p.variants.fold<double>(0, (sum, v) => sum + v.quantity) : p.quantity;
-    final weight = p.hasVariants ? p.variants.fold<double>(0, (sum, v) => sum + v.weight) : p.weight;
+    final qty = p.hasVariants
+        ? p.variants.fold<double>(0, (sum, v) => sum + v.quantity)
+        : p.quantity;
+    final weight = p.hasVariants
+        ? p.variants.fold<double>(0, (sum, v) => sum + v.weight)
+        : p.weight;
     final low = p.isLowStock || p.variants.any((v) => v.isLowStock);
 
     return Material(
@@ -541,20 +714,32 @@ class _InventoryPageState extends State<InventoryPage> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: low ? Colors.orange.withOpacity(0.12) : theme.colorScheme.primary.withOpacity(0.10),
+                  color: low
+                      ? Colors.orange.withOpacity(0.12)
+                      : theme.colorScheme.primary.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(low ? Icons.warning_amber_rounded : Icons.inventory_2_rounded, color: low ? Colors.orange : theme.colorScheme.primary),
+                child: Icon(
+                  low ? Icons.warning_amber_rounded : Icons.inventory_2_rounded,
+                  color: low ? Colors.orange : theme.colorScheme.primary,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.name, style: const TextStyle(fontWeight: FontWeight.w900)),
                     Text(
-                      p.hasVariants ? "${p.variants.length} ${c.t("variants")}" : "${c.t("sellingPrice")}: ${money(p.sellingPrice, p.currency)}",
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      p.name,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      p.hasVariants
+                          ? "${p.variants.length} ${c.t("variants")}"
+                          : "${c.t("sellingPrice")}: ${money(p.sellingPrice, p.currency)}",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -562,9 +747,27 @@ class _InventoryPageState extends State<InventoryPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text("${number(qty)} ${p.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
-                  if (weight > 0) Text("${number(weight)} ${c.isArabic ? "كغ" : "kg"}", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w800)),
-                  if (low) Text(c.t("lowStock"), style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.w900)),
+                  Text(
+                    "${number(qty)} ${p.unit}",
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  if (weight > 0)
+                    Text(
+                      "${number(weight)} ${c.isArabic ? "كغ" : "kg"}",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  if (low)
+                    Text(
+                      c.t("lowStock"),
+                      style: const TextStyle(
+                        color: Colors.orange,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(width: 4),
@@ -583,10 +786,26 @@ class _InventoryPageState extends State<InventoryPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(radius: 18, backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color, size: 20)),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: color.withOpacity(0.12),
+            child: Icon(icon, color: color, size: 20),
+          ),
           const SizedBox(height: 8),
-          Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -600,7 +819,13 @@ class _InventoryPageState extends State<InventoryPage> {
         color: theme.colorScheme.primary.withOpacity(0.10),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(value, style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w900)),
+      child: Text(
+        value,
+        style: TextStyle(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 
@@ -611,17 +836,34 @@ class _InventoryPageState extends State<InventoryPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.warehouse_outlined, size: 70, color: theme.colorScheme.primary.withOpacity(0.35)),
+            Icon(
+              Icons.warehouse_outlined,
+              size: 70,
+              color: theme.colorScheme.primary.withOpacity(0.35),
+            ),
             const SizedBox(height: 14),
-            Text(isAr ? "لا يوجد أصناف بعد" : "No items yet", style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+            Text(
+              isAr ? "لا يوجد أصناف بعد" : "No items yet",
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
-              isAr ? "ابدأ بإضافة بطاطا > بطاطا حلوة > فئة أولى" : "Start with Potato > Sweet potato > Grade one",
+              isAr
+                  ? "ابدأ بإضافة بطاطا > بطاطا حلوة > فئة أولى"
+                  : "Start with Potato > Sweet potato > Grade one",
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(onPressed: _addProduct, icon: const Icon(Icons.add_rounded), label: Text(isAr ? "إضافة أول صنف" : "Add First Item")),
+            FilledButton.icon(
+              onPressed: _addProduct,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(isAr ? "إضافة أول صنف" : "Add First Item"),
+            ),
           ],
         ),
       ),
@@ -634,7 +876,11 @@ class _BulkSupplyDialog extends StatefulWidget {
   final List<ContactModel> suppliers;
   final List<Map<String, dynamic>> debts;
 
-  const _BulkSupplyDialog({required this.products, required this.suppliers, required this.debts});
+  const _BulkSupplyDialog({
+    required this.products,
+    required this.suppliers,
+    required this.debts,
+  });
 
   @override
   State<_BulkSupplyDialog> createState() => _BulkSupplyDialogState();
@@ -692,31 +938,61 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
             children: [
               DropdownButtonFormField<String>(
                 value: _supplierId,
-                decoration: InputDecoration(labelText: isAr ? "المورد" : "Supplier", prefixIcon: const Icon(Icons.local_shipping_rounded)),
-                items: widget.suppliers.map((supplier) => DropdownMenuItem(value: supplier.id, child: Text(supplier.name))).toList(),
+                decoration: InputDecoration(
+                  labelText: isAr ? "المورد" : "Supplier",
+                  prefixIcon: const Icon(Icons.local_shipping_rounded),
+                ),
+                items: widget.suppliers
+                    .map(
+                      (supplier) => DropdownMenuItem(
+                        value: supplier.id,
+                        child: Text(supplier.name),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) => setState(() => _supplierId = value),
               ),
               const SizedBox(height: 12),
               _responsiveFields([
-                TextField(controller: _invoiceNo, decoration: InputDecoration(labelText: isAr ? "رقم الفاتورة" : "Invoice no.")),
-                TextField(controller: _reason, decoration: InputDecoration(labelText: isAr ? "ملاحظة" : "Note")),
+                TextField(
+                  controller: _invoiceNo,
+                  decoration: InputDecoration(
+                    labelText: isAr ? "رقم الفاتورة" : "Invoice no.",
+                  ),
+                ),
+                TextField(
+                  controller: _reason,
+                  decoration: InputDecoration(
+                    labelText: isAr ? "ملاحظة" : "Note",
+                  ),
+                ),
               ]),
               CheckboxListTile(
                 value: _registerDebt,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
-                title: Text(isAr ? "تسجيل كدين على المورد" : "Register as supplier debt"),
-                onChanged: (value) => setState(() => _registerDebt = value ?? false),
+                title: Text(
+                  isAr ? "تسجيل كدين على المورد" : "Register as supplier debt",
+                ),
+                onChanged: (value) =>
+                    setState(() => _registerDebt = value ?? false),
               ),
               _supplierDebtPanel(isAr),
               const Divider(height: 24),
               _responsiveFields([
                 DropdownButtonFormField<String>(
                   value: _category,
-                  decoration: InputDecoration(labelText: isAr ? "الصنف" : "Category"),
+                  decoration: InputDecoration(
+                    labelText: isAr ? "الصنف" : "Category",
+                  ),
                   items: [
-                    DropdownMenuItem(value: "", child: Text(isAr ? "اختر الصنف" : "Choose category")),
-                    ...categories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
+                    DropdownMenuItem(
+                      value: "",
+                      child: Text(isAr ? "اختر الصنف" : "Choose category"),
+                    ),
+                    ...categories.map(
+                      (x) => DropdownMenuItem(value: x, child: Text(x)),
+                    ),
                   ],
                   onChanged: (value) => setState(() {
                     _category = value ?? "";
@@ -726,10 +1002,19 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 ),
                 DropdownButtonFormField<String>(
                   value: _subcategory,
-                  decoration: InputDecoration(labelText: isAr ? "الصنف الفرعي" : "Subcategory"),
+                  decoration: InputDecoration(
+                    labelText: isAr ? "الصنف الفرعي" : "Subcategory",
+                  ),
                   items: [
-                    DropdownMenuItem(value: "", child: Text(isAr ? "اختر الصنف الفرعي" : "Choose subcategory")),
-                    ...subcategories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
+                    DropdownMenuItem(
+                      value: "",
+                      child: Text(
+                        isAr ? "اختر الصنف الفرعي" : "Choose subcategory",
+                      ),
+                    ),
+                    ...subcategories.map(
+                      (x) => DropdownMenuItem(value: x, child: Text(x)),
+                    ),
                   ],
                   onChanged: (value) => setState(() {
                     _subcategory = value ?? "";
@@ -743,25 +1028,34 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 focusNode: _focus,
                 displayStringForOption: (choice) => choice.label,
                 optionsBuilder: (value) {
-                  if (_category.isEmpty || _subcategory.isEmpty) return const Iterable<_SupplyChoice>.empty();
+                  if (_category.isEmpty || _subcategory.isEmpty)
+                    return const Iterable<_SupplyChoice>.empty();
                   final q = value.text.trim().toLowerCase();
-                  return choices.where((choice) => q.isEmpty || choice.searchText.contains(q)).take(10);
+                  return choices
+                      .where(
+                        (choice) => q.isEmpty || choice.searchText.contains(q),
+                      )
+                      .take(10);
                 },
                 onSelected: _selectChoice,
-                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      labelText: isAr ? "ابحث عن المنتج أو النوعية" : "Search item or quality",
-                      prefixIcon: const Icon(Icons.manage_search_rounded),
-                    ),
-                    onChanged: (value) {
-                      final selected = _activeChoice;
-                      if (selected != null && selected.label != value) setState(() => _activeChoice = null);
+                fieldViewBuilder:
+                    (context, controller, focusNode, onFieldSubmitted) {
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: isAr
+                              ? "ابحث عن المنتج أو النوعية"
+                              : "Search item or quality",
+                          prefixIcon: const Icon(Icons.manage_search_rounded),
+                        ),
+                        onChanged: (value) {
+                          final selected = _activeChoice;
+                          if (selected != null && selected.label != value)
+                            setState(() => _activeChoice = null);
+                        },
+                      );
                     },
-                  );
-                },
                 optionsViewBuilder: (context, onSelected, options) {
                   return Align(
                     alignment: Alignment.topLeft,
@@ -769,7 +1063,10 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                       elevation: 10,
                       borderRadius: BorderRadius.circular(14),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 300, maxWidth: 620),
+                        constraints: const BoxConstraints(
+                          maxHeight: 300,
+                          maxWidth: 620,
+                        ),
                         child: ListView.builder(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
@@ -777,10 +1074,23 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                           itemBuilder: (context, index) {
                             final choice = options.elementAt(index);
                             return ListTile(
-                              leading: const CircleAvatar(child: Icon(Icons.inventory_2_rounded)),
-                              title: Text(choice.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                              subtitle: Text("${choice.category} > ${choice.subcategory}"),
-                              trailing: Text("${number(choice.currentQuantity)} ${choice.unit}", style: const TextStyle(fontWeight: FontWeight.w900)),
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.inventory_2_rounded),
+                              ),
+                              title: Text(
+                                choice.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                "${choice.category} > ${choice.subcategory}",
+                              ),
+                              trailing: Text(
+                                "${number(choice.currentQuantity)} ${choice.unit}",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                               onTap: () => onSelected(choice),
                             );
                           },
@@ -790,7 +1100,9 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                   );
                 },
               ),
-              if (_category.isNotEmpty && _subcategory.isNotEmpty && _activeChoice == null) ...[
+              if (_category.isNotEmpty &&
+                  _subcategory.isNotEmpty &&
+                  _activeChoice == null) ...[
                 const SizedBox(height: 8),
                 _quickSupplyChoices(choices, isAr),
               ],
@@ -799,7 +1111,11 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 value: _receiveByPackage,
                 contentPadding: EdgeInsets.zero,
                 title: Text(isAr ? "توريد بالطرد" : "Receive by package"),
-                subtitle: Text(isAr ? "أدخل عدد الطرود والوزن ليظهرا على فاتورة التوريد" : "Enter packages and weight for the purchase invoice"),
+                subtitle: Text(
+                  isAr
+                      ? "أدخل عدد الطرود والوزن ليظهرا على فاتورة التوريد"
+                      : "Enter packages and weight for the purchase invoice",
+                ),
                 onChanged: (value) => setState(() => _receiveByPackage = value),
               ),
               const SizedBox(height: 8),
@@ -807,26 +1123,39 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 TextField(
                   controller: _quantity,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: _receiveByPackage ? (isAr ? "عدد الطرود" : "Packages count") : (isAr ? "الكمية" : "Quantity")),
+                  decoration: InputDecoration(
+                    labelText: _receiveByPackage
+                        ? (isAr ? "عدد الطرود" : "Packages count")
+                        : (isAr ? "الكمية" : "Quantity"),
+                  ),
                 ),
                 TextField(
                   controller: _weight,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: isAr ? "الوزن" : "Weight"),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: isAr ? "الوزن" : "Weight",
+                  ),
                 ),
                 TextField(
                   controller: _unitCost,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: isAr ? "سعر الشراء" : "Unit cost"),
+                  decoration: InputDecoration(
+                    labelText: isAr ? "سعر الشراء" : "Unit cost",
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   value: _currency,
-                  decoration: InputDecoration(labelText: isAr ? "العملة" : "Currency"),
+                  decoration: InputDecoration(
+                    labelText: isAr ? "العملة" : "Currency",
+                  ),
                   items: const [
                     DropdownMenuItem(value: "LBP", child: Text("LBP")),
                     DropdownMenuItem(value: "USD", child: Text("USD")),
                   ],
-                  onChanged: (value) => setState(() => _currency = value ?? "LBP"),
+                  onChanged: (value) =>
+                      setState(() => _currency = value ?? "LBP"),
                 ),
               ]),
               const SizedBox(height: 10),
@@ -845,7 +1174,10 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(c.t("cancel"))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(c.t("cancel")),
+        ),
         FilledButton(onPressed: _save, child: Text(c.t("save"))),
       ],
     );
@@ -865,7 +1197,14 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     if (shown.isEmpty) {
       return Align(
         alignment: AlignmentDirectional.centerStart,
-        child: Text(isAr ? "لا يوجد منتجات ضمن هذا الصنف." : "No products in this category.", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        child: Text(
+          isAr
+              ? "لا يوجد منتجات ضمن هذا الصنف."
+              : "No products in this category.",
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       );
     }
     return Align(
@@ -874,11 +1213,13 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
         spacing: 8,
         runSpacing: 8,
         children: shown
-            .map((choice) => ActionChip(
-                  avatar: const Icon(Icons.inventory_2_rounded, size: 18),
-                  label: Text(choice.label, overflow: TextOverflow.ellipsis),
-                  onPressed: () => _selectChoice(choice),
-                ))
+            .map(
+              (choice) => ActionChip(
+                avatar: const Icon(Icons.inventory_2_rounded, size: 18),
+                label: Text(choice.label, overflow: TextOverflow.ellipsis),
+                onPressed: () => _selectChoice(choice),
+              ),
+            )
             .toList(),
       ),
     );
@@ -888,19 +1229,32 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final choice = _activeChoice;
-    if (choice == null) return _showError(isAr ? "اختار المنتج أولاً" : "Choose an item first");
+    if (choice == null)
+      return _showError(isAr ? "اختار المنتج أولاً" : "Choose an item first");
     final quantity = _numInput(_quantity.text);
     final packageCount = _receiveByPackage ? quantity : 0.0;
     final weight = _decimalInput(_weight.text);
     final unitCost = _numInput(_unitCost.text);
-    if (quantity <= 0) return _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
-    if (weight < 0) return _showError(isAr ? "الوزن غير صحيح" : "Invalid weight");
-    if (unitCost < 0) return _showError(isAr ? "سعر الشراء غير صحيح" : "Invalid unit cost");
+    if (quantity <= 0)
+      return _showError(isAr ? "اكتب كمية صحيحة" : "Enter a valid quantity");
+    if (weight < 0)
+      return _showError(isAr ? "الوزن غير صحيح" : "Invalid weight");
+    if (unitCost < 0)
+      return _showError(isAr ? "سعر الشراء غير صحيح" : "Invalid unit cost");
 
     final index = _items.indexWhere((item) => item.id == choice.id);
     setState(() {
       if (index == -1) {
-        _items.add(_SupplyDraftItem.fromChoice(choice, quantity: quantity, packageCount: packageCount, weight: weight, unitCost: unitCost, currency: _currency));
+        _items.add(
+          _SupplyDraftItem.fromChoice(
+            choice,
+            quantity: quantity,
+            packageCount: packageCount,
+            weight: weight,
+            unitCost: unitCost,
+            currency: _currency,
+          ),
+        );
       } else {
         _items[index] = _items[index].copyWith(
           quantity: _items[index].quantity + quantity,
@@ -918,8 +1272,14 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final supplier = _supplierById(_supplierId);
-    if (supplier == null) return _showError(isAr ? "اختار المورد أولاً" : "Select a supplier first");
-    if (_items.isEmpty) return _showError(isAr ? "أضف صنف واحد على الأقل" : "Add at least one item");
+    if (supplier == null)
+      return _showError(
+        isAr ? "اختار المورد أولاً" : "Select a supplier first",
+      );
+    if (_items.isEmpty)
+      return _showError(
+        isAr ? "أضف صنف واحد على الأقل" : "Add at least one item",
+      );
 
     Navigator.pop(
       context,
@@ -953,13 +1313,22 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            supplier == null ? (isAr ? "اختار مورد لعرض دينه" : "Select supplier to show debt") : "${isAr ? "دين" : "Debt"} ${supplier.name}",
+            supplier == null
+                ? (isAr
+                      ? "اختار مورد لعرض دينه"
+                      : "Select supplier to show debt")
+                : "${isAr ? "دين" : "Debt"} ${supplier.name}",
             style: const TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
             "${isAr ? "المتبقي" : "Remaining"}: ${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}",
-            style: TextStyle(fontWeight: FontWeight.w800, color: hasDebt ? Colors.red.shade700 : Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: hasDebt
+                  ? Colors.red.shade700
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 10),
           _responsiveFields([
@@ -967,16 +1336,25 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
               controller: _debtPayment,
               enabled: supplier != null,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: isAr ? "دفعة من دين المورد" : "Supplier debt payment"),
+              decoration: InputDecoration(
+                labelText: isAr
+                    ? "دفعة من دين المورد"
+                    : "Supplier debt payment",
+              ),
             ),
             DropdownButtonFormField<String>(
               value: _debtPaymentCurrency,
-              decoration: InputDecoration(labelText: isAr ? "عملة الدفعة" : "Payment currency"),
+              decoration: InputDecoration(
+                labelText: isAr ? "عملة الدفعة" : "Payment currency",
+              ),
               items: const [
                 DropdownMenuItem(value: "LBP", child: Text("LBP")),
                 DropdownMenuItem(value: "USD", child: Text("USD")),
               ],
-              onChanged: supplier == null ? null : (value) => setState(() => _debtPaymentCurrency = value ?? "LBP"),
+              onChanged: supplier == null
+                  ? null
+                  : (value) =>
+                        setState(() => _debtPaymentCurrency = value ?? "LBP"),
             ),
           ]),
         ],
@@ -986,7 +1364,10 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
 
   Widget _draftCard(bool isAr) {
     if (_items.isEmpty) {
-      return Text(isAr ? "السلة فارغة." : "No items added yet.", style: const TextStyle(fontWeight: FontWeight.w700));
+      return Text(
+        isAr ? "السلة فارغة." : "No items added yet.",
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      );
     }
     final totals = {"LBP": 0.0, "USD": 0.0};
     for (final item in _items) {
@@ -1000,19 +1381,37 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              title: Text(_items[i].label, style: const TextStyle(fontWeight: FontWeight.w800)),
-              subtitle: Text([
-                "${number(_items[i].quantity)} ${_items[i].unit} x ${money(_items[i].unitCost, _items[i].currency)}",
-                if (_items[i].packageCount > 0) "${isAr ? "طرود" : "Packages"}: ${number(_items[i].packageCount)}",
-                if (_items[i].weight > 0) "${isAr ? "وزن" : "Weight"}: ${number(_items[i].weight)} ${isAr ? "كغ" : "kg"}",
-              ].join(" | ")),
-              trailing: IconButton(onPressed: () => setState(() => _items.removeAt(i)), icon: const Icon(Icons.close_rounded)),
+              title: Text(
+                _items[i].label,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text(
+                [
+                  "${number(_items[i].quantity)} ${_items[i].unit} x ${money(_items[i].unitCost, _items[i].currency)}",
+                  if (_items[i].packageCount > 0)
+                    "${isAr ? "طرود" : "Packages"}: ${number(_items[i].packageCount)}",
+                  if (_items[i].weight > 0)
+                    "${isAr ? "وزن" : "Weight"}: ${number(_items[i].weight)} ${isAr ? "كغ" : "kg"}",
+                ].join(" | "),
+              ),
+              trailing: IconButton(
+                onPressed: () => setState(() => _items.removeAt(i)),
+                icon: const Icon(Icons.close_rounded),
+              ),
             ),
           const Divider(),
           Row(
             children: [
-              Expanded(child: Text(isAr ? "الإجمالي" : "Total", style: const TextStyle(fontWeight: FontWeight.w900))),
-              Text("${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}", style: const TextStyle(fontWeight: FontWeight.w900)),
+              Expanded(
+                child: Text(
+                  isAr ? "الإجمالي" : "Total",
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Text(
+                "${money(totals["LBP"] ?? 0, "LBP")} / ${money(totals["USD"] ?? 0, "USD")}",
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
             ],
           ),
         ],
@@ -1042,8 +1441,11 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
       if ((debt["type"] ?? "").toString() != "payable") continue;
       if ((debt["status"] ?? "").toString() == "paid") continue;
       if (_debtContactId(debt) != supplierId) continue;
-      final currency = (debt["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
-      totals[currency] = (totals[currency] ?? 0) + _numValue(debt["remainingAmount"]);
+      final currency = (debt["currency"] ?? "LBP").toString() == "USD"
+          ? "USD"
+          : "LBP";
+      totals[currency] =
+          (totals[currency] ?? 0) + _numValue(debt["remainingAmount"]);
     }
     return totals;
   }
@@ -1059,32 +1461,36 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     for (final product in widget.products) {
       if (product.hasVariants) {
         for (final variant in product.variants) {
-          rows.add(_SupplyChoice(
-            id: "${product.id}:${variant.id}",
-            productId: product.id,
-            variantId: variant.id,
-            category: product.category,
-            subcategory: product.subcategory,
-            label: "${product.name} - ${variant.name}",
-            currentQuantity: variant.quantity,
-            purchasePrice: variant.purchasePrice,
-            purchaseCurrency: variant.purchaseCurrency,
-            unit: variant.unit,
-          ));
+          rows.add(
+            _SupplyChoice(
+              id: "${product.id}:${variant.id}",
+              productId: product.id,
+              variantId: variant.id,
+              category: product.category,
+              subcategory: product.subcategory,
+              label: "${product.name} - ${variant.name}",
+              currentQuantity: variant.quantity,
+              purchasePrice: variant.purchasePrice,
+              purchaseCurrency: variant.purchaseCurrency,
+              unit: variant.unit,
+            ),
+          );
         }
       } else {
-        rows.add(_SupplyChoice(
-          id: product.id,
-          productId: product.id,
-          variantId: null,
-          category: product.category,
-          subcategory: product.subcategory,
-          label: product.name,
-          currentQuantity: product.quantity,
-          purchasePrice: product.purchasePrice,
-          purchaseCurrency: product.purchaseCurrency,
-          unit: product.unit,
-        ));
+        rows.add(
+          _SupplyChoice(
+            id: product.id,
+            productId: product.id,
+            variantId: null,
+            category: product.category,
+            subcategory: product.subcategory,
+            label: product.name,
+            currentQuantity: product.quantity,
+            purchasePrice: product.purchasePrice,
+            purchaseCurrency: product.purchaseCurrency,
+            unit: product.unit,
+          ),
+        );
       }
     }
     rows.sort((a, b) => a.label.compareTo(b.label));
@@ -1092,17 +1498,32 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
   }
 
   List<_SupplyChoice> _filteredChoices() {
-    return _choices().where((choice) => choice.category == _category && choice.subcategory == _subcategory).toList();
+    return _choices()
+        .where(
+          (choice) =>
+              choice.category == _category &&
+              choice.subcategory == _subcategory,
+        )
+        .toList();
   }
 
   List<String> _categoryOptions() {
-    final rows = _choices().map((choice) => choice.category).where((x) => x.trim().isNotEmpty).toSet().toList();
+    final rows = _choices()
+        .map((choice) => choice.category)
+        .where((x) => x.trim().isNotEmpty)
+        .toSet()
+        .toList();
     rows.sort();
     return rows;
   }
 
   List<String> _subcategoryOptions() {
-    final rows = _choices().where((choice) => _category.isNotEmpty && choice.category == _category).map((choice) => choice.subcategory).where((x) => x.trim().isNotEmpty).toSet().toList();
+    final rows = _choices()
+        .where((choice) => _category.isNotEmpty && choice.category == _category)
+        .map((choice) => choice.subcategory)
+        .where((x) => x.trim().isNotEmpty)
+        .toSet()
+        .toList();
     rows.sort();
     return rows;
   }
@@ -1133,7 +1554,9 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -1190,7 +1613,14 @@ class _SupplyDraftItem {
     required this.unit,
   });
 
-  factory _SupplyDraftItem.fromChoice(_SupplyChoice choice, {required double quantity, required double packageCount, required double weight, required double unitCost, required String currency}) {
+  factory _SupplyDraftItem.fromChoice(
+    _SupplyChoice choice, {
+    required double quantity,
+    required double packageCount,
+    required double weight,
+    required double unitCost,
+    required String currency,
+  }) {
     return _SupplyDraftItem(
       id: choice.id,
       productId: choice.productId,
@@ -1207,7 +1637,13 @@ class _SupplyDraftItem {
 
   double get total => quantity * unitCost;
 
-  _SupplyDraftItem copyWith({double? quantity, double? packageCount, double? weight, double? unitCost, String? currency}) {
+  _SupplyDraftItem copyWith({
+    double? quantity,
+    double? packageCount,
+    double? weight,
+    double? unitCost,
+    String? currency,
+  }) {
     return _SupplyDraftItem(
       id: id,
       productId: productId,
@@ -1281,20 +1717,16 @@ class _BulkSupplyResult {
       totals["LBP"] = (totals["LBP"] ?? 0) + (purchaseTotals["LBP"] ?? 0);
       totals["USD"] = (totals["USD"] ?? 0) + (purchaseTotals["USD"] ?? 0);
     }
-    totals[debtPaymentCurrency] = ((totals[debtPaymentCurrency] ?? 0) - debtPaymentAmount).clamp(0, double.infinity).toDouble();
+    totals[debtPaymentCurrency] =
+        ((totals[debtPaymentCurrency] ?? 0) - debtPaymentAmount)
+            .clamp(0, double.infinity)
+            .toDouble();
     return totals;
   }
 }
 
-double _numInput(String value) => double.tryParse(value.replaceAll(",", "").trim()) ?? 0;
+double _numInput(String value) => parseNumberInput(value);
 
-double _decimalInput(String value) {
-  final clean = value.trim();
-  if (clean.contains(",") && !clean.contains(".")) return double.tryParse(clean.replaceAll(",", ".")) ?? 0;
-  return double.tryParse(clean.replaceAll(",", "")) ?? 0;
-}
+double _decimalInput(String value) => parseNumberInput(value);
 
-double _numValue(dynamic value) {
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? 0;
-}
+double _numValue(dynamic value) => numFromDynamic(value);

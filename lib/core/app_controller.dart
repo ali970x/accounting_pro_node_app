@@ -1,7 +1,8 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "api_client.dart";
 import "session_store.dart";
 import "app_text.dart";
+import "money.dart";
 
 class AppController extends ChangeNotifier {
   final ApiClient api;
@@ -12,10 +13,7 @@ class AppController extends ChangeNotifier {
   double exchangeRate = 90000;
   String accentColor = "#0F766E";
 
-  AppController({
-    required this.api,
-    required this.sessionStore,
-  });
+  AppController({required this.api, required this.sessionStore});
 
   String t(String key) => AppText.get(languageCode, key);
 
@@ -31,8 +29,7 @@ class AppController extends ChangeNotifier {
         "system" => ThemeMode.system,
         _ => ThemeMode.light,
       };
-      final rate = data["exchangeRate"];
-      exchangeRate = rate is num ? rate.toDouble() : double.tryParse("$rate") ?? 90000;
+      exchangeRate = numFromDynamic(data["exchangeRate"], fallback: 90000);
       accentColor = (data["accentColor"] ?? "#0F766E").toString();
       notifyListeners();
     } catch (_) {}

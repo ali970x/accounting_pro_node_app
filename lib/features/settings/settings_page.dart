@@ -38,7 +38,6 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
-    final theme = Theme.of(context);
     final isAr = c.isArabic;
 
     _selectedLang ??= c.languageCode;
@@ -68,7 +67,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ButtonSegment(value: "ar", label: Text(c.t("arabic"))),
                 ],
                 selected: {_selectedLang ?? "en"},
-                onSelectionChanged: (value) => setState(() => _selectedLang = value.first),
+                onSelectionChanged: (value) =>
+                    setState(() => _selectedLang = value.first),
               ),
               const SizedBox(height: 22),
               _titleRow(Icons.contrast_rounded, c.t("theme")),
@@ -77,20 +77,35 @@ class _SettingsPageState extends State<SettingsPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _themeChip(ThemeMode.light, c.t("light"), Icons.light_mode_rounded),
-                  _themeChip(ThemeMode.dark, c.t("dark"), Icons.dark_mode_rounded),
-                  _themeChip(ThemeMode.system, c.t("system"), Icons.devices_rounded),
+                  _themeChip(
+                    ThemeMode.light,
+                    c.t("light"),
+                    Icons.light_mode_rounded,
+                  ),
+                  _themeChip(
+                    ThemeMode.dark,
+                    c.t("dark"),
+                    Icons.dark_mode_rounded,
+                  ),
+                  _themeChip(
+                    ThemeMode.system,
+                    c.t("system"),
+                    Icons.devices_rounded,
+                  ),
                 ],
               ),
               const SizedBox(height: 22),
-              _titleRow(Icons.palette_rounded, isAr ? "\u0644\u0648\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642" : "App color"),
+              _titleRow(
+                Icons.palette_rounded,
+                isAr
+                    ? "\u0644\u0648\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642"
+                    : "App color",
+              ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: [
-                  for (final accent in _accents) _accentChip(accent),
-                ],
+                children: [for (final accent in _accents) _accentChip(accent)],
               ),
               const SizedBox(height: 22),
               _titleRow(Icons.currency_exchange_rounded, c.t("exchangeRate")),
@@ -103,7 +118,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   prefixIcon: const Icon(Icons.attach_money_rounded),
                   suffixText: "LBP",
                   hintText: "90,000",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
               const SizedBox(height: 22),
@@ -113,7 +130,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: FilledButton.icon(
                   onPressed: () async {
                     try {
-                      final parsedRate = _parseNumber(_rateController.text, fallback: 90000);
+                      final parsedRate = _parseNumber(
+                        _rateController.text,
+                        fallback: 90000,
+                      );
                       await c.saveSettings(
                         lang: _selectedLang!,
                         theme: _selectedTheme!,
@@ -122,34 +142,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                       _rateController.text = number(parsedRate);
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(c.t("save"))));
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(c.t("save"))));
                     } catch (e) {
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
                     }
                   },
                   icon: const Icon(Icons.save_rounded),
                   label: Text(c.t("save")),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        ModernCard(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                child: Icon(Icons.format_list_numbered_rtl_rounded, color: theme.colorScheme.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  isAr ? "\u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0637\u0648\u064a\u0644\u0629 \u062a\u0638\u0647\u0631 \u0628\u0641\u0648\u0627\u0635\u0644 \u0644\u0642\u0631\u0627\u0621\u0629 \u0623\u0648\u0636\u062d." : "Large numbers are displayed with commas for clearer reading.",
-                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -188,13 +192,26 @@ class _SettingsPageState extends State<SettingsPage> {
         decoration: BoxDecoration(
           color: color.withOpacity(0.10),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? color : color.withOpacity(0.18), width: selected ? 2 : 1),
+          border: Border.all(
+            color: selected ? color : color.withOpacity(0.18),
+            width: selected ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            Container(width: 24, height: 24, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: Text(accent.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))),
+            Expanded(
+              child: Text(
+                accent.name,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
           ],
         ),
       ),
@@ -206,13 +223,18 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         Icon(icon, size: 20),
         const SizedBox(width: 10),
-        Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
+        ),
       ],
     );
   }
 
   num _parseNumber(String value, {required num fallback}) {
-    return num.tryParse(value.replaceAll(",", "").trim()) ?? fallback;
+    return parseNumberInput(value, fallback: fallback.toDouble());
   }
 
   Color _colorFromHex(String value) {

@@ -1,4 +1,6 @@
-﻿class SaleItem {
+import "../core/money.dart";
+
+class SaleItem {
   final String productName;
   final double quantity;
   final double packageCount;
@@ -81,7 +83,10 @@ class Sale {
       total: _num(json["total"]),
       currency: (json["currency"] ?? "LBP").toString(),
       paymentStatus: (json["paymentStatus"] ?? "paid").toString(),
-      paymentMethod: (json["paymentMethod"] ?? (json["paymentStatus"] == "debt" ? "debt" : "cash")).toString(),
+      paymentMethod:
+          (json["paymentMethod"] ??
+                  (json["paymentStatus"] == "debt" ? "debt" : "cash"))
+              .toString(),
       debtPaymentAmount: _num(json["debtPaymentAmount"]),
       debtPaymentCurrency: (json["debtPaymentCurrency"] ?? "LBP").toString(),
       debtBalanceBeforeLbp: _num(json["debtBalanceBeforeLbp"]),
@@ -89,7 +94,13 @@ class Sale {
       debtBalanceAfterLbp: _num(json["debtBalanceAfterLbp"]),
       debtBalanceAfterUsd: _num(json["debtBalanceAfterUsd"]),
       note: (json["note"] ?? "").toString(),
-      items: raw is List ? raw.map((e) => SaleItem.fromJson(Map<String, dynamic>.from(e as Map))).toList() : [],
+      items: raw is List
+          ? raw
+                .map(
+                  (e) => SaleItem.fromJson(Map<String, dynamic>.from(e as Map)),
+                )
+                .toList()
+          : [],
       createdAt: _date(json["createdAt"]),
       updatedAt: _date(json["updatedAt"]),
     );
@@ -101,10 +112,7 @@ String _id(dynamic value) {
   return (value ?? "").toString();
 }
 
-double _num(dynamic value) {
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? 0;
-}
+double _num(dynamic value) => numFromDynamic(value);
 
 DateTime? _date(dynamic value) {
   if (value == null) return null;

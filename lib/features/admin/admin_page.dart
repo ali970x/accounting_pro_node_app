@@ -9,11 +9,7 @@ class AdminPage extends StatefulWidget {
   final ApiClient api;
   final SessionStore sessionStore;
 
-  const AdminPage({
-    super.key,
-    required this.api,
-    required this.sessionStore,
-  });
+  const AdminPage({super.key, required this.api, required this.sessionStore});
 
   @override
   State<AdminPage> createState() => _AdminPageState();
@@ -48,12 +44,18 @@ class _AdminPageState extends State<AdminPage> {
     });
 
     try {
-      final data = Map<String, dynamic>.from(await widget.api.get("/admin/users") as Map);
+      final data = Map<String, dynamic>.from(
+        await widget.api.get("/admin/users") as Map,
+      );
       _summary = _map(data["summary"]);
       _rows = _list(data["users"]).map((e) => _map(e)).toList();
       if (_rows.isNotEmpty) {
-        final selectedStillExists = _rows.any((row) => _user(row)["id"] == _selectedId);
-        _selectedId = selectedStillExists ? _selectedId : _user(_rows.first)["id"]?.toString();
+        final selectedStillExists = _rows.any(
+          (row) => _user(row)["id"] == _selectedId,
+        );
+        _selectedId = selectedStillExists
+            ? _selectedId
+            : _user(_rows.first)["id"]?.toString();
       } else {
         _selectedId = null;
       }
@@ -69,7 +71,10 @@ class _AdminPageState extends State<AdminPage> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => LoginPage(api: widget.api, sessionStore: widget.sessionStore)),
+      MaterialPageRoute(
+        builder: (_) =>
+            LoginPage(api: widget.api, sessionStore: widget.sessionStore),
+      ),
     );
   }
 
@@ -108,27 +113,45 @@ class _AdminPageState extends State<AdminPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: name, decoration: const InputDecoration(labelText: "Name")),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: "Name"),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: email, decoration: const InputDecoration(labelText: "Email")),
+              TextField(
+                controller: email,
+                decoration: const InputDecoration(labelText: "Email"),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: password,
                 obscureText: true,
-                decoration: InputDecoration(labelText: editing ? "New password (optional)" : "Password"),
+                decoration: InputDecoration(
+                  labelText: editing ? "New password (optional)" : "Password",
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
           FilledButton(
             onPressed: () {
               final cleanName = name.text.trim();
               final cleanEmail = email.text.trim();
               final cleanPassword = password.text.trim();
-              if (cleanName.isEmpty || cleanEmail.isEmpty || (!editing && cleanPassword.length < 6)) return;
-              Navigator.pop(ctx, {"name": cleanName, "email": cleanEmail, "password": cleanPassword});
+              if (cleanName.isEmpty ||
+                  cleanEmail.isEmpty ||
+                  (!editing && cleanPassword.length < 6))
+                return;
+              Navigator.pop(ctx, {
+                "name": cleanName,
+                "email": cleanEmail,
+                "password": cleanPassword,
+              });
             },
             child: Text(editing ? "Save" : "Create"),
           ),
@@ -146,7 +169,8 @@ class _AdminPageState extends State<AdminPage> {
         await widget.api.put("/admin/users/${user["id"]}", {
           "name": result["name"],
           "email": result["email"],
-          if ((result["password"] ?? "").isNotEmpty) "password": result["password"],
+          if ((result["password"] ?? "").isNotEmpty)
+            "password": result["password"],
         });
       } else {
         await widget.api.post("/admin/users", result);
@@ -171,8 +195,14 @@ class _AdminPageState extends State<AdminPage> {
             decoration: const InputDecoration(labelText: "Reason"),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-            FilledButton(onPressed: () => Navigator.pop(ctx, reasonController.text.trim()), child: const Text("Block")),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, reasonController.text.trim()),
+              child: const Text("Block"),
+            ),
           ],
         ),
       );
@@ -192,12 +222,14 @@ class _AdminPageState extends State<AdminPage> {
       final sent = response["emailSent"] == true;
       final message = isActive
           ? sent
-              ? "User activated and email sent."
-              : "User activated. SMTP is not configured, so email was not sent."
+                ? "User activated and email sent."
+                : "User activated. SMTP is not configured, so email was not sent."
           : sent
-              ? "User blocked and reason email sent."
-              : "User blocked. SMTP is not configured, so reason email was not sent.";
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          ? "User blocked and reason email sent."
+          : "User blocked. SMTP is not configured, so reason email was not sent.";
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     });
   }
 
@@ -211,7 +243,10 @@ class _AdminPageState extends State<AdminPage> {
           "This will permanently delete ${user["name"] ?? "this user"} and all related products, sales, expenses, debts, contacts, records, and feedback. Continue?",
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -227,7 +262,9 @@ class _AdminPageState extends State<AdminPage> {
       _selectedId = null;
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User and related data deleted.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User and related data deleted.")),
+      );
     });
   }
 
@@ -237,7 +274,9 @@ class _AdminPageState extends State<AdminPage> {
       await action();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
     if (mounted) setState(() => _working = false);
   }
@@ -252,23 +291,46 @@ class _AdminPageState extends State<AdminPage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset("assets/brand/daftr_logo.jpeg", width: 42, height: 42, fit: BoxFit.cover),
+              child: Image.asset(
+                "assets/brand/daftr_logo.jpeg",
+                width: 42,
+                height: 42,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(width: 10),
-            const Expanded(child: Text("daftr Admin", overflow: TextOverflow.ellipsis)),
+            const Expanded(
+              child: Text("daftr Admin", overflow: TextOverflow.ellipsis),
+            ),
           ],
         ),
         actions: [
-          IconButton(onPressed: _working ? null : _load, tooltip: "Refresh", icon: const Icon(Icons.refresh_rounded)),
-          IconButton(onPressed: _working ? null : _logout, tooltip: "Logout", icon: const Icon(Icons.logout_rounded)),
+          IconButton(
+            onPressed: _working ? null : _load,
+            tooltip: "Refresh",
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            onPressed: _working ? null : _logout,
+            tooltip: "Logout",
+            icon: const Icon(Icons.logout_rounded),
+          ),
         ],
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: Theme.of(context).brightness == Brightness.dark
-                ? const [Color(0xFF10131A), Color(0xFF12231F), Color(0xFF151B2D)]
-                : const [Color(0xFFF4F7FB), Color(0xFFEAFBF8), Color(0xFFEFF6FF)],
+                ? const [
+                    Color(0xFF10131A),
+                    Color(0xFF12231F),
+                    Color(0xFF151B2D),
+                  ]
+                : const [
+                    Color(0xFFF4F7FB),
+                    Color(0xFFEAFBF8),
+                    Color(0xFFEFF6FF),
+                  ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -276,47 +338,55 @@ class _AdminPageState extends State<AdminPage> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(
-                    child: ModernCard(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+            ? Center(
+                child: ModernCard(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        color: theme.colorScheme.error,
+                        size: 36,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: _load,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text("Retry"),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 980;
+                  if (wide) {
+                    return Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.error_outline_rounded, color: theme.colorScheme.error, size: 36),
-                          const SizedBox(height: 10),
-                          Text(_error!, textAlign: TextAlign.center),
-                          const SizedBox(height: 12),
-                          FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: const Text("Retry")),
+                          SizedBox(width: 420, child: _usersPanel()),
+                          const SizedBox(width: 16),
+                          Expanded(child: _detailsPanel()),
                         ],
                       ),
-                    ),
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final wide = constraints.maxWidth >= 980;
-                      if (wide) {
-                        return Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(width: 420, child: _usersPanel()),
-                              const SizedBox(width: 16),
-                              Expanded(child: _detailsPanel()),
-                            ],
-                          ),
-                        );
-                      }
+                    );
+                  }
 
-                      return ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          _usersPanel(shrink: true),
-                          const SizedBox(height: 14),
-                          _detailsPanel(shrink: true),
-                        ],
-                      );
-                    },
-                  ),
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _usersPanel(shrink: true),
+                      const SizedBox(height: 14),
+                      _detailsPanel(shrink: true),
+                    ],
+                  );
+                },
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _working ? null : () => _openUserDialog(),
@@ -370,11 +440,36 @@ class _AdminPageState extends State<AdminPage> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _chipStat("Users", number(total), Icons.people_alt_rounded, const Color(0xFF0F766E)),
-        _chipStat("Active", number(active), Icons.verified_user_rounded, const Color(0xFF2563EB)),
-        _chipStat("Blocked", number(blocked), Icons.block_rounded, const Color(0xFFDC2626)),
-        _chipStat("Admins", number(admins), Icons.admin_panel_settings_rounded, const Color(0xFF7C3AED)),
-        _chipStat("New reviews", number(feedback), Icons.rate_review_rounded, const Color(0xFFB45309)),
+        _chipStat(
+          "Users",
+          number(total),
+          Icons.people_alt_rounded,
+          const Color(0xFF0F766E),
+        ),
+        _chipStat(
+          "Active",
+          number(active),
+          Icons.verified_user_rounded,
+          const Color(0xFF2563EB),
+        ),
+        _chipStat(
+          "Blocked",
+          number(blocked),
+          Icons.block_rounded,
+          const Color(0xFFDC2626),
+        ),
+        _chipStat(
+          "Admins",
+          number(admins),
+          Icons.admin_panel_settings_rounded,
+          const Color(0xFF7C3AED),
+        ),
+        _chipStat(
+          "New reviews",
+          number(feedback),
+          Icons.rate_review_rounded,
+          const Color(0xFFB45309),
+        ),
       ],
     );
   }
@@ -382,14 +477,20 @@ class _AdminPageState extends State<AdminPage> {
   Widget _chipStat(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(color: color.withOpacity(0.10), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(width: 6),
           Text("$label: ", style: const TextStyle(fontWeight: FontWeight.w800)),
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w900)),
+          Text(
+            value,
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
         ],
       ),
     );
@@ -410,9 +511,15 @@ class _AdminPageState extends State<AdminPage> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? Theme.of(context).colorScheme.primary.withOpacity(0.10) : Theme.of(context).colorScheme.surface,
+          color: selected
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.10)
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,15 +528,28 @@ class _AdminPageState extends State<AdminPage> {
               children: [
                 CircleAvatar(
                   backgroundColor: color.withOpacity(0.14),
-                  child: Icon(isAdmin ? Icons.admin_panel_settings_rounded : Icons.person_rounded, color: color),
+                  child: Icon(
+                    isAdmin
+                        ? Icons.admin_panel_settings_rounded
+                        : Icons.person_rounded,
+                    color: color,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text((user["name"] ?? "User").toString(), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
-                      Text((user["email"] ?? "").toString(), overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        (user["name"] ?? "User").toString(),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      Text(
+                        (user["email"] ?? "").toString(),
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
@@ -457,12 +577,12 @@ class _AdminPageState extends State<AdminPage> {
   Widget _detailsPanel({bool shrink = false}) {
     final row = _selectedRow;
     if (row == null) {
-      return const ModernCard(child: Center(child: Text("Create a user to see admin details.")));
+      return const ModernCard(
+        child: Center(child: Text("Create a user to see admin details.")),
+      );
     }
 
-    final content = SingleChildScrollView(
-      child: _userDetails(row),
-    );
+    final content = SingleChildScrollView(child: _userDetails(row));
 
     return ModernCard(
       padding: const EdgeInsets.all(16),
@@ -492,23 +612,46 @@ class _AdminPageState extends State<AdminPage> {
           children: [
             CircleAvatar(
               radius: 28,
-              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-              child: Icon(isAdmin ? Icons.admin_panel_settings_rounded : Icons.person_rounded, color: Theme.of(context).colorScheme.primary),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.primary.withOpacity(0.12),
+              child: Icon(
+                isAdmin
+                    ? Icons.admin_panel_settings_rounded
+                    : Icons.person_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text((user["name"] ?? "User").toString(), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
-                  Text((user["email"] ?? "").toString(), overflow: TextOverflow.ellipsis),
+                  Text(
+                    (user["name"] ?? "User").toString(),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    (user["email"] ?? "").toString(),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 8,
                     runSpacing: 6,
                     children: [
-                      _statusPill(active ? "Active" : "Blocked", active ? const Color(0xFF0F766E) : const Color(0xFFDC2626)),
-                      _statusPill((user["role"] ?? "owner").toString(), const Color(0xFF2563EB)),
+                      _statusPill(
+                        active ? "Active" : "Blocked",
+                        active
+                            ? const Color(0xFF0F766E)
+                            : const Color(0xFFDC2626),
+                      ),
+                      _statusPill(
+                        (user["role"] ?? "owner").toString(),
+                        const Color(0xFF2563EB),
+                      ),
                     ],
                   ),
                 ],
@@ -521,17 +664,26 @@ class _AdminPageState extends State<AdminPage> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            OutlinedButton.icon(onPressed: _working ? null : () => _openUserDialog(row: row), icon: const Icon(Icons.edit_rounded), label: const Text("Edit")),
+            OutlinedButton.icon(
+              onPressed: _working ? null : () => _openUserDialog(row: row),
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text("Edit"),
+            ),
             if (!isAdmin)
               FilledButton.icon(
                 onPressed: _working ? null : () => _setStatus(row, !active),
-                icon: Icon(active ? Icons.block_rounded : Icons.verified_user_rounded),
+                icon: Icon(
+                  active ? Icons.block_rounded : Icons.verified_user_rounded,
+                ),
                 label: Text(active ? "Block" : "Activate"),
               ),
             if (!isAdmin)
               OutlinedButton.icon(
                 onPressed: _working ? null : () => _deleteUser(row),
-                icon: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                icon: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: Colors.red,
+                ),
                 label: const Text("Delete user"),
               ),
           ],
@@ -541,13 +693,48 @@ class _AdminPageState extends State<AdminPage> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            _metricBox("Products", counts["products"], Icons.inventory_2_rounded, const Color(0xFF0F766E)),
-            _metricBox("Stock qty", stats["stockQuantity"], Icons.warehouse_rounded, const Color(0xFF2563EB)),
-            _metricBox("Sales", counts["sales"], Icons.point_of_sale_rounded, const Color(0xFF7C3AED)),
-            _metricBox("Expenses", counts["expenses"], Icons.payments_rounded, const Color(0xFFB45309)),
-            _metricBox("Open debts", counts["openDebts"], Icons.account_balance_rounded, const Color(0xFFDC2626)),
-            _metricBox("Low stock", counts["lowStock"], Icons.warning_amber_rounded, const Color(0xFFEA580C)),
-            _metricBox("Reviews", counts["feedback"], Icons.rate_review_rounded, const Color(0xFFB45309)),
+            _metricBox(
+              "Products",
+              counts["products"],
+              Icons.inventory_2_rounded,
+              const Color(0xFF0F766E),
+            ),
+            _metricBox(
+              "Stock qty",
+              stats["stockQuantity"],
+              Icons.warehouse_rounded,
+              const Color(0xFF2563EB),
+            ),
+            _metricBox(
+              "Sales",
+              counts["sales"],
+              Icons.point_of_sale_rounded,
+              const Color(0xFF7C3AED),
+            ),
+            _metricBox(
+              "Expenses",
+              counts["expenses"],
+              Icons.payments_rounded,
+              const Color(0xFFB45309),
+            ),
+            _metricBox(
+              "Open debts",
+              counts["openDebts"],
+              Icons.account_balance_rounded,
+              const Color(0xFFDC2626),
+            ),
+            _metricBox(
+              "Low stock",
+              counts["lowStock"],
+              Icons.warning_amber_rounded,
+              const Color(0xFFEA580C),
+            ),
+            _metricBox(
+              "Reviews",
+              counts["feedback"],
+              Icons.rate_review_rounded,
+              const Color(0xFFB45309),
+            ),
           ],
         ),
         const SizedBox(height: 18),
@@ -559,15 +746,57 @@ class _AdminPageState extends State<AdminPage> {
         const Divider(height: 26),
         _metaLine("Created", _date(user["createdAt"])),
         _metaLine("Last login", _date(user["lastLoginAt"])),
-        if (!active) _metaLine("Block reason", (user["blockedReason"] ?? "").toString()),
+        if (!active)
+          _metaLine("Block reason", (user["blockedReason"] ?? "").toString()),
         const SizedBox(height: 18),
         _sectionTitle("Latest data"),
-        _latestList("Sales invoices", _list(latest["sales"]), (item) => "${item["invoiceNo"] ?? ""} - ${item["customerName"] ?? ""}", (item) => money(_num(item["total"]), (item["currency"] ?? "LBP").toString())),
-        _latestList("Expenses", _list(latest["expenses"]), (item) => "${item["title"] ?? ""} - ${item["category"] ?? ""}", (item) => money(_num(item["amount"]), (item["currency"] ?? "LBP").toString())),
-        _latestList("Debts", _list(latest["debts"]), (item) => "${item["personName"] ?? ""} - ${item["status"] ?? ""}", (item) => money(_num(item["remainingAmount"]), (item["currency"] ?? "LBP").toString())),
-        _latestList("Products", _list(latest["products"]), (item) => "${item["category"] ?? ""} / ${item["subcategory"] ?? ""}", (item) => "${item["name"] ?? ""}"),
-        _latestList("Damaged goods", _list(latest["damages"]), (item) => "${item["productName"] ?? ""}", (item) => "Qty ${number(_num(item["difference"]).abs())}"),
-        _latestList("Reviews", _list(latest["feedback"]), (item) => "${item["name"] ?? "User"} - ${number(_num(item["rating"]))}/5", (item) => "${item["message"] ?? ""}"),
+        _latestList(
+          "Sales invoices",
+          _list(latest["sales"]),
+          (item) =>
+              "${item["invoiceNo"] ?? ""} - ${item["customerName"] ?? ""}",
+          (item) => money(
+            _num(item["total"]),
+            (item["currency"] ?? "LBP").toString(),
+          ),
+        ),
+        _latestList(
+          "Expenses",
+          _list(latest["expenses"]),
+          (item) => "${item["title"] ?? ""} - ${item["category"] ?? ""}",
+          (item) => money(
+            _num(item["amount"]),
+            (item["currency"] ?? "LBP").toString(),
+          ),
+        ),
+        _latestList(
+          "Debts",
+          _list(latest["debts"]),
+          (item) => "${item["personName"] ?? ""} - ${item["status"] ?? ""}",
+          (item) => money(
+            _num(item["remainingAmount"]),
+            (item["currency"] ?? "LBP").toString(),
+          ),
+        ),
+        _latestList(
+          "Products",
+          _list(latest["products"]),
+          (item) => "${item["category"] ?? ""} / ${item["subcategory"] ?? ""}",
+          (item) => "${item["name"] ?? ""}",
+        ),
+        _latestList(
+          "Damaged goods",
+          _list(latest["damages"]),
+          (item) => "${item["productName"] ?? ""}",
+          (item) => "Qty ${number(_num(item["difference"]).abs())}",
+        ),
+        _latestList(
+          "Reviews",
+          _list(latest["feedback"]),
+          (item) =>
+              "${item["name"] ?? "User"} - ${number(_num(item["rating"]))}/5",
+          (item) => "${item["message"] ?? ""}",
+        ),
       ],
     );
   }
@@ -587,13 +816,25 @@ class _AdminPageState extends State<AdminPage> {
           Icon(icon, color: color),
           const SizedBox(height: 8),
           Text(label, style: Theme.of(context).textTheme.bodySmall),
-          Text(number(_num(value)), style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+          Text(
+            number(_num(value)),
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _latestList(String title, List<dynamic> rows, String Function(Map<String, dynamic>) leading, String Function(Map<String, dynamic>) trailing) {
+  Widget _latestList(
+    String title,
+    List<dynamic> rows,
+    String Function(Map<String, dynamic>) leading,
+    String Function(Map<String, dynamic>) trailing,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -617,7 +858,13 @@ class _AdminPageState extends State<AdminPage> {
                     padding: const EdgeInsets.only(bottom: 7),
                     child: Row(
                       children: [
-                        Expanded(flex: 3, child: Text(leading(item), overflow: TextOverflow.ellipsis)),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            leading(item),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         const SizedBox(width: 10),
                         Flexible(
                           flex: 2,
@@ -644,8 +891,16 @@ class _AdminPageState extends State<AdminPage> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))),
-          Text("${money(_num(totals["LBP"]), "LBP")} | ${money(_num(totals["USD"]), "USD")}", textAlign: TextAlign.end),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Text(
+            "${money(_num(totals["LBP"]), "LBP")} | ${money(_num(totals["USD"]), "USD")}",
+            textAlign: TextAlign.end,
+          ),
         ],
       ),
     );
@@ -656,7 +911,12 @@ class _AdminPageState extends State<AdminPage> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
           Flexible(child: Text(value, textAlign: TextAlign.end)),
         ],
       ),
@@ -666,20 +926,40 @@ class _AdminPageState extends State<AdminPage> {
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+      child: Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+      ),
     );
   }
 
   Widget _statusPill(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(999)),
-      child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 12)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w900,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 
   Widget _tinyMetric(String label, dynamic value) {
-    return Text("$label ${number(_num(value))}", style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800));
+    return Text(
+      "$label ${number(_num(value))}",
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+    );
   }
 
   Map<String, dynamic> _user(Map<String, dynamic> row) => _map(row["user"]);
@@ -695,7 +975,7 @@ class _AdminPageState extends State<AdminPage> {
 
   num _num(dynamic value) {
     if (value is num) return value;
-    return num.tryParse(value?.toString() ?? "") ?? 0;
+    return numFromDynamic(value);
   }
 
   String _date(dynamic value) {

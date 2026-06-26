@@ -21,7 +21,9 @@ class _DebtsPageState extends State<DebtsPage> {
   List<Map<String, dynamic>> _debts = [];
   List<ContactModel> _contacts = [];
   final _search = TextEditingController();
-  DateFilterValue _dateFilter = const DateFilterValue(preset: DateFilterPreset.month);
+  DateFilterValue _dateFilter = const DateFilterValue(
+    preset: DateFilterPreset.month,
+  );
 
   @override
   void initState() {
@@ -48,11 +50,16 @@ class _DebtsPageState extends State<DebtsPage> {
       ]);
 
       final res = results[0];
-      _debts = (res as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      _debts = (res as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
 
       final cData = results[1];
       _contacts = (cData as List)
-          .map((e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => ContactModel.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .where((c) => c.type == "supplier" || c.type == "customer")
           .toList();
     } catch (e) {
@@ -84,7 +91,8 @@ class _DebtsPageState extends State<DebtsPage> {
   Future<void> _addPayment(Map<String, dynamic> debt) async {
     final body = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => _PaymentDialog(currency: (debt["currency"] ?? "LBP").toString()),
+      builder: (_) =>
+          _PaymentDialog(currency: (debt["currency"] ?? "LBP").toString()),
     );
     if (body == null) return;
 
@@ -131,10 +139,23 @@ class _DebtsPageState extends State<DebtsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 44),
-        content: Text(_label(c.isArabic, "Delete this debt?", "\u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u062f\u064a\u0646\u061f")),
+        title: const Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.red,
+          size: 44,
+        ),
+        content: Text(
+          _label(
+            c.isArabic,
+            "Delete this debt?",
+            "\u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u062f\u064a\u0646\u061f",
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(c.t("cancel"))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(c.t("cancel")),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -154,7 +175,9 @@ class _DebtsPageState extends State<DebtsPage> {
   }
 
   void _showError(Object e) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 
   @override
@@ -191,7 +214,11 @@ class _DebtsPageState extends State<DebtsPage> {
           TextField(
             controller: _search,
             decoration: InputDecoration(
-              labelText: _label(isAr, "Search by name or phone", "\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0631\u0642\u0645"),
+              labelText: _label(
+                isAr,
+                "Search by name or phone",
+                "\u0628\u062d\u062b \u0628\u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0627\u0644\u0631\u0642\u0645",
+              ),
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _search.text.isEmpty
                   ? null
@@ -206,7 +233,12 @@ class _DebtsPageState extends State<DebtsPage> {
           _summaryGrid(isAr, receivable, payable),
           const SizedBox(height: 14),
           if (_loading)
-            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(),
+              ),
+            )
           else if (_error != null)
             ModernCard(child: Text(_error!))
           else if (visibleDebts.isEmpty)
@@ -234,13 +266,16 @@ class _DebtsPageState extends State<DebtsPage> {
         contact?.fullPhone ?? "",
       ].join(" ").toLowerCase();
       final digits = text.replaceAll(RegExp(r"[^0-9+]"), "");
-      return text.contains(query) || (queryDigits.isNotEmpty && digits.contains(queryDigits));
+      return text.contains(query) ||
+          (queryDigits.isNotEmpty && digits.contains(queryDigits));
     }).toList();
   }
 
   ContactModel? _contactForDebt(Map<String, dynamic> debt) {
     final raw = debt["contact"];
-    final id = raw is Map ? (raw["_id"] ?? raw["id"] ?? "").toString() : (raw ?? "").toString();
+    final id = raw is Map
+        ? (raw["_id"] ?? raw["id"] ?? "").toString()
+        : (raw ?? "").toString();
     final name = (debt["personName"] ?? "").toString();
     for (final contact in _contacts) {
       if (id.isNotEmpty && contact.id == id) return contact;
@@ -249,7 +284,9 @@ class _DebtsPageState extends State<DebtsPage> {
     return null;
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupDebts(List<Map<String, dynamic>> debts) {
+  Map<String, List<Map<String, dynamic>>> _groupDebts(
+    List<Map<String, dynamic>> debts,
+  ) {
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (final debt in debts) {
       final contactId = (debt["contact"] ?? "").toString();
@@ -263,9 +300,12 @@ class _DebtsPageState extends State<DebtsPage> {
 
   String _moneyByCurrency(String type, List<Map<String, dynamic>> debts) {
     final totals = <String, double>{};
-    for (final debt in debts.where((d) => (d["type"] ?? "").toString() == type)) {
+    for (final debt in debts.where(
+      (d) => (d["type"] ?? "").toString() == type,
+    )) {
       final currency = (debt["currency"] ?? "LBP").toString();
-      totals[currency] = (totals[currency] ?? 0) + _num(debt["remainingAmount"]);
+      totals[currency] =
+          (totals[currency] ?? 0) + _num(debt["remainingAmount"]);
     }
     if (totals.isEmpty) return "${money(0, "LBP")}\n${money(0, "USD")}";
     return "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}";
@@ -280,8 +320,24 @@ class _DebtsPageState extends State<DebtsPage> {
           spacing: 10,
           runSpacing: 10,
           children: [
-            SizedBox(width: width, child: _summaryCard(_label(isAr, "For us", "\u0644\u0646\u0627"), receivable, Icons.call_received_rounded, Colors.green)),
-            SizedBox(width: width, child: _summaryCard(_label(isAr, "On us", "\u0639\u0644\u064a\u0646\u0627"), payable, Icons.call_made_rounded, Colors.red)),
+            SizedBox(
+              width: width,
+              child: _summaryCard(
+                _label(isAr, "For us", "\u0644\u0646\u0627"),
+                receivable,
+                Icons.call_received_rounded,
+                Colors.green,
+              ),
+            ),
+            SizedBox(
+              width: width,
+              child: _summaryCard(
+                _label(isAr, "On us", "\u0639\u0644\u064a\u0646\u0627"),
+                payable,
+                Icons.call_made_rounded,
+                Colors.red,
+              ),
+            ),
           ],
         );
       },
@@ -290,28 +346,44 @@ class _DebtsPageState extends State<DebtsPage> {
 
   Widget _summaryCard(String label, String value, IconData icon, Color color) {
     final theme = Theme.of(context);
-    final values = value.split("\n").where((line) => line.trim().isNotEmpty).toList();
+    final values = value
+        .split("\n")
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
     return ModernCard(
       padding: const EdgeInsets.all(14),
       child: Container(
         constraints: const BoxConstraints(minHeight: 104),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.12),
+              child: Icon(icon, color: color),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w800)),
+                  Text(
+                    label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   for (final line in values)
                     Text(
                       line,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: color, height: 1.12),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: color,
+                        height: 1.12,
+                      ),
                     ),
                 ],
               ),
@@ -327,9 +399,13 @@ class _DebtsPageState extends State<DebtsPage> {
     final type = (first["type"] ?? "").toString();
     final color = type == "receivable" ? Colors.green : Colors.red;
     final name = (first["personName"] ?? "").toString();
-    final openCount = rows.where((d) => (d["status"] ?? "").toString() != "paid").length;
+    final openCount = rows
+        .where((d) => (d["status"] ?? "").toString() != "paid")
+        .length;
     final totals = _totalsFor(rows);
-    final role = type == "receivable" ? _label(isAr, "Customer", "\u0632\u0628\u0648\u0646") : _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f");
+    final role = type == "receivable"
+        ? _label(isAr, "Customer", "\u0632\u0628\u0648\u0646")
+        : _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f");
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -343,26 +419,46 @@ class _DebtsPageState extends State<DebtsPage> {
               children: [
                 CircleAvatar(
                   backgroundColor: color.withOpacity(0.12),
-                  child: Icon(type == "receivable" ? Icons.person_rounded : Icons.store_rounded, color: color),
+                  child: Icon(
+                    type == "receivable"
+                        ? Icons.person_rounded
+                        : Icons.store_rounded,
+                    color: color,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name.isEmpty ? "-" : name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                      Text(
+                        name.isEmpty ? "-" : name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 3),
                       Text(
                         "$role - ${number(rows.length)} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} - ${number(openCount)} ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  tooltip: _label(isAr, "Open ledger", "\u0641\u062a\u062d \u0627\u0644\u062c\u0631\u062f\u0629"),
+                  tooltip: _label(
+                    isAr,
+                    "Open ledger",
+                    "\u0641\u062a\u062d \u0627\u0644\u062c\u0631\u062f\u0629",
+                  ),
                   onPressed: () => _showLedger(first),
                   icon: const Icon(Icons.receipt_long_rounded),
                 ),
@@ -395,7 +491,10 @@ class _DebtsPageState extends State<DebtsPage> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withOpacity(0.22)),
       ),
-      child: Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+      child: Text(
+        value,
+        style: TextStyle(fontWeight: FontWeight.w900, color: color),
+      ),
     );
   }
 
@@ -417,19 +516,39 @@ class _DebtsPageState extends State<DebtsPage> {
           children: [
             Row(
               children: [
-                CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(type == "receivable" ? Icons.call_received : Icons.call_made, color: color)),
+                CircleAvatar(
+                  backgroundColor: color.withOpacity(0.12),
+                  child: Icon(
+                    type == "receivable"
+                        ? Icons.call_received
+                        : Icons.call_made,
+                    color: color,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text((debt["personName"] ?? "").toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                      Text(
+                        (debt["personName"] ?? "").toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
                       if (status.isNotEmpty || note.isNotEmpty)
-                        Text(note.isEmpty ? status : "$status - $note", maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(
+                          note.isEmpty ? status : "$status - $note",
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                     ],
                   ),
                 ),
-                Text(money(remaining, currency), style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+                Text(
+                  money(remaining, currency),
+                  style: TextStyle(fontWeight: FontWeight.w900, color: color),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -440,12 +559,16 @@ class _DebtsPageState extends State<DebtsPage> {
                 OutlinedButton.icon(
                   onPressed: () => _addPayment(debt),
                   icon: const Icon(Icons.payments_rounded, size: 18),
-                  label: Text(_label(isAr, "Payment", "\u062f\u0641\u0639\u0629")),
+                  label: Text(
+                    _label(isAr, "Payment", "\u062f\u0641\u0639\u0629"),
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _addOrEdit(debt: debt),
                   icon: const Icon(Icons.edit_rounded, size: 18),
-                  label: Text(_label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644")),
+                  label: Text(
+                    _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _delete(debt),
@@ -461,14 +584,15 @@ class _DebtsPageState extends State<DebtsPage> {
   }
 
   double _num(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString()) ?? 0;
+    return numFromDynamic(value);
   }
 
   Map<String, double> _totalsFor(List<Map<String, dynamic>> rows) {
     final totals = {"LBP": 0.0, "USD": 0.0};
     for (final row in rows) {
-      final currency = (row["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      final currency = (row["currency"] ?? "LBP").toString() == "USD"
+          ? "USD"
+          : "LBP";
       totals[currency] = (totals[currency] ?? 0) + _num(row["remainingAmount"]);
     }
     return totals;
@@ -502,7 +626,9 @@ class _DebtDialogState extends State<_DebtDialog> {
     if (debt == null) return;
     _amount.text = _numText(debt["originalAmount"]);
     _note.text = (debt["note"] ?? "").toString();
-    _contactId = (debt["contact"] ?? "").toString().isEmpty ? null : (debt["contact"] ?? "").toString();
+    _contactId = (debt["contact"] ?? "").toString().isEmpty
+        ? null
+        : (debt["contact"] ?? "").toString();
     _type = (debt["type"] ?? "receivable").toString();
     _currency = (debt["currency"] ?? "LBP").toString();
   }
@@ -520,26 +646,50 @@ class _DebtDialogState extends State<_DebtDialog> {
     final isAr = c.isArabic;
 
     return AlertDialog(
-      title: Text(widget.debt == null ? _label(isAr, "New Debt", "\u062f\u064a\u0646 \u062c\u062f\u064a\u062f") : _label(isAr, "Edit Debt", "\u062a\u0639\u062f\u064a\u0644 \u062f\u064a\u0646")),
+      title: Text(
+        widget.debt == null
+            ? _label(
+                isAr,
+                "New Debt",
+                "\u062f\u064a\u0646 \u062c\u062f\u064a\u062f",
+              )
+            : _label(
+                isAr,
+                "Edit Debt",
+                "\u062a\u0639\u062f\u064a\u0644 \u062f\u064a\u0646",
+              ),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
               value: _contactId,
-              decoration: InputDecoration(labelText: _label(isAr, "Contact", "\u062c\u0647\u0629 \u0627\u0644\u0627\u062a\u0635\u0627\u0644")),
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Contact",
+                  "\u062c\u0647\u0629 \u0627\u0644\u0627\u062a\u0635\u0627\u0644",
+                ),
+              ),
               items: widget.contacts
-                  .map((contact) => DropdownMenuItem(
-                        value: contact.id,
-                        child: Text("${contact.name} - ${contact.type == "supplier" ? _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f") : _label(isAr, "Customer", "\u0632\u0628\u0648\u0646")}"),
-                      ))
+                  .map(
+                    (contact) => DropdownMenuItem(
+                      value: contact.id,
+                      child: Text(
+                        "${contact.name} - ${contact.type == "supplier" ? _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f") : _label(isAr, "Customer", "\u0632\u0628\u0648\u0646")}",
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) {
                 final contact = _firstContactWhere((c) => c.id == v);
                 setState(() {
                   _contactId = v;
                   if (contact != null) {
-                    _type = contact.type == "supplier" ? "payable" : "receivable";
+                    _type = contact.type == "supplier"
+                        ? "payable"
+                        : "receivable";
                   }
                 });
               },
@@ -547,15 +697,39 @@ class _DebtDialogState extends State<_DebtDialog> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _type,
-              decoration: InputDecoration(labelText: _label(isAr, "Type", "\u0627\u0644\u0646\u0648\u0639")),
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Type",
+                  "\u0627\u0644\u0646\u0648\u0639",
+                ),
+              ),
               items: [
-                DropdownMenuItem(value: "receivable", child: Text(_label(isAr, "Receivable", "\u0644\u0646\u0627"))),
-                DropdownMenuItem(value: "payable", child: Text(_label(isAr, "Payable", "\u0639\u0644\u064a\u0646\u0627"))),
+                DropdownMenuItem(
+                  value: "receivable",
+                  child: Text(_label(isAr, "Receivable", "\u0644\u0646\u0627")),
+                ),
+                DropdownMenuItem(
+                  value: "payable",
+                  child: Text(
+                    _label(isAr, "Payable", "\u0639\u0644\u064a\u0646\u0627"),
+                  ),
+                ),
               ],
               onChanged: null,
             ),
             const SizedBox(height: 12),
-            TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: _label(isAr, "Amount", "\u0627\u0644\u0645\u0628\u0644\u063a"))),
+            TextField(
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Amount",
+                  "\u0627\u0644\u0645\u0628\u0644\u063a",
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _currency,
@@ -567,12 +741,24 @@ class _DebtDialogState extends State<_DebtDialog> {
               onChanged: (v) => setState(() => _currency = v ?? _currency),
             ),
             const SizedBox(height: 12),
-            TextField(controller: _note, decoration: InputDecoration(labelText: _label(isAr, "Note", "\u0645\u0644\u0627\u062d\u0638\u0629"))),
+            TextField(
+              controller: _note,
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Note",
+                  "\u0645\u0644\u0627\u062d\u0638\u0629",
+                ),
+              ),
+            ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(c.t("cancel"))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(c.t("cancel")),
+        ),
         FilledButton(
           onPressed: () {
             final contact = _firstContactWhere((c) => c.id == _contactId);
@@ -581,7 +767,7 @@ class _DebtDialogState extends State<_DebtDialog> {
               "contact": contact.id,
               "personName": contact.name,
               "type": _type,
-              "originalAmount": double.tryParse(_amount.text) ?? 0,
+              "originalAmount": parseNumberInput(_amount.text),
               "currency": _currency,
               "note": _note.text.trim(),
             });
@@ -634,7 +820,10 @@ class _LedgerDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("${_label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a")}:\n${_formatTotals(totals)}", style: const TextStyle(fontWeight: FontWeight.w900)),
+              Text(
+                "${_label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a")}:\n${_formatTotals(totals)}",
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
               const SizedBox(height: 12),
               for (final debt in debts) _ledgerDebtRow(context, debt, isAr),
             ],
@@ -642,41 +831,78 @@ class _LedgerDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(_label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642"))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(_label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642")),
+        ),
       ],
     );
   }
 
-  Widget _ledgerDebtRow(BuildContext context, Map<String, dynamic> debt, bool isAr) {
+  Widget _ledgerDebtRow(
+    BuildContext context,
+    Map<String, dynamic> debt,
+    bool isAr,
+  ) {
     final currency = (debt["currency"] ?? "LBP").toString();
     final status = (debt["status"] ?? "").toString();
     final note = (debt["note"] ?? "").toString();
-    final color = (debt["type"] ?? "").toString() == "receivable" ? Colors.green : Colors.red;
+    final color = (debt["type"] ?? "").toString() == "receivable"
+        ? Colors.green
+        : Colors.red;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.35),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withOpacity(0.35),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(money(_num(debt["remainingAmount"]), currency), style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 16)),
+          Text(
+            money(_num(debt["remainingAmount"]), currency),
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: color,
+              fontSize: 16,
+            ),
+          ),
           if (status.isNotEmpty || note.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(note.isEmpty ? status : "$status - $note", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              note.isEmpty ? status : "$status - $note",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
-              OutlinedButton.icon(onPressed: () => onPay(debt), icon: const Icon(Icons.payments_rounded, size: 18), label: Text(_label(isAr, "Pay", "\u062f\u0641\u0639"))),
-              OutlinedButton.icon(onPressed: () => onEdit(debt), icon: const Icon(Icons.edit_rounded, size: 18), label: Text(_label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"))),
-              OutlinedButton.icon(onPressed: () => onDelete(debt), icon: const Icon(Icons.delete_outline_rounded, size: 18), label: Text(_label(isAr, "Delete", "\u062d\u0630\u0641"))),
+              OutlinedButton.icon(
+                onPressed: () => onPay(debt),
+                icon: const Icon(Icons.payments_rounded, size: 18),
+                label: Text(_label(isAr, "Pay", "\u062f\u0641\u0639")),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => onEdit(debt),
+                icon: const Icon(Icons.edit_rounded, size: 18),
+                label: Text(
+                  _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => onDelete(debt),
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                label: Text(_label(isAr, "Delete", "\u062d\u0630\u0641")),
+              ),
             ],
           ),
         ],
@@ -685,14 +911,15 @@ class _LedgerDialog extends StatelessWidget {
   }
 
   double _num(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString()) ?? 0;
+    return numFromDynamic(value);
   }
 
   Map<String, double> _totalsFor(List<Map<String, dynamic>> rows) {
     final totals = {"LBP": 0.0, "USD": 0.0};
     for (final row in rows) {
-      final currency = (row["currency"] ?? "LBP").toString() == "USD" ? "USD" : "LBP";
+      final currency = (row["currency"] ?? "LBP").toString() == "USD"
+          ? "USD"
+          : "LBP";
       totals[currency] = (totals[currency] ?? 0) + _num(row["remainingAmount"]);
     }
     return totals;
@@ -735,11 +962,27 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     final isAr = c.isArabic;
 
     return AlertDialog(
-      title: Text(_label(isAr, "Add Payment", "\u0625\u0636\u0627\u0641\u0629 \u062f\u0641\u0639\u0629")),
+      title: Text(
+        _label(
+          isAr,
+          "Add Payment",
+          "\u0625\u0636\u0627\u0641\u0629 \u062f\u0641\u0639\u0629",
+        ),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: _label(isAr, "Amount", "\u0627\u0644\u0645\u0628\u0644\u063a"))),
+          TextField(
+            controller: _amount,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: _label(
+                isAr,
+                "Amount",
+                "\u0627\u0644\u0645\u0628\u0644\u063a",
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _currency,
@@ -751,15 +994,27 @@ class _PaymentDialogState extends State<_PaymentDialog> {
             onChanged: (v) => setState(() => _currency = v ?? _currency),
           ),
           const SizedBox(height: 12),
-          TextField(controller: _note, decoration: InputDecoration(labelText: _label(isAr, "Note", "\u0645\u0644\u0627\u062d\u0638\u0629"))),
+          TextField(
+            controller: _note,
+            decoration: InputDecoration(
+              labelText: _label(
+                isAr,
+                "Note",
+                "\u0645\u0644\u0627\u062d\u0638\u0629",
+              ),
+            ),
+          ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(c.t("cancel"))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(c.t("cancel")),
+        ),
         FilledButton(
           onPressed: () {
             Navigator.pop(context, {
-              "amount": double.tryParse(_amount.text) ?? 0,
+              "amount": parseNumberInput(_amount.text),
               "currency": _currency,
               "note": _note.text.trim(),
             });

@@ -1,4 +1,6 @@
-﻿class ProductVariant {
+import "../core/money.dart";
+
+class ProductVariant {
   final String id;
   final String name;
   final String sku;
@@ -36,7 +38,8 @@
       sku: (json["sku"] ?? "").toString(),
       imageUrl: (json["imageUrl"] ?? "").toString(),
       purchasePrice: _num(json["purchasePrice"]),
-      purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP").toString(),
+      purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP")
+          .toString(),
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
       weight: _num(json["weight"]),
@@ -97,7 +100,8 @@ class Product {
       imageUrl: (json["imageUrl"] ?? "").toString(),
       hasVariants: json["hasVariants"] == true,
       purchasePrice: _num(json["purchasePrice"]),
-      purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP").toString(),
+      purchaseCurrency: (json["purchaseCurrency"] ?? json["currency"] ?? "LBP")
+          .toString(),
       sellingPrice: _num(json["sellingPrice"]),
       quantity: _num(json["quantity"]),
       weight: _num(json["weight"]),
@@ -105,13 +109,16 @@ class Product {
       currency: (json["currency"] ?? "LBP").toString(),
       unit: (json["unit"] ?? "Piece").toString(),
       variants: rawVariants is List
-          ? rawVariants.map((e) => ProductVariant.fromJson(Map<String, dynamic>.from(e as Map))).toList()
+          ? rawVariants
+                .map(
+                  (e) => ProductVariant.fromJson(
+                    Map<String, dynamic>.from(e as Map),
+                  ),
+                )
+                .toList()
           : [],
     );
   }
 }
 
-double _num(dynamic value) {
-  if (value is num) return value.toDouble();
-  return double.tryParse(value.toString()) ?? 0;
-}
+double _num(dynamic value) => numFromDynamic(value);

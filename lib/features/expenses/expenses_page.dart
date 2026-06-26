@@ -32,7 +32,10 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
     try {
       final res = await widget.api.get("/expenses");
-      _expenses = (res as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      _expenses = (res as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
     } catch (e) {
       _error = e.toString();
     }
@@ -68,10 +71,23 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 46),
-        content: Text(_label(c.isArabic, "Delete this expense?", "\u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0645\u0635\u0631\u0648\u0641\u061f")),
+        title: const Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.red,
+          size: 46,
+        ),
+        content: Text(
+          _label(
+            c.isArabic,
+            "Delete this expense?",
+            "\u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0645\u0635\u0631\u0648\u0641\u061f",
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(c.t("cancel"))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(c.t("cancel")),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -91,15 +107,21 @@ class _ExpensesPageState extends State<ExpensesPage> {
   }
 
   void _showError(Object e) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-    final totalUsd = _expenses.where((e) => (e["currency"] ?? "USD") == "USD").fold(0.0, (sum, e) => sum + _num(e["amount"]));
-    final totalLbp = _expenses.where((e) => (e["currency"] ?? "USD") == "LBP").fold(0.0, (sum, e) => sum + _num(e["amount"]));
+    final totalUsd = _expenses
+        .where((e) => (e["currency"] ?? "USD") == "USD")
+        .fold(0.0, (sum, e) => sum + _num(e["amount"]));
+    final totalLbp = _expenses
+        .where((e) => (e["currency"] ?? "USD") == "LBP")
+        .fold(0.0, (sum, e) => sum + _num(e["amount"]));
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -109,20 +131,49 @@ class _ExpensesPageState extends State<ExpensesPage> {
           PageHeader(
             title: c.t("expenses"),
             actions: [
-              FilledButton.icon(onPressed: () => _addOrEdit(), icon: const Icon(Icons.add), label: Text(_label(isAr, "New Expense", "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f"))),
+              FilledButton.icon(
+                onPressed: () => _addOrEdit(),
+                icon: const Icon(Icons.add),
+                label: Text(
+                  _label(
+                    isAr,
+                    "New Expense",
+                    "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f",
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _totalCard("USD", money(totalUsd, "USD"), Icons.attach_money, Colors.red)),
+              Expanded(
+                child: _totalCard(
+                  "USD",
+                  money(totalUsd, "USD"),
+                  Icons.attach_money,
+                  Colors.red,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _totalCard("LBP", money(totalLbp, "LBP"), Icons.payments, Colors.orange)),
+              Expanded(
+                child: _totalCard(
+                  "LBP",
+                  money(totalLbp, "LBP"),
+                  Icons.payments,
+                  Colors.orange,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
           if (_loading)
-            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(),
+              ),
+            )
           else if (_error != null)
             ModernCard(child: Text(_error!))
           else if (_expenses.isEmpty)
@@ -145,8 +196,14 @@ class _ExpensesPageState extends State<ExpensesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text(value, style: TextStyle(fontWeight: FontWeight.w900, color: color)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(fontWeight: FontWeight.w900, color: color),
+                ),
               ],
             ),
           ),
@@ -159,7 +216,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final amount = _num(expense["amount"]);
     final currency = (expense["currency"] ?? "USD").toString();
     final rawDate = (expense["date"] ?? "").toString();
-    final shortDate = rawDate.isEmpty ? "" : rawDate.substring(0, rawDate.length < 10 ? rawDate.length : 10);
+    final shortDate = rawDate.isEmpty
+        ? ""
+        : rawDate.substring(0, rawDate.length < 10 ? rawDate.length : 10);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -190,7 +249,13 @@ class _ExpensesPageState extends State<ExpensesPage> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(money(amount, currency), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.red)),
+                Text(
+                  money(amount, currency),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.red,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -199,11 +264,17 @@ class _ExpensesPageState extends State<ExpensesPage> {
               runSpacing: 6,
               children: [
                 Tooltip(
-                  message: _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
+                  message: _label(
+                    isAr,
+                    "Edit",
+                    "\u062a\u0639\u062f\u064a\u0644",
+                  ),
                   child: OutlinedButton.icon(
                     onPressed: () => _addOrEdit(expense: expense),
                     icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: Text(_label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644")),
+                    label: Text(
+                      _label(isAr, "Edit", "\u062a\u0639\u062f\u064a\u0644"),
+                    ),
                   ),
                 ),
                 Tooltip(
@@ -223,18 +294,25 @@ class _ExpensesPageState extends State<ExpensesPage> {
   }
 
   double _num(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString()) ?? 0;
+    return numFromDynamic(value);
   }
 
   List<String> _expenseNames() {
-    final rows = _expenses.map((e) => (e["title"] ?? "").toString().trim()).where((x) => x.isNotEmpty).toSet().toList();
+    final rows = _expenses
+        .map((e) => (e["title"] ?? "").toString().trim())
+        .where((x) => x.isNotEmpty)
+        .toSet()
+        .toList();
     rows.sort();
     return rows;
   }
 
   List<String> _expenseCategories() {
-    final rows = _expenses.map((e) => (e["category"] ?? "General").toString().trim()).where((x) => x.isNotEmpty).toSet().toList();
+    final rows = _expenses
+        .map((e) => (e["category"] ?? "General").toString().trim())
+        .where((x) => x.isNotEmpty)
+        .toSet()
+        .toList();
     rows.sort();
     return rows.isEmpty ? ["General"] : rows;
   }
@@ -244,7 +322,11 @@ class _ExpenseDialog extends StatefulWidget {
   final Map<String, dynamic>? expense;
   final List<String> expenseNames;
   final List<String> categories;
-  const _ExpenseDialog({this.expense, required this.expenseNames, required this.categories});
+  const _ExpenseDialog({
+    this.expense,
+    required this.expenseNames,
+    required this.categories,
+  });
 
   @override
   State<_ExpenseDialog> createState() => _ExpenseDialogState();
@@ -264,8 +346,12 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
   void initState() {
     super.initState();
     final e = widget.expense;
-    _selectedTitle = widget.expenseNames.isEmpty ? _newValue : widget.expenseNames.first;
-    _selectedCategory = widget.categories.isEmpty ? _newValue : widget.categories.first;
+    _selectedTitle = widget.expenseNames.isEmpty
+        ? _newValue
+        : widget.expenseNames.first;
+    _selectedCategory = widget.categories.isEmpty
+        ? _newValue
+        : widget.categories.first;
     if (_selectedTitle != _newValue) _title.text = _selectedTitle!;
     if (_selectedCategory != _newValue) _category.text = _selectedCategory!;
     if (e == null) return;
@@ -274,8 +360,12 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
     _category.text = (e["category"] ?? "General").toString();
     _note.text = (e["note"] ?? "").toString();
     _currency = (e["currency"] ?? "LBP").toString();
-    _selectedTitle = widget.expenseNames.contains(_title.text) ? _title.text : _newValue;
-    _selectedCategory = widget.categories.contains(_category.text) ? _category.text : _newValue;
+    _selectedTitle = widget.expenseNames.contains(_title.text)
+        ? _title.text
+        : _newValue;
+    _selectedCategory = widget.categories.contains(_category.text)
+        ? _category.text
+        : _newValue;
   }
 
   @override
@@ -293,17 +383,46 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
     final isAr = c.isArabic;
 
     return AlertDialog(
-      title: Text(widget.expense == null ? _label(isAr, "New Expense", "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f") : _label(isAr, "Edit Expense", "\u062a\u0639\u062f\u064a\u0644 \u0645\u0635\u0631\u0648\u0641")),
+      title: Text(
+        widget.expense == null
+            ? _label(
+                isAr,
+                "New Expense",
+                "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f",
+              )
+            : _label(
+                isAr,
+                "Edit Expense",
+                "\u062a\u0639\u062f\u064a\u0644 \u0645\u0635\u0631\u0648\u0641",
+              ),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
               value: _selectedTitle,
-              decoration: InputDecoration(labelText: _label(isAr, "Expense", "\u0627\u0644\u0645\u0635\u0631\u0648\u0641")),
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Expense",
+                  "\u0627\u0644\u0645\u0635\u0631\u0648\u0641",
+                ),
+              ),
               items: [
-                ...widget.expenseNames.map((x) => DropdownMenuItem(value: x, child: Text(x))),
-                DropdownMenuItem(value: _newValue, child: Text(_label(isAr, "New expense", "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f"))),
+                ...widget.expenseNames.map(
+                  (x) => DropdownMenuItem(value: x, child: Text(x)),
+                ),
+                DropdownMenuItem(
+                  value: _newValue,
+                  child: Text(
+                    _label(
+                      isAr,
+                      "New expense",
+                      "\u0645\u0635\u0631\u0648\u0641 \u062c\u062f\u064a\u062f",
+                    ),
+                  ),
+                ),
               ],
               onChanged: (v) {
                 setState(() {
@@ -318,10 +437,29 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
             ),
             if (_selectedTitle == _newValue) ...[
               const SizedBox(height: 12),
-              TextField(controller: _title, decoration: InputDecoration(labelText: _label(isAr, "Expense name", "\u0627\u0633\u0645 \u0627\u0644\u0645\u0635\u0631\u0648\u0641"))),
+              TextField(
+                controller: _title,
+                decoration: InputDecoration(
+                  labelText: _label(
+                    isAr,
+                    "Expense name",
+                    "\u0627\u0633\u0645 \u0627\u0644\u0645\u0635\u0631\u0648\u0641",
+                  ),
+                ),
+              ),
             ],
             const SizedBox(height: 12),
-            TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: _label(isAr, "Amount", "\u0627\u0644\u0645\u0628\u0644\u063a"))),
+            TextField(
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Amount",
+                  "\u0627\u0644\u0645\u0628\u0644\u063a",
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _currency,
@@ -335,10 +473,27 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _selectedCategory,
-              decoration: InputDecoration(labelText: _label(isAr, "Category", "\u0627\u0644\u0641\u0626\u0629")),
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Category",
+                  "\u0627\u0644\u0641\u0626\u0629",
+                ),
+              ),
               items: [
-                ...widget.categories.map((x) => DropdownMenuItem(value: x, child: Text(x))),
-                DropdownMenuItem(value: _newValue, child: Text(_label(isAr, "New category", "\u0641\u0626\u0629 \u062c\u062f\u064a\u062f\u0629"))),
+                ...widget.categories.map(
+                  (x) => DropdownMenuItem(value: x, child: Text(x)),
+                ),
+                DropdownMenuItem(
+                  value: _newValue,
+                  child: Text(
+                    _label(
+                      isAr,
+                      "New category",
+                      "\u0641\u0626\u0629 \u062c\u062f\u064a\u062f\u0629",
+                    ),
+                  ),
+                ),
               ],
               onChanged: (v) {
                 setState(() {
@@ -353,22 +508,45 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
             ),
             if (_selectedCategory == _newValue) ...[
               const SizedBox(height: 12),
-              TextField(controller: _category, decoration: InputDecoration(labelText: _label(isAr, "Category name", "\u0627\u0633\u0645 \u0627\u0644\u0641\u0626\u0629"))),
+              TextField(
+                controller: _category,
+                decoration: InputDecoration(
+                  labelText: _label(
+                    isAr,
+                    "Category name",
+                    "\u0627\u0633\u0645 \u0627\u0644\u0641\u0626\u0629",
+                  ),
+                ),
+              ),
             ],
             const SizedBox(height: 12),
-            TextField(controller: _note, decoration: InputDecoration(labelText: _label(isAr, "Note", "\u0645\u0644\u0627\u062d\u0638\u0629"))),
+            TextField(
+              controller: _note,
+              decoration: InputDecoration(
+                labelText: _label(
+                  isAr,
+                  "Note",
+                  "\u0645\u0644\u0627\u062d\u0638\u0629",
+                ),
+              ),
+            ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(c.t("cancel"))),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(c.t("cancel")),
+        ),
         FilledButton(
           onPressed: () {
             Navigator.pop(context, {
               "title": _title.text.trim(),
-              "amount": double.tryParse(_amount.text) ?? 0,
+              "amount": parseNumberInput(_amount.text),
               "currency": _currency,
-              "category": _category.text.trim().isEmpty ? "General" : _category.text.trim(),
+              "category": _category.text.trim().isEmpty
+                  ? "General"
+                  : _category.text.trim(),
               "note": _note.text.trim(),
             });
           },
