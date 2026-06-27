@@ -397,10 +397,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   }) async {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-    final rate = c.exchangeRate <= 0 ? 90000 : c.exchangeRate;
-    final total = quantity * unitCost;
-    final totalUsd = currency == "USD" ? total : total / rate;
-    final totalLbp = currency == "LBP" ? total : total * rate;
+    final total = (weight > 0 ? weight : quantity) * unitCost;
     final message = [
       isAr
           ? "\u0641\u0627\u062a\u0648\u0631\u0629 \u062a\u0648\u0631\u064a\u062f"
@@ -413,8 +410,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       if (weight > 0)
         "${isAr ? "\u0627\u0644\u0648\u0632\u0646" : "Weight"}: ${numberDecimal(weight)} ${isAr ? "\u0643\u063a" : "kg"}",
       "${isAr ? "\u0633\u0639\u0631 \u0627\u0644\u0634\u0631\u0627\u0621" : "Unit cost"}: ${money(unitCost, currency)}",
-      "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u062f\u0648\u0644\u0627\u0631" : "Total USD"}: ${money(totalUsd, "USD")}",
-      "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639 \u0628\u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064a" : "Total LBP"}: ${money(totalLbp, "LBP")}",
+      "${isAr ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639" : "Total"}: ${money(total, currency)}",
       "${isAr ? "\u0627\u0644\u062d\u0627\u0644\u0629" : "Status"}: ${isDebt ? (isAr ? "\u062f\u064a\u0646" : "Debt") : (isAr ? "\u0645\u062f\u0641\u0648\u0639" : "Paid")}",
       if (invoiceNo.isNotEmpty)
         "${isAr ? "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice"}: $invoiceNo",

@@ -47,6 +47,48 @@ class _RecordsPageState extends State<RecordsPage> {
     if (mounted) setState(() => loading = false);
   }
 
+  Future<void> _cancelRecord(AppRecord row) async {
+    final isAr = AppScope.of(context).isArabic;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isAr ? "إلغاء الفاتورة؟" : "Cancel invoice?"),
+        content: Text(
+          isAr
+              ? "سيتم حذف الفاتورة وعكس أثرها على المخزون والديون عند وجودها."
+              : "This will delete the invoice and reverse its stock and debt effect when available.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isAr ? "رجوع" : "Back"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isAr ? "إلغاء الفاتورة" : "Cancel invoice"),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await widget.api.delete("/records/stock-movements/${row.id}");
+      await load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isAr ? "تم إلغاء الفاتورة" : "Invoice cancelled"),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
@@ -191,9 +233,20 @@ class _RecordsPageState extends State<RecordsPage> {
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         subtitle: Text("${_formatTime(row.createdAt)}\n${details.join("\n")}"),
-        trailing: Icon(
-          isReturn ? Icons.north_west_rounded : Icons.south_east_rounded,
-          color: color,
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == "cancel") _cancelRecord(row);
+          },
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              value: "cancel",
+              child: Text(isAr ? "إلغاء فاتورة" : "Cancel invoice"),
+            ),
+          ],
+          icon: Icon(
+            isReturn ? Icons.north_west_rounded : Icons.south_east_rounded,
+            color: color,
+          ),
         ),
       ),
     );
@@ -232,6 +285,17 @@ class _RecordsPageState extends State<RecordsPage> {
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         subtitle: Text("${_formatTime(row.createdAt)}\n${details.join("\n")}"),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == "cancel") _cancelRecord(row);
+          },
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              value: "cancel",
+              child: Text(isAr ? "إلغاء فاتورة" : "Cancel invoice"),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -186,7 +186,7 @@ class _SalesPageState extends State<SalesPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isAr ? "حذف الفاتورة؟" : "Delete invoice?"),
+        title: Text(isAr ? "إلغاء الفاتورة؟" : "Cancel invoice?"),
         content: Text(
           isAr
               ? "سيتم إرجاع الكمية إلى المخزون وحذف دين الفاتورة إن وجد."
@@ -200,7 +200,7 @@ class _SalesPageState extends State<SalesPage> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(isAr ? "حذف" : "Delete"),
+            child: Text(isAr ? "إلغاء الفاتورة" : "Cancel invoice"),
           ),
         ],
       ),
@@ -1444,7 +1444,7 @@ class _SalesPageState extends State<SalesPage> {
                     ),
                     PopupMenuItem(
                       value: "delete",
-                      child: Text(isAr ? "حذف" : "Delete"),
+                      child: Text(isAr ? "إلغاء فاتورة" : "Cancel invoice"),
                     ),
                   ],
                 ),

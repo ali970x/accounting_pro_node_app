@@ -166,10 +166,9 @@ class _InventoryPageState extends State<InventoryPage> {
             "${item.weight > 0 ? " | ${isAr ? "وزن" : "Weight"}: ${numberDecimal(item.weight)} ${isAr ? "كغ" : "kg"}" : ""}"
             " x ${money(item.unitCost, item.currency)} = ${money(item.total, item.currency)}",
       "",
-      "${isAr ? "الإجمالي باللبناني" : "Total LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
-      "${isAr ? "الإجمالي بالدولار" : "Total USD"}: ${money(totals["USD"] ?? 0, "USD")}",
-      "${isAr ? "رصيد سابق" : "Previous balance"}: ${money(before["LBP"] ?? 0, "LBP")} / ${money(before["USD"] ?? 0, "USD")}",
-      "${isAr ? "رصيد نهائي" : "Final balance"}: ${money(after["LBP"] ?? 0, "LBP")} / ${money(after["USD"] ?? 0, "USD")}",
+      ..._currencyLines(isAr ? "الإجمالي" : "Total", totals, isAr),
+      "${isAr ? "رصيد سابق" : "Previous balance"}: ${_currencyPair(before)}",
+      "${isAr ? "رصيد نهائي" : "Final balance"}: ${_currencyPair(after)}",
     ];
     final message = lines.join("\n");
     await showDialog<void>(
@@ -258,7 +257,7 @@ class _InventoryPageState extends State<InventoryPage> {
                   (totals[variant.currency] ?? 0) + value;
               lines.add("    - ${product.name} / ${variant.name}");
               lines.add(
-                "      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}",
+                "      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "الوزن" : "Weight"}: ${numberDecimal(variant.weight)} ${isAr ? "كغ" : "kg"} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}",
               );
             }
           } else {
@@ -267,7 +266,7 @@ class _InventoryPageState extends State<InventoryPage> {
             totals[product.currency] = (totals[product.currency] ?? 0) + value;
             lines.add("    - ${product.name}");
             lines.add(
-              "      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}",
+              "      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "الوزن" : "Weight"}: ${numberDecimal(product.weight)} ${isAr ? "كغ" : "kg"} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}",
             );
           }
         }
@@ -278,11 +277,8 @@ class _InventoryPageState extends State<InventoryPage> {
     lines.add(
       "${isAr ? "إجمالي الكمية" : "Total quantity"}: ${number(totalQuantity)}",
     );
-    lines.add(
-      "${isAr ? "إجمالي القيمة باللبناني" : "Total value LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
-    );
-    lines.add(
-      "${isAr ? "إجمالي القيمة بالدولار" : "Total value USD"}: ${money(totals["USD"] ?? 0, "USD")}",
+    lines.addAll(
+      _currencyLines(isAr ? "إجمالي القيمة" : "Total value", totals, isAr),
     );
 
     final message = lines.join("\n");
@@ -324,6 +320,33 @@ class _InventoryPageState extends State<InventoryPage> {
       await Clipboard.setData(ClipboardData(text: message));
       _showError("Could not open sharing app. Inventory copied.");
     }
+  }
+
+  List<String> _currencyLines(
+    String label,
+    Map<String, double> totals,
+    bool isAr,
+  ) {
+    final lines = <String>[];
+    final lbp = totals["LBP"] ?? 0;
+    final usd = totals["USD"] ?? 0;
+    if (lbp != 0) {
+      lines.add("$label ${isAr ? "باللبناني" : "LBP"}: ${money(lbp, "LBP")}");
+    }
+    if (usd != 0) {
+      lines.add("$label ${isAr ? "بالدولار" : "USD"}: ${money(usd, "USD")}");
+    }
+    if (lines.isEmpty) lines.add("$label: ${money(0, "LBP")}");
+    return lines;
+  }
+
+  String _currencyPair(Map<String, double> totals) {
+    final values = <String>[];
+    final lbp = totals["LBP"] ?? 0;
+    final usd = totals["USD"] ?? 0;
+    if (lbp != 0) values.add(money(lbp, "LBP"));
+    if (usd != 0) values.add(money(usd, "USD"));
+    return values.isEmpty ? money(0, "LBP") : values.join(" / ");
   }
 
   @override
@@ -1635,7 +1658,9 @@ class _SupplyDraftItem {
     );
   }
 
-  double get total => quantity * unitCost;
+  double get billableAmount => weight > 0 ? weight : quantity;
+
+  double get total => billableAmount * unitCost;
 
   _SupplyDraftItem copyWith({
     double? quantity,

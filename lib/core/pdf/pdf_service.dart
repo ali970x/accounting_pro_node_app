@@ -266,12 +266,12 @@ class PdfService {
                   if (hasDebtInfo) ...[
                     pw.SizedBox(height: 5),
                     _text(
-                      "${isArabic ? "\u0631\u0635\u064a\u062f \u0633\u0627\u0628\u0642" : "Previous balance"}: ${money(sale.debtBalanceBeforeLbp, "LBP")} / ${money(sale.debtBalanceBeforeUsd, "USD")}",
+                      "${isArabic ? "\u0631\u0635\u064a\u062f \u0633\u0627\u0628\u0642" : "Previous balance"}: ${_moneyPair(sale.debtBalanceBeforeLbp, sale.debtBalanceBeforeUsd)}",
                       isArabic,
                       size: 10,
                     ),
                     _text(
-                      "${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${money(sale.debtBalanceAfterLbp, "LBP")} / ${money(sale.debtBalanceAfterUsd, "USD")}",
+                      "${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
                       isArabic,
                       size: 10,
                       bold: true,
@@ -291,12 +291,13 @@ class PdfService {
               isArabic,
               size: 10,
             ),
-            _text(
-              "${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${money(sale.debtBalanceAfterLbp, "LBP")} ${sale.debtBalanceAfterUsd != 0 ? " / ${money(sale.debtBalanceAfterUsd, "USD")}" : ""}",
-              isArabic,
-              size: 13,
-              bold: true,
-            ),
+            if (hasDebtInfo)
+              _text(
+                "${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
+                isArabic,
+                size: 13,
+                bold: true,
+              ),
           ],
         ),
       ],
@@ -320,6 +321,36 @@ class PdfService {
       default:
         return isArabic ? "\u0646\u0642\u062f\u0627\u064b" : "Cash";
     }
+  }
+
+  static String _moneyPair(num lbp, num usd) {
+    final parts = <String>[];
+    if (lbp != 0) parts.add(money(lbp, "LBP"));
+    if (usd != 0) parts.add(money(usd, "USD"));
+    return parts.isEmpty ? money(0, "LBP") : parts.join(" / ");
+  }
+
+  static List<String> _moneyTotalLines(
+    Map<String, double> totals,
+    bool isArabic,
+  ) {
+    final lines = <String>[];
+    final lbp = totals["LBP"] ?? 0;
+    final usd = totals["USD"] ?? 0;
+    if (lbp != 0) {
+      lines.add(
+        "${isArabic ? "الإجمالي باللبناني" : "Total LBP"}: ${money(lbp, "LBP")}",
+      );
+    }
+    if (usd != 0) {
+      lines.add(
+        "${isArabic ? "الإجمالي بالدولار" : "Total USD"}: ${money(usd, "USD")}",
+      );
+    }
+    if (lines.isEmpty) {
+      lines.add("${isArabic ? "الإجمالي" : "Total"}: ${money(0, "LBP")}");
+    }
+    return lines;
   }
 
   static Future<void> printGoodsMovementInvoice({
@@ -458,18 +489,11 @@ class PdfService {
                                 ? pw.CrossAxisAlignment.start
                                 : pw.CrossAxisAlignment.end,
                             children: [
-                              _text(
-                                "${isArabic ? "الإجمالي باللبناني" : "Total LBP"}: ${money(totals["LBP"] ?? 0, "LBP")}",
+                              for (final line in _moneyTotalLines(
+                                totals,
                                 isArabic,
-                                size: 16,
-                                bold: true,
-                              ),
-                              _text(
-                                "${isArabic ? "الإجمالي بالدولار" : "Total USD"}: ${money(totals["USD"] ?? 0, "USD")}",
-                                isArabic,
-                                size: 16,
-                                bold: true,
-                              ),
+                              ))
+                                _text(line, isArabic, size: 16, bold: true),
                             ],
                           ),
                         ),
