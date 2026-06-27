@@ -45,6 +45,8 @@ class Sale {
   final String debtPaymentCurrency;
   final double debtBalanceBeforeLbp;
   final double debtBalanceBeforeUsd;
+  final double debtPreviousAfterPaymentLbp;
+  final double debtPreviousAfterPaymentUsd;
   final double debtBalanceAfterLbp;
   final double debtBalanceAfterUsd;
   final String note;
@@ -65,6 +67,8 @@ class Sale {
     required this.debtPaymentCurrency,
     required this.debtBalanceBeforeLbp,
     required this.debtBalanceBeforeUsd,
+    required this.debtPreviousAfterPaymentLbp,
+    required this.debtPreviousAfterPaymentUsd,
     required this.debtBalanceAfterLbp,
     required this.debtBalanceAfterUsd,
     required this.note,
@@ -75,14 +79,25 @@ class Sale {
 
   factory Sale.fromJson(Map<String, dynamic> json) {
     final raw = json["items"];
+    final total = _num(json["total"]);
+    final currency = (json["currency"] ?? "LBP").toString();
+    final paymentStatus = (json["paymentStatus"] ?? "paid").toString();
+    final afterLbp = _num(json["debtBalanceAfterLbp"]);
+    final afterUsd = _num(json["debtBalanceAfterUsd"]);
+    final invoiceDebtLbp = paymentStatus == "debt" && currency != "USD"
+        ? total
+        : 0.0;
+    final invoiceDebtUsd = paymentStatus == "debt" && currency == "USD"
+        ? total
+        : 0.0;
     return Sale(
       id: (json["_id"] ?? json["id"] ?? "").toString(),
       invoiceNo: (json["invoiceNo"] ?? "").toString(),
       customerName: (json["customerName"] ?? "").toString(),
       contactId: _id(json["contact"]),
-      total: _num(json["total"]),
-      currency: (json["currency"] ?? "LBP").toString(),
-      paymentStatus: (json["paymentStatus"] ?? "paid").toString(),
+      total: total,
+      currency: currency,
+      paymentStatus: paymentStatus,
       paymentMethod:
           (json["paymentMethod"] ??
                   (json["paymentStatus"] == "debt" ? "debt" : "cash"))
@@ -91,8 +106,16 @@ class Sale {
       debtPaymentCurrency: (json["debtPaymentCurrency"] ?? "LBP").toString(),
       debtBalanceBeforeLbp: _num(json["debtBalanceBeforeLbp"]),
       debtBalanceBeforeUsd: _num(json["debtBalanceBeforeUsd"]),
-      debtBalanceAfterLbp: _num(json["debtBalanceAfterLbp"]),
-      debtBalanceAfterUsd: _num(json["debtBalanceAfterUsd"]),
+      debtPreviousAfterPaymentLbp:
+          json.containsKey("debtPreviousAfterPaymentLbp")
+          ? _num(json["debtPreviousAfterPaymentLbp"])
+          : (afterLbp - invoiceDebtLbp).clamp(0, double.infinity).toDouble(),
+      debtPreviousAfterPaymentUsd:
+          json.containsKey("debtPreviousAfterPaymentUsd")
+          ? _num(json["debtPreviousAfterPaymentUsd"])
+          : (afterUsd - invoiceDebtUsd).clamp(0, double.infinity).toDouble(),
+      debtBalanceAfterLbp: afterLbp,
+      debtBalanceAfterUsd: afterUsd,
       note: (json["note"] ?? "").toString(),
       items: raw is List
           ? raw

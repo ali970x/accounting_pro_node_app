@@ -496,6 +496,9 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   String _saleMessage(Sale sale, bool isAr) {
+    final invoiceDebt = sale.paymentStatus == "debt"
+        ? money(sale.total, sale.currency)
+        : (isAr ? "مدفوع" : "Paid");
     final lines = <String>[
       isAr ? "فاتورة مبيع" : "Sales Invoice",
       "${isAr ? "رقم الفاتورة" : "Invoice"}: ${sale.invoiceNo}",
@@ -505,8 +508,11 @@ class _SalesPageState extends State<SalesPage> {
       "${isAr ? "طريقة الدفع" : "Payment method"}: ${_paymentMethodLabel(sale.paymentMethod, isAr)}",
       if (sale.debtPaymentAmount > 0)
         "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
-      "${isAr ? "الرصيد السابق" : "Previous balance"}: ${money(sale.debtBalanceBeforeLbp, "LBP")} / ${money(sale.debtBalanceBeforeUsd, "USD")}",
-      "${isAr ? "الرصيد النهائي" : "Final balance"}: ${money(sale.debtBalanceAfterLbp, "LBP")} / ${money(sale.debtBalanceAfterUsd, "USD")}",
+      "${isAr ? "الرصيد السابق" : "Previous balance"}: ${_moneyPair(sale.debtBalanceBeforeLbp, sale.debtBalanceBeforeUsd)}",
+      if (sale.debtPaymentAmount > 0)
+        "${isAr ? "باقي الدين السابق" : "Previous debt remaining"}: ${_moneyPair(sale.debtPreviousAfterPaymentLbp, sale.debtPreviousAfterPaymentUsd)}",
+      "${isAr ? "رصيد هذه الفاتورة" : "This invoice balance"}: $invoiceDebt",
+      "${isAr ? "إجمالي الدين بعد الفاتورة" : "Total debt after invoice"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
       "",
     ];
     for (final item in sale.items) {
@@ -517,6 +523,13 @@ class _SalesPageState extends State<SalesPage> {
       );
     }
     return lines.join("\n");
+  }
+
+  String _moneyPair(num lbp, num usd) {
+    final parts = <String>[];
+    if (lbp != 0) parts.add(money(lbp, "LBP"));
+    if (usd != 0) parts.add(money(usd, "USD"));
+    return parts.isEmpty ? money(0, "LBP") : parts.join(" / ");
   }
 
   String _paymentMethodLabel(String value, bool isAr) {

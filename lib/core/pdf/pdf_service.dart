@@ -213,9 +213,14 @@ class PdfService {
   }
 
   static pw.Widget _invoiceTotalsBlock(Sale sale, bool isArabic) {
+    final invoiceDebt = sale.paymentStatus == "debt"
+        ? money(sale.total, sale.currency)
+        : (isArabic ? "\u0645\u062f\u0641\u0648\u0639" : "Paid");
     final hasDebtInfo =
         sale.debtBalanceBeforeLbp != 0 ||
         sale.debtBalanceBeforeUsd != 0 ||
+        sale.debtPreviousAfterPaymentLbp != 0 ||
+        sale.debtPreviousAfterPaymentUsd != 0 ||
         sale.debtBalanceAfterLbp != 0 ||
         sale.debtBalanceAfterUsd != 0 ||
         sale.debtPaymentAmount > 0;
@@ -270,11 +275,22 @@ class PdfService {
                       isArabic,
                       size: 10,
                     ),
+                    if (sale.debtPaymentAmount > 0)
+                      _text(
+                        "${isArabic ? "\u0628\u0627\u0642\u064a \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0633\u0627\u0628\u0642" : "Previous debt remaining"}: ${_moneyPair(sale.debtPreviousAfterPaymentLbp, sale.debtPreviousAfterPaymentUsd)}",
+                        isArabic,
+                        size: 10,
+                      ),
                     _text(
-                      "${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
+                      "${isArabic ? "\u0631\u0635\u064a\u062f \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "This invoice balance"}: $invoiceDebt",
                       isArabic,
                       size: 10,
                       bold: true,
+                    ),
+                    _text(
+                      "${isArabic ? "\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u062f\u064a\u0646 \u0628\u0639\u062f \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Total debt after invoice"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
+                      isArabic,
+                      size: 10,
                     ),
                   ],
                 ],
@@ -293,7 +309,7 @@ class PdfService {
             ),
             if (hasDebtInfo)
               _text(
-                "${isArabic ? "\u0631\u0635\u064a\u062f \u0646\u0647\u0627\u0626\u064a" : "Final balance"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
+                "${isArabic ? "\u0631\u0635\u064a\u062f \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "This invoice balance"}: $invoiceDebt",
                 isArabic,
                 size: 13,
                 bold: true,
