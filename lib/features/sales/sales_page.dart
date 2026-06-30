@@ -30,10 +30,8 @@ class _SalesPageState extends State<SalesPage> {
   List<ContactModel> _customers = [];
   List<Map<String, dynamic>> _debts = [];
 
-  String? _selectedProductId;
   String? _selectedCustomerId;
   String _productCategoryFilter = "";
-  String _productSubcategoryFilter = "";
   final _productSearch = TextEditingController();
   final _productFocusNode = FocusNode();
   final _manualCustomerName = TextEditingController();
@@ -118,7 +116,6 @@ class _SalesPageState extends State<SalesPage> {
   void _onProductSelected(String? id) {
     final choice = _firstSaleChoiceWhere((x) => x.id == id);
     setState(() {
-      _selectedProductId = id;
       _activeChoice = choice;
       if (choice != null) {
         _productSearch.text = choice.label;
@@ -317,7 +314,6 @@ class _SalesPageState extends State<SalesPage> {
     _unitPrice.clear();
     _totalPrice.clear();
     _productSearch.clear();
-    _selectedProductId = null;
     _selectedCustomerId = null;
     _activeChoice = null;
     _saleItems.clear();
@@ -399,7 +395,6 @@ class _SalesPageState extends State<SalesPage> {
     _unitPrice.clear();
     _totalPrice.clear();
     _productSearch.clear();
-    _selectedProductId = null;
     _activeChoice = null;
   }
 
@@ -1201,7 +1196,6 @@ class _SalesPageState extends State<SalesPage> {
   Widget _productPicker(bool isAr) {
     final choices = _filteredSaleChoices();
     final categories = _productCategoryOptions();
-    final subcategories = _productSubcategoryOptions();
     final active = _activeChoice;
 
     return Column(
@@ -1225,28 +1219,6 @@ class _SalesPageState extends State<SalesPage> {
             ],
             onChanged: (value) => setState(() {
               _productCategoryFilter = value ?? "";
-              _productSubcategoryFilter = "";
-              _productSearch.clear();
-              _clearSelectedProductIfHidden();
-            }),
-          ),
-          DropdownButtonFormField<String>(
-            value: _productSubcategoryFilter,
-            decoration: InputDecoration(
-              labelText: isAr ? "الصنف الفرعي" : "Subcategory",
-              prefixIcon: const Icon(Icons.folder_copy_rounded),
-            ),
-            items: [
-              DropdownMenuItem(
-                value: "",
-                child: Text(isAr ? "اختر الصنف الفرعي" : "Choose subcategory"),
-              ),
-              ...subcategories.map(
-                (x) => DropdownMenuItem(value: x, child: Text(x)),
-              ),
-            ],
-            onChanged: (value) => setState(() {
-              _productSubcategoryFilter = value ?? "";
               _productSearch.clear();
               _clearSelectedProductIfHidden();
             }),
@@ -1258,8 +1230,7 @@ class _SalesPageState extends State<SalesPage> {
           focusNode: _productFocusNode,
           displayStringForOption: (choice) => choice.label,
           optionsBuilder: (value) {
-            if (_productCategoryFilter.isEmpty ||
-                _productSubcategoryFilter.isEmpty)
+            if (_productCategoryFilter.isEmpty)
               return const Iterable<_SaleProductChoice>.empty();
             final q = value.text.trim().toLowerCase();
             return choices
@@ -1275,9 +1246,7 @@ class _SalesPageState extends State<SalesPage> {
               controller: controller,
               focusNode: focusNode,
               decoration: InputDecoration(
-                labelText: isAr
-                    ? "ابحث عن المنتج أو النوعية"
-                    : "Search product or quality",
+                labelText: isAr ? "ابحث عن المنتج" : "Search product",
                 prefixIcon: const Icon(Icons.manage_search_rounded),
                 suffixIcon: controller.text.isEmpty
                     ? null
@@ -1285,7 +1254,6 @@ class _SalesPageState extends State<SalesPage> {
                         onPressed: () {
                           controller.clear();
                           setState(() {
-                            _selectedProductId = null;
                             _activeChoice = null;
                           });
                         },
@@ -1296,7 +1264,6 @@ class _SalesPageState extends State<SalesPage> {
                 final selected = _activeChoice;
                 if (selected != null && selected.label != value) {
                   setState(() {
-                    _selectedProductId = null;
                     _activeChoice = null;
                   });
                 }
@@ -1329,9 +1296,7 @@ class _SalesPageState extends State<SalesPage> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text(
-                          "${choice.category} > ${choice.subcategory}",
-                        ),
+                        subtitle: Text(choice.category),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -1357,9 +1322,7 @@ class _SalesPageState extends State<SalesPage> {
             );
           },
         ),
-        if (_productCategoryFilter.isNotEmpty &&
-            _productSubcategoryFilter.isNotEmpty &&
-            active == null) ...[
+        if (_productCategoryFilter.isNotEmpty && active == null) ...[
           const SizedBox(height: 8),
           _quickProductChoices(choices, isAr),
         ],
@@ -1494,7 +1457,6 @@ class _SalesPageState extends State<SalesPage> {
               productId: product.id,
               variantId: variant.id,
               category: product.category,
-              subcategory: product.subcategory,
               label: "${product.name} - ${variant.name}",
               quantity: variant.quantity,
               sellingPrice: variant.sellingPrice,
@@ -1511,7 +1473,6 @@ class _SalesPageState extends State<SalesPage> {
             productId: product.id,
             variantId: null,
             category: product.category,
-            subcategory: product.subcategory,
             label: product.name,
             quantity: product.quantity,
             sellingPrice: product.sellingPrice,
@@ -1526,11 +1487,9 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   List<_SaleProductChoice> _filteredSaleChoices() {
-    if (_productCategoryFilter.isEmpty || _productSubcategoryFilter.isEmpty)
-      return [];
+    if (_productCategoryFilter.isEmpty) return [];
     return _saleChoices().where((choice) {
       if (choice.category != _productCategoryFilter) return false;
-      if (choice.subcategory != _productSubcategoryFilter) return false;
       return true;
     }).toList();
   }
@@ -1545,21 +1504,6 @@ class _SalesPageState extends State<SalesPage> {
     return rows;
   }
 
-  List<String> _productSubcategoryOptions() {
-    final rows = _saleChoices()
-        .where(
-          (choice) =>
-              _productCategoryFilter.isNotEmpty &&
-              choice.category == _productCategoryFilter,
-        )
-        .map((choice) => choice.subcategory)
-        .where((x) => x.trim().isNotEmpty)
-        .toSet()
-        .toList();
-    rows.sort();
-    return rows;
-  }
-
   void _clearSelectedProductIfHidden() {
     final selected = _activeChoice;
     if (selected == null) return;
@@ -1567,7 +1511,6 @@ class _SalesPageState extends State<SalesPage> {
       (choice) => choice.id == selected.id,
     );
     if (!visible) {
-      _selectedProductId = null;
       _activeChoice = null;
       _productSearch.clear();
       _unitPrice.clear();
@@ -1718,7 +1661,6 @@ class _SaleProductChoice {
   final String productId;
   final String? variantId;
   final String category;
-  final String subcategory;
   final String label;
   final double quantity;
   final double sellingPrice;
@@ -1730,7 +1672,6 @@ class _SaleProductChoice {
     required this.productId,
     required this.variantId,
     required this.category,
-    required this.subcategory,
     required this.label,
     required this.quantity,
     required this.sellingPrice,
@@ -1738,7 +1679,7 @@ class _SaleProductChoice {
     required this.unit,
   });
 
-  String get searchText => "$label $category $subcategory".toLowerCase();
+  String get searchText => "$label $category".toLowerCase();
 }
 
 class _SaleEditDialog extends StatefulWidget {

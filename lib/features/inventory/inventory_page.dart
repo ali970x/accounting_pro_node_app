@@ -26,7 +26,6 @@ class _InventoryPageState extends State<InventoryPage> {
   List<Map<String, dynamic>> _debts = [];
   final _searchController = TextEditingController();
   final Set<String> _closedCategories = {};
-  final Set<String> _closedSubcategories = {};
 
   @override
   void initState() {
@@ -244,31 +243,25 @@ class _InventoryPageState extends State<InventoryPage> {
     final grouped = _groupProducts(_products);
     for (final category in grouped.entries) {
       lines.add("${isAr ? "التصنيف" : "Category"}: ${category.key}");
-      for (final subcategory in category.value.entries) {
-        lines.add(
-          "  ${isAr ? "التصنيف الفرعي" : "Subcategory"}: ${subcategory.key}",
-        );
-        for (final product in subcategory.value) {
-          if (product.hasVariants) {
-            for (final variant in product.variants) {
-              final value = variant.quantity * variant.sellingPrice;
-              totalQuantity += variant.quantity;
-              totals[variant.currency] =
-                  (totals[variant.currency] ?? 0) + value;
-              lines.add("    - ${product.name} / ${variant.name}");
-              lines.add(
-                "      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "الوزن" : "Weight"}: ${numberDecimal(variant.weight)} ${isAr ? "كغ" : "kg"} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}",
-              );
-            }
-          } else {
-            final value = product.quantity * product.sellingPrice;
-            totalQuantity += product.quantity;
-            totals[product.currency] = (totals[product.currency] ?? 0) + value;
-            lines.add("    - ${product.name}");
+      for (final product in category.value) {
+        if (product.hasVariants) {
+          for (final variant in product.variants) {
+            final value = variant.quantity * variant.sellingPrice;
+            totalQuantity += variant.quantity;
+            totals[variant.currency] = (totals[variant.currency] ?? 0) + value;
+            lines.add("    - ${product.name} / ${variant.name}");
             lines.add(
-              "      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "الوزن" : "Weight"}: ${numberDecimal(product.weight)} ${isAr ? "كغ" : "kg"} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}",
+              "      ${isAr ? "الكمية" : "Qty"}: ${number(variant.quantity)} ${variant.unit} | ${isAr ? "الوزن" : "Weight"}: ${numberDecimal(variant.weight)} ${isAr ? "كغ" : "kg"} | ${isAr ? "سعر البيع" : "Price"}: ${money(variant.sellingPrice, variant.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, variant.currency)}",
             );
           }
+        } else {
+          final value = product.quantity * product.sellingPrice;
+          totalQuantity += product.quantity;
+          totals[product.currency] = (totals[product.currency] ?? 0) + value;
+          lines.add("    - ${product.name}");
+          lines.add(
+            "      ${isAr ? "الكمية" : "Qty"}: ${number(product.quantity)} ${product.unit} | ${isAr ? "الوزن" : "Weight"}: ${numberDecimal(product.weight)} ${isAr ? "كغ" : "kg"} | ${isAr ? "سعر البيع" : "Price"}: ${money(product.sellingPrice, product.currency)} | ${isAr ? "القيمة" : "Value"}: ${money(value, product.currency)}",
+          );
         }
       }
       lines.add("");
@@ -356,7 +349,7 @@ class _InventoryPageState extends State<InventoryPage> {
     final theme = Theme.of(context);
     final filtered = _filteredProducts();
     final grouped = _groupProducts(filtered);
-    final totalQualities = filtered.fold<int>(
+    final totalProducts = filtered.fold<int>(
       0,
       (sum, p) => sum + (p.hasVariants ? p.variants.length : 1),
     );
@@ -419,9 +412,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                 ),
                               ),
                               Text(
-                                isAr
-                                    ? "تصنيف > تصنيف فرعي > نوعية صنف"
-                                    : "Category > Subcategory > Item quality",
+                                isAr ? "تصنيف > منتج" : "Category > Item",
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
@@ -458,8 +449,8 @@ class _InventoryPageState extends State<InventoryPage> {
                             SizedBox(
                               width: width,
                               child: _metricCard(
-                                isAr ? "النوعيات" : "Qualities",
-                                totalQualities.toString(),
+                                isAr ? "المنتجات" : "Products",
+                                totalProducts.toString(),
                                 Icons.category_rounded,
                                 theme.colorScheme.primary,
                               ),
@@ -500,8 +491,8 @@ class _InventoryPageState extends State<InventoryPage> {
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: isAr
-                            ? "بحث بالتصنيف، النوعية، أو الكود..."
-                            : "Search category, quality, or SKU...",
+                            ? "بحث بالتصنيف، المنتج، أو الكود..."
+                            : "Search category, product, or SKU...",
                         prefixIcon: const Icon(Icons.search_rounded),
                         suffixIcon: _searchController.text.isEmpty
                             ? null
@@ -557,38 +548,26 @@ class _InventoryPageState extends State<InventoryPage> {
       return p.name.toLowerCase().contains(q) ||
           p.sku.toLowerCase().contains(q) ||
           p.category.toLowerCase().contains(q) ||
-          p.subcategory.toLowerCase().contains(q) ||
           p.variants.any((v) => v.name.toLowerCase().contains(q));
     }).toList();
   }
 
-  Map<String, Map<String, List<Product>>> _groupProducts(
-    List<Product> products,
-  ) {
-    final grouped = <String, Map<String, List<Product>>>{};
+  Map<String, List<Product>> _groupProducts(List<Product> products) {
+    final grouped = <String, List<Product>>{};
     for (final product in products) {
       final category = product.category.trim().isEmpty
           ? "General"
           : product.category.trim();
-      final subcategory = product.subcategory.trim().isEmpty
-          ? "General"
-          : product.subcategory.trim();
-      grouped.putIfAbsent(category, () => <String, List<Product>>{});
-      grouped[category]!.putIfAbsent(subcategory, () => <Product>[]);
-      grouped[category]![subcategory]!.add(product);
+      grouped.putIfAbsent(category, () => <Product>[]);
+      grouped[category]!.add(product);
     }
     return grouped;
   }
 
-  Widget _categoryBlock(
-    String category,
-    Map<String, List<Product>> subcategories,
-  ) {
+  Widget _categoryBlock(String category, List<Product> products) {
     final theme = Theme.of(context);
-    final count = subcategories.values.fold<int>(
-      0,
-      (sum, rows) => sum + rows.length,
-    );
+    final c = AppScope.of(context);
+    final count = products.length;
     final isClosed = _closedCategories.contains(category);
 
     return Padding(
@@ -639,9 +618,10 @@ class _InventoryPageState extends State<InventoryPage> {
             ),
             if (!isClosed) ...[
               const SizedBox(height: 12),
-              ...subcategories.entries.map(
-                (entry) => _subcategoryBlock(category, entry.key, entry.value),
-              ),
+              for (var i = 0; i < products.length; i++) ...[
+                _productRow(products[i], c),
+                if (i != products.length - 1) const SizedBox(height: 8),
+              ],
             ],
           ],
         ),
@@ -649,71 +629,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _subcategoryBlock(
-    String category,
-    String subcategory,
-    List<Product> products,
-  ) {
-    final theme = Theme.of(context);
-    final c = AppScope.of(context);
-    final key = "$category/$subcategory";
-    final isClosed = _closedSubcategories.contains(key);
-
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.42),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () => setState(() {
-              if (isClosed) {
-                _closedSubcategories.remove(key);
-              } else {
-                _closedSubcategories.add(key);
-              }
-            }),
-            child: Row(
-              children: [
-                Icon(
-                  isClosed
-                      ? Icons.chevron_right_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  color: theme.colorScheme.primary,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    subcategory,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                Text(
-                  "${products.length}",
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!isClosed) ...[
-            const SizedBox(height: 8),
-            ...products.map((p) => _qualityRow(p, c)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _qualityRow(Product p, AppController c) {
+  Widget _productRow(Product p, AppController c) {
     final theme = Theme.of(context);
     final qty = p.hasVariants
         ? p.variants.fold<double>(0, (sum, v) => sum + v.quantity)
@@ -724,8 +640,17 @@ class _InventoryPageState extends State<InventoryPage> {
     final low = p.isLowStock || p.variants.any((v) => v.isLowStock);
 
     return Material(
-      color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(12),
+      color: low
+          ? Colors.orange.withOpacity(0.06)
+          : theme.colorScheme.surfaceVariant.withOpacity(0.28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: low
+              ? Colors.orange.withOpacity(0.28)
+              : theme.colorScheme.outlineVariant,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => _openProduct(p),
@@ -754,6 +679,8 @@ class _InventoryPageState extends State<InventoryPage> {
                   children: [
                     Text(
                       p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     Text(
@@ -763,6 +690,8 @@ class _InventoryPageState extends State<InventoryPage> {
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -874,8 +803,8 @@ class _InventoryPageState extends State<InventoryPage> {
             const SizedBox(height: 6),
             Text(
               isAr
-                  ? "ابدأ بإضافة بطاطا > بطاطا حلوة > فئة أولى"
-                  : "Start with Potato > Sweet potato > Grade one",
+                  ? "ابدأ بإضافة بطاطا > بطاطا حلوة - فئة أولى"
+                  : "Start with Potato > Sweet potato - Grade one",
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -922,7 +851,6 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
 
   String? _supplierId;
   String _category = "";
-  String _subcategory = "";
   String _currency = "LBP";
   String _debtPaymentCurrency = "LBP";
   bool _registerDebt = false;
@@ -947,7 +875,6 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
     final categories = _categoryOptions();
-    final subcategories = _subcategoryOptions();
     final choices = _filteredChoices();
 
     return AlertDialog(
@@ -1019,28 +946,6 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                   ],
                   onChanged: (value) => setState(() {
                     _category = value ?? "";
-                    _subcategory = "";
-                    _clearChoice();
-                  }),
-                ),
-                DropdownButtonFormField<String>(
-                  value: _subcategory,
-                  decoration: InputDecoration(
-                    labelText: isAr ? "الصنف الفرعي" : "Subcategory",
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: "",
-                      child: Text(
-                        isAr ? "اختر الصنف الفرعي" : "Choose subcategory",
-                      ),
-                    ),
-                    ...subcategories.map(
-                      (x) => DropdownMenuItem(value: x, child: Text(x)),
-                    ),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _subcategory = value ?? "";
                     _clearChoice();
                   }),
                 ),
@@ -1051,7 +956,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                 focusNode: _focus,
                 displayStringForOption: (choice) => choice.label,
                 optionsBuilder: (value) {
-                  if (_category.isEmpty || _subcategory.isEmpty)
+                  if (_category.isEmpty)
                     return const Iterable<_SupplyChoice>.empty();
                   final q = value.text.trim().toLowerCase();
                   return choices
@@ -1067,9 +972,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                         controller: controller,
                         focusNode: focusNode,
                         decoration: InputDecoration(
-                          labelText: isAr
-                              ? "ابحث عن المنتج أو النوعية"
-                              : "Search item or quality",
+                          labelText: isAr ? "ابحث عن المنتج" : "Search product",
                           prefixIcon: const Icon(Icons.manage_search_rounded),
                         ),
                         onChanged: (value) {
@@ -1105,9 +1008,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: Text(
-                                "${choice.category} > ${choice.subcategory}",
-                              ),
+                              subtitle: Text(choice.category),
                               trailing: Text(
                                 "${number(choice.currentQuantity)} ${choice.unit}",
                                 style: const TextStyle(
@@ -1123,9 +1024,7 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
                   );
                 },
               ),
-              if (_category.isNotEmpty &&
-                  _subcategory.isNotEmpty &&
-                  _activeChoice == null) ...[
+              if (_category.isNotEmpty && _activeChoice == null) ...[
                 const SizedBox(height: 8),
                 _quickSupplyChoices(choices, isAr),
               ],
@@ -1490,7 +1389,6 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
               productId: product.id,
               variantId: variant.id,
               category: product.category,
-              subcategory: product.subcategory,
               label: "${product.name} - ${variant.name}",
               currentQuantity: variant.quantity,
               purchasePrice: variant.purchasePrice,
@@ -1506,7 +1404,6 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
             productId: product.id,
             variantId: null,
             category: product.category,
-            subcategory: product.subcategory,
             label: product.name,
             currentQuantity: product.quantity,
             purchasePrice: product.purchasePrice,
@@ -1521,29 +1418,12 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
   }
 
   List<_SupplyChoice> _filteredChoices() {
-    return _choices()
-        .where(
-          (choice) =>
-              choice.category == _category &&
-              choice.subcategory == _subcategory,
-        )
-        .toList();
+    return _choices().where((choice) => choice.category == _category).toList();
   }
 
   List<String> _categoryOptions() {
     final rows = _choices()
         .map((choice) => choice.category)
-        .where((x) => x.trim().isNotEmpty)
-        .toSet()
-        .toList();
-    rows.sort();
-    return rows;
-  }
-
-  List<String> _subcategoryOptions() {
-    final rows = _choices()
-        .where((choice) => _category.isNotEmpty && choice.category == _category)
-        .map((choice) => choice.subcategory)
         .where((x) => x.trim().isNotEmpty)
         .toSet()
         .toList();
@@ -1588,7 +1468,6 @@ class _SupplyChoice {
   final String productId;
   final String? variantId;
   final String category;
-  final String subcategory;
   final String label;
   final double currentQuantity;
   final double purchasePrice;
@@ -1600,7 +1479,6 @@ class _SupplyChoice {
     required this.productId,
     required this.variantId,
     required this.category,
-    required this.subcategory,
     required this.label,
     required this.currentQuantity,
     required this.purchasePrice,
@@ -1608,7 +1486,7 @@ class _SupplyChoice {
     required this.unit,
   });
 
-  String get searchText => "$label $category $subcategory".toLowerCase();
+  String get searchText => "$label $category".toLowerCase();
 }
 
 class _SupplyDraftItem {

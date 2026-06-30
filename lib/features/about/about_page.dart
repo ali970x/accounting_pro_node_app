@@ -5,7 +5,6 @@ import "package:url_launcher/url_launcher.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/app_version.dart";
-import "../../core/phone_text.dart";
 import "../../core/text_download.dart";
 import "../../core/update_installer.dart";
 import "../../widgets/modern_card.dart";
@@ -20,7 +19,6 @@ class AboutPage extends StatefulWidget {
 }
 
 class _AboutPageState extends State<AboutPage> {
-  static const contactPhone = "+96176652276";
   bool _loading = true;
   String? _error;
   Map<String, dynamic> _data = {};
@@ -54,7 +52,6 @@ class _AboutPageState extends State<AboutPage> {
     final theme = Theme.of(context);
     final name = (_data["name"] ?? c.t("app")).toString();
     final version = (_data["version"] ?? AppVersion.display).toString();
-    final phone = (_data["contactPhone"] ?? contactPhone).toString();
     final notes = _releaseNotes;
 
     return RefreshIndicator(
@@ -150,21 +147,6 @@ class _AboutPageState extends State<AboutPage> {
                     Icons.verified_rounded,
                     const Color(0xFF5B5FEF),
                   ),
-                  const Divider(height: 28),
-                  GestureDetector(
-                    onLongPress: () => _openWhatsapp(phone),
-                    child: _infoRow(
-                      _label(
-                        isAr,
-                        "Contact number",
-                        "\u0631\u0642\u0645 \u0644\u0644\u062a\u0648\u0627\u0635\u0644",
-                      ),
-                      phone,
-                      Icons.phone_rounded,
-                      const Color(0xFF00A6A6),
-                      isPhone: true,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -182,7 +164,6 @@ class _AboutPageState extends State<AboutPage> {
 
   Widget _developerCard() {
     final theme = Theme.of(context);
-    const developerPhone = "+96176652276";
     const developerMail = "alimjdandash@gmail.com";
     return ModernCard(
       padding: const EdgeInsets.all(18),
@@ -250,17 +231,6 @@ class _AboutPageState extends State<AboutPage> {
             ),
           ),
           const SizedBox(height: 16),
-          GestureDetector(
-            onLongPress: () => _openWhatsapp(developerPhone),
-            child: _infoRow(
-              "WhatsApp",
-              developerPhone,
-              Icons.chat_rounded,
-              const Color(0xFF00A884),
-              isPhone: true,
-            ),
-          ),
-          const Divider(height: 24),
           GestureDetector(
             onLongPress: () => _copyText(developerMail),
             child: _infoRow(
@@ -331,13 +301,7 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
-  Widget _infoRow(
-    String title,
-    String value,
-    IconData icon,
-    Color iconColor, {
-    bool isPhone = false,
-  }) {
+  Widget _infoRow(String title, String value, IconData icon, Color iconColor) {
     final theme = Theme.of(context);
     return Row(
       children: [
@@ -356,23 +320,14 @@ class _AboutPageState extends State<AboutPage> {
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
           ),
         ),
-        isPhone
-            ? PhoneText(
-                value,
-                textAlign: TextAlign.end,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: iconColor,
-                ),
-              )
-            : Text(
-                value,
-                textAlign: TextAlign.end,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: iconColor,
-                ),
-              ),
+        Text(
+          value,
+          textAlign: TextAlign.end,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: iconColor,
+          ),
+        ),
       ],
     );
   }
@@ -505,7 +460,6 @@ class _AboutPageState extends State<AboutPage> {
       ..writeln("==================================")
       ..writeln("Current version: $version")
       ..writeln("Generated: ${DateTime.now().toString().substring(0, 16)}")
-      ..writeln("Contact number: +96176652276")
       ..writeln("")
       ..writeln("Latest update highlights")
       ..writeln("------------------------");
@@ -962,18 +916,6 @@ class _AboutPageState extends State<AboutPage> {
       return (data["androidApkUrl"] ?? data["updateUrl"] ?? "").toString();
     }
     return (data["updateUrl"] ?? "").toString();
-  }
-
-  Future<void> _openWhatsapp(String phone) async {
-    final digits = phone.replaceAll(RegExp(r"[^0-9]"), "");
-    final full = digits.startsWith("961") ? digits : "961$digits";
-    final uri = Uri.parse("https://wa.me/$full");
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Could not open WhatsApp.")));
-    }
   }
 
   Future<void> _copyText(String value) async {

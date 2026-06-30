@@ -552,13 +552,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           theme,
                         ),
                         _detailRow(
-                          c.isArabic
-                              ? "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0631\u0639\u064a"
-                              : "Subcategory",
-                          _product!.subcategory,
-                          theme,
-                        ),
-                        _detailRow(
                           c.t("sku"),
                           _product!.sku.isEmpty ? "-" : _product!.sku,
                           theme,

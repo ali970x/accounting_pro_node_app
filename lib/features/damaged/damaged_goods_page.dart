@@ -29,7 +29,6 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   final _reason = TextEditingController();
 
   String _categoryFilter = "";
-  String _subcategoryFilter = "";
   String _currency = "LBP";
   _DamageChoice? _activeChoice;
 
@@ -433,7 +432,6 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   Widget _damageForm(bool isAr) {
     final choices = _filteredChoices();
     final categories = _categoryOptions();
-    final subcategories = _subcategoryOptions();
     final active = _activeChoice;
 
     return ModernCard(
@@ -464,30 +462,6 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
               ],
               onChanged: (value) => setState(() {
                 _categoryFilter = value ?? "";
-                _subcategoryFilter = "";
-                _productSearch.clear();
-                _clearActiveIfHidden();
-              }),
-            ),
-            DropdownButtonFormField<String>(
-              value: _subcategoryFilter,
-              decoration: InputDecoration(
-                labelText: isAr ? "الصنف الفرعي" : "Subcategory",
-                prefixIcon: const Icon(Icons.folder_copy_rounded),
-              ),
-              items: [
-                DropdownMenuItem(
-                  value: "",
-                  child: Text(
-                    isAr ? "اختر الصنف الفرعي" : "Choose subcategory",
-                  ),
-                ),
-                ...subcategories.map(
-                  (x) => DropdownMenuItem(value: x, child: Text(x)),
-                ),
-              ],
-              onChanged: (value) => setState(() {
-                _subcategoryFilter = value ?? "";
                 _productSearch.clear();
                 _clearActiveIfHidden();
               }),
@@ -499,7 +473,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
             focusNode: _productFocus,
             displayStringForOption: (choice) => choice.label,
             optionsBuilder: (value) {
-              if (_categoryFilter.isEmpty || _subcategoryFilter.isEmpty)
+              if (_categoryFilter.isEmpty)
                 return const Iterable<_DamageChoice>.empty();
               final q = value.text.trim().toLowerCase();
               final filtered = choices
@@ -517,9 +491,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                     controller: controller,
                     focusNode: focusNode,
                     decoration: InputDecoration(
-                      labelText: isAr
-                          ? "ابحث عن المنتج أو النوعية"
-                          : "Search item or quality",
+                      labelText: isAr ? "ابحث عن المنتج" : "Search product",
                       prefixIcon: const Icon(Icons.manage_search_rounded),
                       suffixIcon: controller.text.isEmpty
                           ? null
@@ -565,9 +537,7 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: Text(
-                            "${choice.category} > ${choice.subcategory}",
-                          ),
+                          subtitle: Text(choice.category),
                           trailing: Text(
                             "${number(choice.quantity)} ${choice.unit}",
                             style: const TextStyle(fontWeight: FontWeight.w900),
@@ -847,7 +817,6 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
               productId: product.id,
               variantId: variant.id,
               category: product.category,
-              subcategory: product.subcategory,
               label: "${product.name} - ${variant.name}",
               quantity: variant.quantity,
               weight: variant.weight,
@@ -865,7 +834,6 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
             productId: product.id,
             variantId: null,
             category: product.category,
-            subcategory: product.subcategory,
             label: product.name,
             quantity: product.quantity,
             weight: product.weight,
@@ -881,10 +849,9 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   }
 
   List<_DamageChoice> _filteredChoices() {
-    if (_categoryFilter.isEmpty || _subcategoryFilter.isEmpty) return [];
+    if (_categoryFilter.isEmpty) return [];
     return _choices().where((choice) {
       if (choice.category != _categoryFilter) return false;
-      if (choice.subcategory != _subcategoryFilter) return false;
       return true;
     }).toList();
   }
@@ -892,20 +859,6 @@ class _DamagedGoodsPageState extends State<DamagedGoodsPage> {
   List<String> _categoryOptions() {
     final rows = _choices()
         .map((choice) => choice.category)
-        .where((x) => x.trim().isNotEmpty)
-        .toSet()
-        .toList();
-    rows.sort();
-    return rows;
-  }
-
-  List<String> _subcategoryOptions() {
-    final rows = _choices()
-        .where(
-          (choice) =>
-              _categoryFilter.isNotEmpty && choice.category == _categoryFilter,
-        )
-        .map((choice) => choice.subcategory)
         .where((x) => x.trim().isNotEmpty)
         .toSet()
         .toList();
@@ -973,7 +926,6 @@ class _DamageChoice {
   final String productId;
   final String? variantId;
   final String category;
-  final String subcategory;
   final String label;
   final double quantity;
   final double weight;
@@ -986,7 +938,6 @@ class _DamageChoice {
     required this.productId,
     required this.variantId,
     required this.category,
-    required this.subcategory,
     required this.label,
     required this.quantity,
     required this.weight,
@@ -995,7 +946,7 @@ class _DamageChoice {
     required this.purchaseCurrency,
   });
 
-  String get searchText => "$label $category $subcategory".toLowerCase();
+  String get searchText => "$label $category".toLowerCase();
 }
 
 class _DamageDraftItem {

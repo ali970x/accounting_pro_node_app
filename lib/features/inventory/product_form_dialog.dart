@@ -24,7 +24,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   static const _newValue = "__new__";
 
   final category = TextEditingController(text: "General");
-  final subcategory = TextEditingController(text: "General");
   final name = TextEditingController();
   final sku = TextEditingController();
   final purchase = TextEditingController(text: "0");
@@ -34,7 +33,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   final customUnit = TextEditingController();
 
   String? selectedCategory;
-  String? selectedSubcategory;
   String currency = "LBP";
   String unit = "Piece";
   bool hasVariants = false;
@@ -50,20 +48,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     return rows;
   }
 
-  List<String> get subcategories {
-    final cat = selectedCategory == _newValue
-        ? category.text.trim()
-        : selectedCategory;
-    final rows = widget.existingProducts
-        .where((p) => cat == null || cat.isEmpty || p.category == cat)
-        .map((p) => p.subcategory.trim())
-        .where((x) => x.isNotEmpty)
-        .toSet()
-        .toList();
-    rows.sort();
-    return rows;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -71,13 +55,9 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     category.text = selectedCategory == _newValue
         ? "\u0628\u0637\u0627\u0637\u0627"
         : selectedCategory!;
-    final subs = subcategories;
-    selectedSubcategory = subs.isEmpty ? _newValue : subs.first;
-    subcategory.text = selectedSubcategory == _newValue
-        ? "\u0628\u0637\u0627\u0637\u0627 \u062d\u0644\u0648\u0629"
-        : selectedSubcategory!;
     if (widget.existingProducts.isEmpty && !widget.variantOnly) {
-      name.text = "\u0641\u0626\u0629 \u0623\u0648\u0644\u0649";
+      name.text =
+          "\u0628\u0637\u0627\u0637\u0627 \u062d\u0644\u0648\u0629 - \u0641\u0626\u0629 \u0623\u0648\u0644\u0649";
     }
     final product = widget.product;
     if (product != null) {
@@ -91,12 +71,8 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       unit = product.unit;
       hasVariants = product.hasVariants;
       category.text = product.category;
-      subcategory.text = product.subcategory;
       selectedCategory = categories.contains(product.category)
           ? product.category
-          : _newValue;
-      selectedSubcategory = subcategories.contains(product.subcategory)
-          ? product.subcategory
           : _newValue;
       isOtherUnit = !["Piece", "Bag", "Kilogram", "Box"].contains(unit);
       if (isOtherUnit) customUnit.text = unit;
@@ -119,7 +95,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   @override
   void dispose() {
     category.dispose();
-    subcategory.dispose();
     name.dispose();
     sku.dispose();
     purchase.dispose();
@@ -178,17 +153,8 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                       selectedCategory = v ?? _newValue;
                       if (selectedCategory == _newValue) {
                         category.clear();
-                        selectedSubcategory = _newValue;
-                        subcategory.clear();
                       } else {
                         category.text = selectedCategory!;
-                        final subs = subcategories;
-                        selectedSubcategory = subs.isEmpty
-                            ? _newValue
-                            : subs.first;
-                        subcategory.text = selectedSubcategory == _newValue
-                            ? ""
-                            : selectedSubcategory!;
                       }
                     });
                   },
@@ -206,51 +172,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   ),
                 ],
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: selectedSubcategory,
-                  decoration: InputDecoration(
-                    labelText: isAr
-                        ? "\u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0631\u0639\u064a"
-                        : "Subcategory",
-                    prefixIcon: const Icon(Icons.folder_copy_rounded),
-                  ),
-                  items: [
-                    ...subcategories.map(
-                      (x) => DropdownMenuItem(value: x, child: Text(x)),
-                    ),
-                    DropdownMenuItem(
-                      value: _newValue,
-                      child: Text(
-                        isAr
-                            ? "\u062a\u0635\u0646\u064a\u0641 \u0641\u0631\u0639\u064a \u062c\u062f\u064a\u062f"
-                            : "New subcategory",
-                      ),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    setState(() {
-                      selectedSubcategory = v ?? _newValue;
-                      if (selectedSubcategory == _newValue) {
-                        subcategory.clear();
-                      } else {
-                        subcategory.text = selectedSubcategory!;
-                      }
-                    });
-                  },
-                ),
-                if (selectedSubcategory == _newValue) ...[
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: subcategory,
-                    decoration: InputDecoration(
-                      labelText: isAr
-                          ? "\u0627\u0633\u0645 \u0627\u0644\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0631\u0639\u064a"
-                          : "Subcategory name",
-                      prefixIcon: const Icon(Icons.edit_note_rounded),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 10),
               ],
               TextField(
                 controller: name,
@@ -258,8 +179,8 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   labelText: widget.variantOnly
                       ? c.t("productName")
                       : (isAr
-                            ? "\u0646\u0648\u0639\u064a\u0629 \u0627\u0644\u0635\u0646\u0641"
-                            : "Item Quality"),
+                            ? "\u0627\u0633\u0645 \u0627\u0644\u0645\u0646\u062a\u062c"
+                            : "Product name"),
                   prefixIcon: const Icon(Icons.shopping_basket),
                 ),
               ),
@@ -383,9 +304,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               "category": category.text.trim().isEmpty
                   ? "General"
                   : category.text.trim(),
-              "subcategory": subcategory.text.trim().isEmpty
-                  ? "General"
-                  : subcategory.text.trim(),
+              "subcategory": "General",
               "name": name.text.trim(),
               "sku": sku.text.trim(),
               "imageUrl": "",

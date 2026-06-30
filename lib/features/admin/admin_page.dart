@@ -37,11 +37,15 @@ class _AdminPageState extends State<AdminPage> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
+  Future<void> _load({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    } else {
       _error = null;
-    });
+    }
 
     try {
       final data = Map<String, dynamic>.from(
@@ -63,7 +67,7 @@ class _AdminPageState extends State<AdminPage> {
       _error = e.toString();
     }
 
-    if (mounted) setState(() => _loading = false);
+    if (mounted && showLoading) setState(() => _loading = false);
   }
 
   Future<void> _logout() async {
@@ -175,7 +179,11 @@ class _AdminPageState extends State<AdminPage> {
       } else {
         await widget.api.post("/admin/users", result);
       }
-      await _load();
+      await _load(showLoading: false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(editing ? "User updated." : "User created.")),
+      );
     });
   }
 
@@ -269,6 +277,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _runAction(Future<void> Function() action) async {
+    if (!mounted) return;
     setState(() => _working = true);
     try {
       await action();
@@ -277,8 +286,9 @@ class _AdminPageState extends State<AdminPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _working = false);
     }
-    if (mounted) setState(() => _working = false);
   }
 
   @override
@@ -781,7 +791,7 @@ class _AdminPageState extends State<AdminPage> {
         _latestList(
           "Products",
           _list(latest["products"]),
-          (item) => "${item["category"] ?? ""} / ${item["subcategory"] ?? ""}",
+          (item) => "${item["category"] ?? ""}",
           (item) => "${item["name"] ?? ""}",
         ),
         _latestList(

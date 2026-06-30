@@ -73,7 +73,7 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(26, 22, 26, 22),
+        margin: const pw.EdgeInsets.fromLTRB(16, 14, 16, 14),
         build: (_) => [
           pw.Directionality(
             textDirection: isArabic
@@ -83,31 +83,31 @@ class PdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
                 _compactHeader(template, primary, logo, isArabic),
-                pw.SizedBox(height: 10),
+                pw.SizedBox(height: 6),
                 _invoiceMeta(sale, isArabic),
                 pw.Divider(color: PdfColors.grey500, thickness: 0.7),
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 4),
                 _text(
                   "${isArabic ? "\u0627\u0644\u0645\u0637\u0644\u0648\u0628 \u0645\u0646" : "Bill To"}: ${sale.customerName}",
                   isArabic,
-                  size: 13,
+                  size: 10.5,
                   bold: true,
                 ),
-                pw.SizedBox(height: 10),
+                pw.SizedBox(height: 5),
                 _itemsTable(sale, isArabic),
-                pw.SizedBox(height: 28),
+                pw.SizedBox(height: 8),
                 pw.Divider(color: PdfColors.grey400, thickness: 0.5),
                 _invoiceTotalsBlock(sale, isArabic),
                 if (template.footerNote.isNotEmpty) ...[
-                  pw.SizedBox(height: 10),
-                  _text(template.footerNote, isArabic, size: 10),
+                  pw.SizedBox(height: 5),
+                  _text(template.footerNote, isArabic, size: 8),
                 ],
                 if (template.terms.isNotEmpty) ...[
-                  pw.SizedBox(height: 6),
-                  _text(template.terms, isArabic, size: 9),
+                  pw.SizedBox(height: 3),
+                  _text(template.terms, isArabic, size: 7.5),
                 ],
                 if (template.showSignature) ...[
-                  pw.SizedBox(height: 24),
+                  pw.SizedBox(height: 10),
                   pw.Align(
                     alignment: isArabic
                         ? pw.Alignment.centerLeft
@@ -143,8 +143,8 @@ class PdfService {
           children: [
             if (template.showLogo)
               pw.Container(
-                width: 54,
-                height: 54,
+                width: 44,
+                height: 44,
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.grey400),
                 ),
@@ -152,7 +152,7 @@ class PdfService {
                     ? _cargoLogo(primary)
                     : pw.Image(logo, fit: pw.BoxFit.cover),
               ),
-            if (template.showLogo) pw.SizedBox(width: 12),
+            if (template.showLogo) pw.SizedBox(width: 8),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
@@ -160,7 +160,7 @@ class PdfService {
                   _text(
                     template.businessName,
                     isArabic,
-                    size: 18,
+                    size: 15,
                     bold: true,
                     align: pw.TextAlign.center,
                   ),
@@ -168,14 +168,14 @@ class PdfService {
                     _text(
                       template.businessAddress,
                       isArabic,
-                      size: 10,
+                      size: 8,
                       align: pw.TextAlign.center,
                     ),
                   if (template.businessPhone.isNotEmpty)
                     _text(
                       template.businessPhone,
                       isArabic,
-                      size: 10,
+                      size: 8,
                       align: pw.TextAlign.center,
                     ),
                 ],
@@ -195,18 +195,18 @@ class PdfService {
         _text(
           "${isArabic ? "\u0635\u0641\u062d\u0629" : "Page"} 1",
           isArabic,
-          size: 10,
+          size: 8,
         ),
         _text(
           "${isArabic ? "\u0641.\u0645\u0628\u064a\u0639 \u0631\u0642\u0645" : "Sales invoice"} ${sale.invoiceNo}",
           isArabic,
-          size: 11,
+          size: 9,
           bold: true,
         ),
         _text(
           "${isArabic ? "\u0627\u0644\u062a\u0627\u0631\u064a\u062e" : "Date"}: ${_dateText(now).substring(0, 10)}",
           isArabic,
-          size: 10,
+          size: 8,
         ),
       ],
     );
@@ -239,24 +239,27 @@ class PdfService {
                   _text(
                     "${isArabic ? "\u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u062f\u0641\u0639" : "Payment method"}: ${_paymentMethodLabel(sale.paymentMethod, isArabic)}",
                     isArabic,
+                    size: 8.5,
                     bold: true,
                   ),
                   _text(
                     "${isArabic ? "\u062d\u0627\u0644\u0629 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Invoice status"}: ${sale.paymentStatus == "debt" ? (isArabic ? "\u062f\u064a\u0646" : "Debt") : (isArabic ? "\u0645\u062f\u0641\u0648\u0639" : "Paid")}",
                     isArabic,
+                    size: 8,
                   ),
                   if (sale.debtPaymentAmount > 0)
                     _text(
                       "${isArabic ? "\u062f\u0641\u0639 \u0645\u0646 \u0627\u0644\u062f\u064a\u0648\u0646" : "Debt payment"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
                       isArabic,
+                      size: 8.5,
                       bold: true,
                     ),
                 ],
               ),
             ),
-            pw.SizedBox(width: 18),
+            pw.SizedBox(width: 10),
             pw.Container(
-              width: 230,
+              width: 205,
               child: pw.Column(
                 crossAxisAlignment: isArabic
                     ? pw.CrossAxisAlignment.start
@@ -265,32 +268,32 @@ class PdfService {
                   _text(
                     "${isArabic ? "\u0627\u0644\u0645\u062c\u0645\u0648\u0639" : "Invoice total"}: ${money(sale.total, sale.currency)}",
                     isArabic,
-                    size: 15,
+                    size: 11,
                     bold: true,
                   ),
                   if (hasDebtInfo) ...[
-                    pw.SizedBox(height: 5),
+                    pw.SizedBox(height: 3),
                     _text(
                       "${isArabic ? "\u0631\u0635\u064a\u062f \u0633\u0627\u0628\u0642" : "Previous balance"}: ${_moneyPair(sale.debtBalanceBeforeLbp, sale.debtBalanceBeforeUsd)}",
                       isArabic,
-                      size: 10,
+                      size: 7.8,
                     ),
                     if (sale.debtPaymentAmount > 0)
                       _text(
                         "${isArabic ? "\u0628\u0627\u0642\u064a \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0633\u0627\u0628\u0642" : "Previous debt remaining"}: ${_moneyPair(sale.debtPreviousAfterPaymentLbp, sale.debtPreviousAfterPaymentUsd)}",
                         isArabic,
-                        size: 10,
+                        size: 7.8,
                       ),
                     _text(
                       "${isArabic ? "\u0631\u0635\u064a\u062f \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "This invoice balance"}: $invoiceDebt",
                       isArabic,
-                      size: 10,
+                      size: 8,
                       bold: true,
                     ),
                     _text(
                       "${isArabic ? "\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u062f\u064a\u0646 \u0628\u0639\u062f \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "Total debt after invoice"}: ${_moneyPair(sale.debtBalanceAfterLbp, sale.debtBalanceAfterUsd)}",
                       isArabic,
-                      size: 10,
+                      size: 7.8,
                     ),
                   ],
                 ],
@@ -298,20 +301,20 @@ class PdfService {
             ),
           ],
         ),
-        pw.SizedBox(height: 14),
+        pw.SizedBox(height: 6),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             _text(
               "${isArabic ? "\u0627\u0644\u0648\u0642\u062a" : "Time"}: ${_dateText(DateTime.now()).substring(11)}",
               isArabic,
-              size: 10,
+              size: 8,
             ),
             if (hasDebtInfo)
               _text(
                 "${isArabic ? "\u0631\u0635\u064a\u062f \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629" : "This invoice balance"}: $invoiceDebt",
                 isArabic,
-                size: 13,
+                size: 9,
                 bold: true,
               ),
           ],
@@ -691,20 +694,42 @@ class PdfService {
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-          children: headers.map((h) => _cell(h, isArabic, true)).toList(),
+          children: headers
+              .map((h) => _cell(h, isArabic, true, size: 7.2, padding: 3))
+              .toList(),
         ),
         ...sale.items.map(
           (i) => pw.TableRow(
             children: [
-              _cell(i.productName, isArabic, false),
-              _cell(numberDecimal(i.quantity), isArabic, false),
+              _cell(i.productName, isArabic, false, size: 6.8, padding: 2.5),
+              _cell(
+                numberDecimal(i.quantity),
+                isArabic,
+                false,
+                size: 6.8,
+                padding: 2.5,
+              ),
               _cell(
                 i.weight > 0 ? numberDecimal(i.weight) : "-",
                 isArabic,
                 false,
+                size: 6.8,
+                padding: 2.5,
               ),
-              _cell(money(i.unitPrice, i.currency), isArabic, false),
-              _cell(money(i.total, i.currency), isArabic, false),
+              _cell(
+                money(i.unitPrice, i.currency),
+                isArabic,
+                false,
+                size: 6.8,
+                padding: 2.5,
+              ),
+              _cell(
+                money(i.total, i.currency),
+                isArabic,
+                false,
+                size: 6.8,
+                padding: 2.5,
+              ),
             ],
           ),
         ),
@@ -840,12 +865,19 @@ class PdfService {
     return _text("$label: $value", isArabic);
   }
 
-  static pw.Widget _cell(String text, bool isArabic, bool bold) {
+  static pw.Widget _cell(
+    String text,
+    bool isArabic,
+    bool bold, {
+    double? size,
+    double padding = 8,
+  }) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.all(8),
+      padding: pw.EdgeInsets.all(padding),
       child: _text(
         text,
         isArabic,
+        size: size,
         bold: bold,
         align: isArabic ? pw.TextAlign.right : pw.TextAlign.left,
       ),
