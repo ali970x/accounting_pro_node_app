@@ -1,5 +1,3 @@
-import "dart:typed_data";
-
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:pdf/pdf.dart";
@@ -189,6 +187,310 @@ class _DebtsPageState extends State<DebtsPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(e.toString())));
+  }
+
+  Future<void> _showDebtPeopleInvoice() async {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final options = await _pickDebtPeopleInvoiceOptions(isAr);
+    if (options == null) return;
+
+    final invoice = _DebtPeopleInvoiceData.fromDebts(_debts, options);
+    final message = invoice.toMessage(isAr);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(invoice.title(isAr)),
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(child: SelectableText(message)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              _label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642"),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: message));
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _label(
+                      isAr,
+                      "Copied.",
+                      "\u062a\u0645 \u0627\u0644\u0646\u0633\u062e.",
+                    ),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(_label(isAr, "Copy", "\u0646\u0633\u062e")),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _printDebtPeopleInvoice(invoice, isAr),
+            icon: const Icon(Icons.print_rounded),
+            label: Text(
+              _label(isAr, "Print", "\u0637\u0628\u0627\u0639\u0629"),
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: () => _shareDebtPeopleInvoice(invoice, isAr),
+            icon: const Icon(Icons.ios_share_rounded),
+            label: Text(
+              _label(
+                isAr,
+                "Share PDF",
+                "\u0645\u0634\u0627\u0631\u0643\u0629 PDF",
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_DebtPeopleInvoiceOptions?> _pickDebtPeopleInvoiceOptions(bool isAr) {
+    var type = _DebtPeopleInvoiceType.customers;
+    var sort = _DebtPeopleInvoiceSort.highestDebt;
+    return showDialog<_DebtPeopleInvoiceOptions>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(
+            _label(
+              isAr,
+              "Debt invoice options",
+              "\u062e\u064a\u0627\u0631\u0627\u062a \u0641\u0627\u062a\u0648\u0631\u0629 \u0627\u0644\u062f\u064a\u0648\u0646",
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<_DebtPeopleInvoiceType>(
+                segments: [
+                  ButtonSegment(
+                    value: _DebtPeopleInvoiceType.customers,
+                    icon: const Icon(Icons.people_alt_rounded),
+                    label: Text(
+                      _label(
+                        isAr,
+                        "Customers",
+                        "\u0627\u0644\u0632\u0628\u0627\u0626\u0646",
+                      ),
+                    ),
+                  ),
+                  ButtonSegment(
+                    value: _DebtPeopleInvoiceType.suppliers,
+                    icon: const Icon(Icons.store_rounded),
+                    label: Text(
+                      _label(
+                        isAr,
+                        "Suppliers",
+                        "\u0627\u0644\u0645\u0648\u0631\u062f\u064a\u0646",
+                      ),
+                    ),
+                  ),
+                ],
+                selected: {type},
+                onSelectionChanged: (value) =>
+                    setDialogState(() => type = value.first),
+              ),
+              const SizedBox(height: 14),
+              SegmentedButton<_DebtPeopleInvoiceSort>(
+                segments: [
+                  ButtonSegment(
+                    value: _DebtPeopleInvoiceSort.highestDebt,
+                    icon: const Icon(Icons.trending_up_rounded),
+                    label: Text(
+                      _label(
+                        isAr,
+                        "Highest debt",
+                        "\u0627\u0644\u0623\u0643\u062b\u0631 \u062f\u064a\u0646\u0627\u064b",
+                      ),
+                    ),
+                  ),
+                  ButtonSegment(
+                    value: _DebtPeopleInvoiceSort.date,
+                    icon: const Icon(Icons.calendar_month_rounded),
+                    label: Text(
+                      _label(
+                        isAr,
+                        "By date",
+                        "\u062d\u0633\u0628 \u0627\u0644\u062a\u0627\u0631\u064a\u062e",
+                      ),
+                    ),
+                  ),
+                ],
+                selected: {sort},
+                onSelectionChanged: (value) =>
+                    setDialogState(() => sort = value.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                _label(isAr, "Cancel", "\u0625\u0644\u063a\u0627\u0621"),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(
+                ctx,
+                _DebtPeopleInvoiceOptions(type: type, sort: sort),
+              ),
+              icon: const Icon(Icons.receipt_long_rounded),
+              label: Text(
+                _label(
+                  isAr,
+                  "Create invoice",
+                  "\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629",
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _printDebtPeopleInvoice(
+    _DebtPeopleInvoiceData invoice,
+    bool isAr,
+  ) async {
+    final bytes = await _debtPeopleInvoicePdfBytes(invoice, isAr);
+    await Printing.layoutPdf(onLayout: (_) async => bytes);
+  }
+
+  Future<void> _shareDebtPeopleInvoice(
+    _DebtPeopleInvoiceData invoice,
+    bool isAr,
+  ) async {
+    final bytes = await _debtPeopleInvoicePdfBytes(invoice, isAr);
+    await Printing.sharePdf(bytes: bytes, filename: invoice.fileName);
+  }
+
+  Future<Uint8List> _debtPeopleInvoicePdfBytes(
+    _DebtPeopleInvoiceData invoice,
+    bool isAr,
+  ) async {
+    final regular = await PdfGoogleFonts.notoNaskhArabicRegular();
+    final bold = await PdfGoogleFonts.notoNaskhArabicBold();
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: regular,
+        bold: bold,
+        fontFallback: [regular],
+      ),
+    );
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (_) => [
+          pw.Directionality(
+            textDirection: isAr ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                _pdfText(
+                  invoice.title(isAr),
+                  isAr,
+                  size: 18,
+                  bold: true,
+                  align: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 4),
+                _pdfText(
+                  "${_label(isAr, "Generated", "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629")}: ${_shortDateTime(invoice.generatedAt)}",
+                  isAr,
+                  size: 9,
+                  align: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 12),
+                _pdfTable(
+                  [
+                    _label(isAr, "Type", "\u0627\u0644\u0646\u0648\u0639"),
+                    _label(isAr, "Sort", "\u0627\u0644\u0641\u0631\u0632"),
+                    _label(
+                      isAr,
+                      "People",
+                      "\u0639\u062f\u062f \u0627\u0644\u0623\u0634\u062e\u0627\u0635",
+                    ),
+                    _label(
+                      isAr,
+                      "Total",
+                      "\u0627\u0644\u0645\u062c\u0645\u0648\u0639",
+                    ),
+                  ],
+                  [
+                    [
+                      invoice.typeLabel(isAr),
+                      invoice.sortLabel(isAr),
+                      number(invoice.parties.length),
+                      invoice.totalRemaining.format(),
+                    ],
+                  ],
+                  isAr,
+                ),
+                pw.SizedBox(height: 12),
+                _pdfTable(
+                  [
+                    "#",
+                    _label(isAr, "Name", "\u0627\u0644\u0627\u0633\u0645"),
+                    _label(
+                      isAr,
+                      "Remaining",
+                      "\u0627\u0644\u0645\u062a\u0628\u0642\u064a",
+                    ),
+                    _label(
+                      isAr,
+                      "Invoices",
+                      "\u0641\u0648\u0627\u062a\u064a\u0631",
+                    ),
+                    _label(
+                      isAr,
+                      "Last date",
+                      "\u0622\u062e\u0631 \u062a\u0627\u0631\u064a\u062e",
+                    ),
+                  ],
+                  [
+                    for (var i = 0; i < invoice.parties.length; i++)
+                      [
+                        number(i + 1),
+                        invoice.parties[i].name,
+                        invoice.parties[i].remaining.format(),
+                        number(invoice.parties[i].debtCount),
+                        invoice.parties[i].lastDateText,
+                      ],
+                  ],
+                  isAr,
+                ),
+                if (invoice.parties.isEmpty) ...[
+                  pw.SizedBox(height: 12),
+                  _pdfText(
+                    _label(
+                      isAr,
+                      "No open debts for this selection.",
+                      "\u0644\u0627 \u064a\u0648\u062c\u062f \u062f\u064a\u0648\u0646 \u0645\u0641\u062a\u0648\u062d\u0629 \u0644\u0647\u0630\u0627 \u0627\u0644\u062e\u064a\u0627\u0631.",
+                    ),
+                    isAr,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return pdf.save();
   }
 
   Future<void> _showDebtMasterReport() async {
@@ -559,19 +861,33 @@ class _DebtsPageState extends State<DebtsPage> {
             ],
           ),
           const SizedBox(height: 14),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: OutlinedButton.icon(
-              onPressed: _debts.isEmpty ? null : _showDebtMasterReport,
-              icon: const Icon(Icons.insights_rounded, size: 18),
-              label: Text(
-                _label(
-                  isAr,
-                  "Total debt report",
-                  "\u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0643\u0644\u064a",
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _debts.isEmpty ? null : _showDebtPeopleInvoice,
+                icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                label: Text(
+                  _label(
+                    isAr,
+                    "Debt invoice",
+                    "\u0641\u0627\u062a\u0648\u0631\u0629 \u0627\u0644\u0645\u062a\u062f\u064a\u0646\u064a\u0646",
+                  ),
                 ),
               ),
-            ),
+              OutlinedButton.icon(
+                onPressed: _debts.isEmpty ? null : _showDebtMasterReport,
+                icon: const Icon(Icons.insights_rounded, size: 18),
+                label: Text(
+                  _label(
+                    isAr,
+                    "Total debt report",
+                    "\u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0643\u0644\u064a",
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           DateFilterBar(
@@ -1383,6 +1699,179 @@ class _DebtSingleStat {
     required this.date,
     required this.remaining,
   });
+}
+
+enum _DebtPeopleInvoiceType { customers, suppliers }
+
+enum _DebtPeopleInvoiceSort { highestDebt, date }
+
+class _DebtPeopleInvoiceOptions {
+  final _DebtPeopleInvoiceType type;
+  final _DebtPeopleInvoiceSort sort;
+
+  const _DebtPeopleInvoiceOptions({required this.type, required this.sort});
+}
+
+class _DebtPeopleInvoiceData {
+  final _DebtPeopleInvoiceOptions options;
+  final List<_DebtPeopleInvoiceParty> parties;
+  final _MoneyTotals totalRemaining;
+  final DateTime generatedAt;
+
+  const _DebtPeopleInvoiceData({
+    required this.options,
+    required this.parties,
+    required this.totalRemaining,
+    required this.generatedAt,
+  });
+
+  factory _DebtPeopleInvoiceData.fromDebts(
+    List<Map<String, dynamic>> debts,
+    _DebtPeopleInvoiceOptions options,
+  ) {
+    final wantedType = options.type == _DebtPeopleInvoiceType.suppliers
+        ? "payable"
+        : "receivable";
+    final grouped = <String, _DebtPeopleInvoiceParty>{};
+    final total = _MoneyTotals();
+
+    for (final debt in debts) {
+      final type = (debt["type"] ?? "receivable").toString();
+      if (type != wantedType) continue;
+      final status = (debt["status"] ?? "open").toString();
+      final remaining = numFromDynamic(debt["remainingAmount"]);
+      if (status == "paid" || remaining <= 0) continue;
+
+      final currency = (debt["currency"] ?? "LBP").toString() == "USD"
+          ? "USD"
+          : "LBP";
+      final fallbackName = options.type == _DebtPeopleInvoiceType.suppliers
+          ? "Supplier"
+          : "Customer";
+      final rawName = (debt["personName"] ?? "").toString().trim();
+      final name = rawName.isEmpty ? fallbackName : rawName;
+      final key = "$type:${_contactIdForReport(debt)}:$name";
+      final party = grouped.putIfAbsent(
+        key,
+        () => _DebtPeopleInvoiceParty(name: name),
+      );
+
+      party.add(debt, remaining: remaining, currency: currency);
+      total.add(remaining, currency);
+    }
+
+    final parties = grouped.values.toList();
+    if (options.sort == _DebtPeopleInvoiceSort.date) {
+      parties.sort((a, b) {
+        final aTime = a.lastDate?.millisecondsSinceEpoch ?? 0;
+        final bTime = b.lastDate?.millisecondsSinceEpoch ?? 0;
+        return bTime.compareTo(aTime);
+      });
+    } else {
+      parties.sort((a, b) => b.remaining.score.compareTo(a.remaining.score));
+    }
+
+    return _DebtPeopleInvoiceData(
+      options: options,
+      parties: parties,
+      totalRemaining: total,
+      generatedAt: DateTime.now(),
+    );
+  }
+
+  String title(bool isAr) {
+    if (options.type == _DebtPeopleInvoiceType.suppliers) {
+      return _label(isAr, "Supplier debt invoice", "فاتورة ديون الموردين");
+    }
+    return _label(isAr, "Customer debt invoice", "فاتورة ديون الزبائن");
+  }
+
+  String typeLabel(bool isAr) {
+    if (options.type == _DebtPeopleInvoiceType.suppliers) {
+      return _label(isAr, "Suppliers", "الموردين");
+    }
+    return _label(isAr, "Customers", "الزبائن");
+  }
+
+  String sortLabel(bool isAr) {
+    if (options.sort == _DebtPeopleInvoiceSort.date) {
+      return _label(isAr, "By latest date", "حسب آخر تاريخ");
+    }
+    return _label(isAr, "By highest debt", "حسب الأكثر ديناً");
+  }
+
+  String get fileName => options.type == _DebtPeopleInvoiceType.suppliers
+      ? "daftr-supplier-debts.pdf"
+      : "daftr-customer-debts.pdf";
+
+  String toMessage(bool isAr) {
+    final lines = <String>[
+      title(isAr),
+      "${_label(isAr, "Generated", "تاريخ الفاتورة")}: ${_shortDateTime(generatedAt)}",
+      "${_label(isAr, "Type", "النوع")}: ${typeLabel(isAr)}",
+      "${_label(isAr, "Sort", "الفرز")}: ${sortLabel(isAr)}",
+      "${_label(isAr, "People", "عدد الأشخاص")}: ${number(parties.length)}",
+      "${_label(isAr, "Total remaining", "إجمالي المتبقي")}: ${totalRemaining.format()}",
+      "------------------------------",
+    ];
+
+    if (parties.isEmpty) {
+      lines.add(
+        _label(
+          isAr,
+          "No open debts for this selection.",
+          "لا يوجد ديون مفتوحة لهذا الخيار.",
+        ),
+      );
+      return lines.join("\n");
+    }
+
+    for (var i = 0; i < parties.length; i++) {
+      final party = parties[i];
+      lines.add(
+        "${number(i + 1)}. ${party.name} | ${party.remaining.format()} | ${number(party.debtCount)} ${_label(isAr, "invoices", "فواتير")} | ${_label(isAr, "Last", "آخر")}: ${party.lastDateText}",
+      );
+    }
+    return lines.join("\n");
+  }
+}
+
+class _DebtPeopleInvoiceParty {
+  final String name;
+  final _MoneyTotals remaining = _MoneyTotals();
+  int debtCount = 0;
+  DateTime? lastDate;
+
+  _DebtPeopleInvoiceParty({required this.name});
+
+  void add(
+    Map<String, dynamic> debt, {
+    required num remaining,
+    required String currency,
+  }) {
+    debtCount++;
+    this.remaining.add(remaining, currency);
+    _captureDate(_dateFromReport(debt["updatedAt"]));
+    _captureDate(_dateFromReport(debt["createdAt"]));
+
+    final payments = debt["payments"];
+    if (payments is List) {
+      for (final payment in payments.whereType<Map>()) {
+        _captureDate(_dateFromReport(payment["date"]));
+        _captureDate(_dateFromReport(payment["updatedAt"]));
+        _captureDate(_dateFromReport(payment["createdAt"]));
+      }
+    }
+  }
+
+  String get lastDateText => lastDate == null ? "-" : _shortDate(lastDate!);
+
+  void _captureDate(DateTime? value) {
+    if (value == null) return;
+    if (lastDate == null || value.isAfter(lastDate!)) {
+      lastDate = value;
+    }
+  }
 }
 
 class _DebtDialog extends StatefulWidget {
