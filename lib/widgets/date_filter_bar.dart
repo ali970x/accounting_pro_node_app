@@ -9,21 +9,48 @@ class DateFilterValue {
   const DateFilterValue({required this.preset, this.customRange});
 
   DateTimeRange range(DateTime now) {
-    final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    final today = _startOfDay(now);
+    final end = _endOfDay(now);
     return switch (preset) {
-      DateFilterPreset.today => DateTimeRange(start: DateTime(now.year, now.month, now.day), end: end),
-      DateFilterPreset.week => DateTimeRange(start: DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6)), end: end),
-      DateFilterPreset.month => DateTimeRange(start: DateTime(now.year, now.month, 1), end: end),
-      DateFilterPreset.custom => customRange ?? DateTimeRange(start: DateTime(now.year, now.month, 1), end: end),
+      DateFilterPreset.today => DateTimeRange(start: today, end: end),
+      DateFilterPreset.week => DateTimeRange(
+        start: today.subtract(const Duration(days: 6)),
+        end: end,
+      ),
+      DateFilterPreset.month => DateTimeRange(
+        start: DateTime(now.year, now.month),
+        end: end,
+      ),
+      DateFilterPreset.custom => _normalizedCustomRange(now),
     };
   }
 
-  bool includes(DateTime? value) {
+  bool includes(DateTime? value, {DateTime? now}) {
     if (value == null) return false;
-    final selected = range(DateTime.now());
+    final selected = range(now ?? DateTime.now());
     final date = value.toLocal();
     return !date.isBefore(selected.start) && !date.isAfter(selected.end);
   }
+
+  DateTimeRange _normalizedCustomRange(DateTime now) {
+    final fallback = DateTimeRange(start: DateTime(now.year - 5), end: now);
+    final raw = customRange ?? fallback;
+    final start = _startOfDay(raw.start);
+    final end = _endOfDay(raw.end);
+    if (start.isAfter(end)) {
+      return DateTimeRange(
+        start: _startOfDay(raw.end),
+        end: _endOfDay(raw.start),
+      );
+    }
+    return DateTimeRange(start: start, end: end);
+  }
+
+  static DateTime _startOfDay(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  static DateTime _endOfDay(DateTime value) =>
+      DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
 }
 
 class DateFilterBar extends StatelessWidget {
@@ -44,17 +71,36 @@ class DateFilterBar extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _chip(context, DateFilterPreset.today, isArabic ? "\u064a\u0648\u0645" : "Day"),
-        _chip(context, DateFilterPreset.week, isArabic ? "\u0623\u0633\u0628\u0648\u0639" : "Week"),
-        _chip(context, DateFilterPreset.month, isArabic ? "\u0634\u0647\u0631" : "Month"),
-        _chip(context, DateFilterPreset.custom, isArabic ? "\u062a\u0627\u0631\u064a\u062e \u0645\u062e\u0635\u0635" : "Custom date"),
+        _chip(
+          context,
+          DateFilterPreset.today,
+          isArabic ? "\u064a\u0648\u0645" : "Day",
+        ),
+        _chip(
+          context,
+          DateFilterPreset.week,
+          isArabic ? "\u0623\u0633\u0628\u0648\u0639" : "Week",
+        ),
+        _chip(
+          context,
+          DateFilterPreset.month,
+          isArabic ? "\u0634\u0647\u0631" : "Month",
+        ),
+        _chip(
+          context,
+          DateFilterPreset.custom,
+          isArabic
+              ? "\u062a\u0627\u0631\u064a\u062e \u0645\u062e\u0635\u0635"
+              : "Custom date",
+        ),
       ],
     );
   }
 
   Widget _chip(BuildContext context, DateFilterPreset preset, String label) {
     final selected = value.preset == preset;
-    final customText = preset == DateFilterPreset.custom && value.customRange != null
+    final customText =
+        preset == DateFilterPreset.custom && value.customRange != null
         ? "$label: ${_short(value.customRange!.start)} - ${_short(value.customRange!.end)}"
         : label;
 
@@ -69,7 +115,9 @@ class DateFilterBar extends StatelessWidget {
         }
 
         final now = DateTime.now();
-        final current = value.customRange ?? DateTimeRange(start: DateTime(now.year, now.month, 1), end: now);
+        final current =
+            value.customRange ??
+            DateTimeRange(start: DateTime(now.year, now.month, 1), end: now);
         final picked = await showDateRangePicker(
           context: context,
           firstDate: DateTime(now.year - 5),
@@ -77,7 +125,15 @@ class DateFilterBar extends StatelessWidget {
           initialDateRange: current,
         );
         if (picked != null) {
-          onChanged(DateFilterValue(preset: DateFilterPreset.custom, customRange: DateTimeRange(start: _startOfDay(picked.start), end: _endOfDay(picked.end))));
+          onChanged(
+            DateFilterValue(
+              preset: DateFilterPreset.custom,
+              customRange: DateTimeRange(
+                start: _startOfDay(picked.start),
+                end: _endOfDay(picked.end),
+              ),
+            ),
+          );
         }
       },
     );
@@ -96,7 +152,9 @@ class DateFilterBar extends StatelessWidget {
     return "${date.year}-${date.month.toString().padLeft(2, "0")}-${date.day.toString().padLeft(2, "0")}";
   }
 
-  DateTime _startOfDay(DateTime value) => DateTime(value.year, value.month, value.day);
+  DateTime _startOfDay(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
-  DateTime _endOfDay(DateTime value) => DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
+  DateTime _endOfDay(DateTime value) =>
+      DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
 }

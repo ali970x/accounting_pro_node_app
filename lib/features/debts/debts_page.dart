@@ -104,14 +104,19 @@ class _DebtsPageState extends State<DebtsPage> {
     }
   }
 
-  Future<void> _showLedger(Map<String, dynamic> debt) async {
-    final contactId = (debt["contact"] ?? "").toString();
+  Future<void> _showLedger(
+    Map<String, dynamic> debt, {
+    List<Map<String, dynamic>>? rowsOverride,
+  }) async {
+    final contactId = _contactIdForDebt(debt);
     final name = (debt["personName"] ?? "").toString();
-    final rows = _debts.where((d) {
-      final dContact = (d["contact"] ?? "").toString();
+    final source = rowsOverride ?? _filteredDebts();
+    var rows = source.where((d) {
+      final dContact = _contactIdForDebt(d);
       if (contactId.isNotEmpty && dContact == contactId) return true;
       return (d["personName"] ?? "").toString() == name;
     }).toList();
+    if (rows.isEmpty) rows = [debt];
 
     await showDialog<void>(
       context: context,
@@ -255,8 +260,7 @@ class _DebtsPageState extends State<DebtsPage> {
     final query = _search.text.trim().toLowerCase();
     final queryDigits = _search.text.replaceAll(RegExp(r"[^0-9+]"), "");
     return _debts.where((debt) {
-      final rawDate = (debt["updatedAt"] ?? debt["createdAt"] ?? "").toString();
-      if (!_dateFilter.includes(DateTime.tryParse(rawDate))) return false;
+      if (!_debtMatchesDateFilter(debt)) return false;
       if (query.isEmpty && queryDigits.isEmpty) return true;
       final contact = _contactForDebt(debt);
       final text = [
@@ -271,11 +275,37 @@ class _DebtsPageState extends State<DebtsPage> {
     }).toList();
   }
 
-  ContactModel? _contactForDebt(Map<String, dynamic> debt) {
+  bool _debtMatchesDateFilter(Map<String, dynamic> debt) {
+    final dates = <DateTime?>[
+      _dateFrom(debt["createdAt"]),
+      _dateFrom(debt["updatedAt"]),
+    ];
+    final payments = debt["payments"];
+    if (payments is List) {
+      for (final row in payments.whereType<Map>()) {
+        dates.add(_dateFrom(row["date"]));
+        dates.add(_dateFrom(row["createdAt"]));
+        dates.add(_dateFrom(row["updatedAt"]));
+      }
+    }
+    return dates.any((date) => _dateFilter.includes(date));
+  }
+
+  DateTime? _dateFrom(dynamic value) {
+    if (value is DateTime) return value;
+    final text = (value ?? "").toString();
+    if (text.trim().isEmpty) return null;
+    return DateTime.tryParse(text);
+  }
+
+  String _contactIdForDebt(Map<String, dynamic> debt) {
     final raw = debt["contact"];
-    final id = raw is Map
-        ? (raw["_id"] ?? raw["id"] ?? "").toString()
-        : (raw ?? "").toString();
+    if (raw is Map) return (raw["_id"] ?? raw["id"] ?? "").toString();
+    return (raw ?? "").toString();
+  }
+
+  ContactModel? _contactForDebt(Map<String, dynamic> debt) {
+    final id = _contactIdForDebt(debt);
     final name = (debt["personName"] ?? "").toString();
     for (final contact in _contacts) {
       if (id.isNotEmpty && contact.id == id) return contact;
@@ -289,7 +319,7 @@ class _DebtsPageState extends State<DebtsPage> {
   ) {
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (final debt in debts) {
-      final contactId = (debt["contact"] ?? "").toString();
+      final contactId = _contactIdForDebt(debt);
       final name = (debt["personName"] ?? "").toString();
       final key = contactId.isNotEmpty ? contactId : name;
       grouped.putIfAbsent(key, () => <Map<String, dynamic>>[]);
@@ -410,7 +440,7 @@ class _DebtsPageState extends State<DebtsPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ModernCard(
-        onTap: () => _showLedger(first),
+        onTap: () => _showLedger(first, rowsOverride: rows),
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,7 +489,7 @@ class _DebtsPageState extends State<DebtsPage> {
                     "Open ledger",
                     "\u0641\u062a\u062d \u0627\u0644\u062c\u0631\u062f\u0629",
                   ),
-                  onPressed: () => _showLedger(first),
+                  onPressed: () => _showLedger(first, rowsOverride: rows),
                   icon: const Icon(Icons.receipt_long_rounded),
                 ),
               ],
