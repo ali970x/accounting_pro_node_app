@@ -1,4 +1,10 @@
+import "dart:typed_data";
+
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:pdf/pdf.dart";
+import "package:pdf/widgets.dart" as pw;
+import "package:printing/printing.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
@@ -185,6 +191,349 @@ class _DebtsPageState extends State<DebtsPage> {
     ).showSnackBar(SnackBar(content: Text(e.toString())));
   }
 
+  Future<void> _showDebtMasterReport() async {
+    final c = AppScope.of(context);
+    final isAr = c.isArabic;
+    final report = _DebtReportData.fromDebts(_debts);
+    final message = report.toMessage(isAr);
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          _label(
+            isAr,
+            "Total debt report",
+            "\u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0643\u0644\u064a",
+          ),
+        ),
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(child: SelectableText(message)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              _label(isAr, "Close", "\u0625\u063a\u0644\u0627\u0642"),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: message));
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _label(
+                      isAr,
+                      "Copied.",
+                      "\u062a\u0645 \u0627\u0644\u0646\u0633\u062e.",
+                    ),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(_label(isAr, "Copy", "\u0646\u0633\u062e")),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _printDebtReport(report, isAr),
+            icon: const Icon(Icons.print_rounded),
+            label: Text(
+              _label(isAr, "Print", "\u0637\u0628\u0627\u0639\u0629"),
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: () => _shareDebtReport(report, isAr),
+            icon: const Icon(Icons.ios_share_rounded),
+            label: Text(
+              _label(
+                isAr,
+                "Share PDF",
+                "\u0645\u0634\u0627\u0631\u0643\u0629 PDF",
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printDebtReport(_DebtReportData report, bool isAr) async {
+    final bytes = await _debtReportPdfBytes(report, isAr);
+    await Printing.layoutPdf(onLayout: (_) async => bytes);
+  }
+
+  Future<void> _shareDebtReport(_DebtReportData report, bool isAr) async {
+    final bytes = await _debtReportPdfBytes(report, isAr);
+    await Printing.sharePdf(bytes: bytes, filename: "daftr-debt-report.pdf");
+  }
+
+  Future<Uint8List> _debtReportPdfBytes(
+    _DebtReportData report,
+    bool isAr,
+  ) async {
+    final regular = await PdfGoogleFonts.notoNaskhArabicRegular();
+    final bold = await PdfGoogleFonts.notoNaskhArabicBold();
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: regular,
+        bold: bold,
+        fontFallback: [regular],
+      ),
+    );
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (_) => [
+          pw.Directionality(
+            textDirection: isAr ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                _pdfText(
+                  _label(
+                    isAr,
+                    "daftr - Total debt report",
+                    "daftr - \u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0643\u0644\u064a",
+                  ),
+                  isAr,
+                  size: 18,
+                  bold: true,
+                  align: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 4),
+                _pdfText(
+                  "${_label(isAr, "Generated", "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u062a\u0642\u0631\u064a\u0631")}: ${_shortDateTime(DateTime.now())}",
+                  isAr,
+                  size: 9,
+                  align: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 14),
+                _pdfSummaryCards(report, isAr),
+                pw.SizedBox(height: 12),
+                _pdfSection(
+                  _label(
+                    isAr,
+                    "Who owes us the most",
+                    "\u0623\u0643\u062b\u0631 \u0627\u0644\u0632\u0628\u0627\u0626\u0646 \u062f\u064a\u0646\u0627\u064b \u0644\u0646\u0627",
+                  ),
+                  _partyRows(report.topReceivable, isAr),
+                  isAr,
+                ),
+                _pdfSection(
+                  _label(
+                    isAr,
+                    "Suppliers we owe the most",
+                    "\u0623\u0643\u062b\u0631 \u0627\u0644\u0645\u0648\u0631\u062f\u064a\u0646 \u062f\u064a\u0646\u0627\u064b \u0639\u0644\u064a\u0646\u0627",
+                  ),
+                  _partyRows(report.topPayable, isAr),
+                  isAr,
+                ),
+                _pdfSection(
+                  _label(
+                    isAr,
+                    "Days with the most new debt",
+                    "\u0627\u0644\u0623\u064a\u0627\u0645 \u0627\u0644\u0623\u0643\u062b\u0631 \u062a\u0633\u062c\u064a\u0644\u0627\u064b \u0644\u0644\u062f\u064a\u0648\u0646",
+                  ),
+                  _dayRows(report.topDebtDays, isAr),
+                  isAr,
+                ),
+                _pdfSection(
+                  _label(
+                    isAr,
+                    "Strongest payment days",
+                    "\u0623\u064a\u0627\u0645 \u0627\u0644\u062f\u0641\u0639 \u0627\u0644\u0623\u0642\u0648\u0649",
+                  ),
+                  _dayRows(report.topPaymentDays, isAr),
+                  isAr,
+                ),
+                _pdfSection(
+                  _label(
+                    isAr,
+                    "Largest open debts",
+                    "\u0623\u0643\u0628\u0631 \u0627\u0644\u062f\u064a\u0648\u0646 \u0627\u0644\u0645\u0641\u062a\u0648\u062d\u0629",
+                  ),
+                  _singleDebtRows(report.largestOpenDebts, isAr),
+                  isAr,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return pdf.save();
+  }
+
+  pw.Widget _pdfSummaryCards(_DebtReportData report, bool isAr) {
+    final rows = [
+      [
+        _label(
+          isAr,
+          "Remaining for us",
+          "\u0627\u0644\u0645\u062a\u0628\u0642\u064a \u0644\u0646\u0627",
+        ),
+        report.remainingReceivable.format(),
+      ],
+      [
+        _label(
+          isAr,
+          "Remaining on us",
+          "\u0627\u0644\u0645\u062a\u0628\u0642\u064a \u0639\u0644\u064a\u0646\u0627",
+        ),
+        report.remainingPayable.format(),
+      ],
+      [
+        _label(
+          isAr,
+          "Collected / paid",
+          "\u0627\u0644\u0645\u062f\u0641\u0648\u0639",
+        ),
+        report.paidTotal.format(),
+      ],
+      [
+        _label(
+          isAr,
+          "Open invoices",
+          "\u0641\u0648\u0627\u062a\u064a\u0631 \u0645\u0641\u062a\u0648\u062d\u0629",
+        ),
+        number(report.openCount),
+      ],
+    ];
+    return _pdfTable(
+      [
+        _label(isAr, "Metric", "\u0627\u0644\u0628\u0646\u062f"),
+        _label(isAr, "Value", "\u0627\u0644\u0642\u064a\u0645\u0629"),
+      ],
+      rows,
+      isAr,
+    );
+  }
+
+  pw.Widget _pdfSection(String title, List<List<String>> rows, bool isAr) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.SizedBox(height: 12),
+        _pdfText(title, isAr, size: 12, bold: true),
+        pw.SizedBox(height: 5),
+        rows.isEmpty
+            ? _pdfText(
+                _label(
+                  isAr,
+                  "No data.",
+                  "\u0644\u0627 \u064a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a.",
+                ),
+                isAr,
+                size: 9,
+              )
+            : _pdfTable(rows.first, rows.skip(1).toList(), isAr),
+      ],
+    );
+  }
+
+  pw.Widget _pdfTable(
+    List<String> headers,
+    List<List<String>> data,
+    bool isAr,
+  ) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          children: headers
+              .map((cell) => _pdfCell(cell, isAr, bold: true))
+              .toList(),
+        ),
+        ...data.map(
+          (row) => pw.TableRow(
+            children: row.map((cell) => _pdfCell(cell, isAr)).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _pdfCell(String text, bool isAr, {bool bold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(5),
+      child: _pdfText(text, isAr, size: 8, bold: bold),
+    );
+  }
+
+  pw.Widget _pdfText(
+    String text,
+    bool isAr, {
+    double size = 10,
+    bool bold = false,
+    pw.TextAlign? align,
+  }) {
+    return pw.Text(
+      text,
+      textDirection: isAr ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+      textAlign: align ?? (isAr ? pw.TextAlign.right : pw.TextAlign.left),
+      style: pw.TextStyle(
+        fontSize: size,
+        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+      ),
+    );
+  }
+
+  List<List<String>> _partyRows(List<_DebtPartyStat> rows, bool isAr) {
+    return [
+      [
+        "#",
+        _label(isAr, "Name", "\u0627\u0644\u0627\u0633\u0645"),
+        _label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a"),
+        _label(isAr, "Invoices", "\u0641\u0648\u0627\u062a\u064a\u0631"),
+      ],
+      for (var i = 0; i < rows.take(10).length; i++)
+        [
+          number(i + 1),
+          rows[i].name,
+          rows[i].remaining.format(),
+          number(rows[i].debtCount),
+        ],
+    ];
+  }
+
+  List<List<String>> _dayRows(List<_DebtDayStat> rows, bool isAr) {
+    return [
+      [
+        "#",
+        _label(isAr, "Day", "\u0627\u0644\u064a\u0648\u0645"),
+        _label(isAr, "Total", "\u0627\u0644\u0645\u062c\u0645\u0648\u0639"),
+        _label(isAr, "Count", "\u0627\u0644\u0639\u062f\u062f"),
+      ],
+      for (var i = 0; i < rows.take(10).length; i++)
+        [
+          number(i + 1),
+          rows[i].date,
+          rows[i].totals.format(),
+          number(rows[i].count),
+        ],
+    ];
+  }
+
+  List<List<String>> _singleDebtRows(List<_DebtSingleStat> rows, bool isAr) {
+    return [
+      [
+        "#",
+        _label(isAr, "Name", "\u0627\u0644\u0627\u0633\u0645"),
+        _label(isAr, "Remaining", "\u0627\u0644\u0645\u062a\u0628\u0642\u064a"),
+        _label(isAr, "Date", "\u0627\u0644\u062a\u0627\u0631\u064a\u062e"),
+      ],
+      for (var i = 0; i < rows.take(10).length; i++)
+        [number(i + 1), rows[i].name, rows[i].remaining.format(), rows[i].date],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
@@ -210,6 +559,21 @@ class _DebtsPageState extends State<DebtsPage> {
             ],
           ),
           const SizedBox(height: 14),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              onPressed: _debts.isEmpty ? null : _showDebtMasterReport,
+              icon: const Icon(Icons.insights_rounded, size: 18),
+              label: Text(
+                _label(
+                  isAr,
+                  "Total debt report",
+                  "\u062a\u0642\u0631\u064a\u0631 \u0627\u0644\u062f\u064a\u0646 \u0627\u0644\u0643\u0644\u064a",
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           DateFilterBar(
             isArabic: isAr,
             value: _dateFilter,
@@ -631,6 +995,394 @@ class _DebtsPageState extends State<DebtsPage> {
   String _formatTotals(Map<String, double> totals) {
     return "${money(totals["LBP"] ?? 0, "LBP")}\n${money(totals["USD"] ?? 0, "USD")}";
   }
+}
+
+class _DebtReportData {
+  final int totalCount;
+  final int openCount;
+  final int partialCount;
+  final int paidCount;
+  final int paymentCount;
+  final _MoneyTotals originalReceivable;
+  final _MoneyTotals originalPayable;
+  final _MoneyTotals remainingReceivable;
+  final _MoneyTotals remainingPayable;
+  final _MoneyTotals paidTotal;
+  final List<_DebtPartyStat> topReceivable;
+  final List<_DebtPartyStat> topPayable;
+  final List<_DebtDayStat> topDebtDays;
+  final List<_DebtDayStat> topPaymentDays;
+  final List<_DebtSingleStat> largestOpenDebts;
+
+  const _DebtReportData({
+    required this.totalCount,
+    required this.openCount,
+    required this.partialCount,
+    required this.paidCount,
+    required this.paymentCount,
+    required this.originalReceivable,
+    required this.originalPayable,
+    required this.remainingReceivable,
+    required this.remainingPayable,
+    required this.paidTotal,
+    required this.topReceivable,
+    required this.topPayable,
+    required this.topDebtDays,
+    required this.topPaymentDays,
+    required this.largestOpenDebts,
+  });
+
+  factory _DebtReportData.fromDebts(List<Map<String, dynamic>> debts) {
+    var openCount = 0;
+    var partialCount = 0;
+    var paidCount = 0;
+    var paymentCount = 0;
+    final originalReceivable = _MoneyTotals();
+    final originalPayable = _MoneyTotals();
+    final remainingReceivable = _MoneyTotals();
+    final remainingPayable = _MoneyTotals();
+    final paidTotal = _MoneyTotals();
+    final parties = <String, _DebtPartyStat>{};
+    final debtDays = <String, _DebtDayStat>{};
+    final paymentDays = <String, _DebtDayStat>{};
+    final largest = <_DebtSingleStat>[];
+
+    for (final debt in debts) {
+      final type = (debt["type"] ?? "receivable").toString();
+      final status = (debt["status"] ?? "open").toString();
+      final currency = (debt["currency"] ?? "LBP").toString() == "USD"
+          ? "USD"
+          : "LBP";
+      final name = (debt["personName"] ?? "-").toString().trim().isEmpty
+          ? "-"
+          : (debt["personName"] ?? "-").toString();
+      final original = numFromDynamic(debt["originalAmount"]);
+      final remaining = numFromDynamic(debt["remainingAmount"]);
+      final paid = numFromDynamic(debt["paidAmount"]);
+
+      if (status == "paid") {
+        paidCount++;
+      } else if (status == "partial") {
+        partialCount++;
+      } else {
+        openCount++;
+      }
+
+      final originalTotals = type == "payable"
+          ? originalPayable
+          : originalReceivable;
+      final remainingTotals = type == "payable"
+          ? remainingPayable
+          : remainingReceivable;
+      originalTotals.add(original, currency);
+      remainingTotals.add(remaining, currency);
+      paidTotal.add(paid, currency);
+
+      final partyKey = "$type:${_contactIdForReport(debt)}:$name";
+      final party = parties.putIfAbsent(
+        partyKey,
+        () => _DebtPartyStat(name: name, type: type),
+      );
+      party.add(
+        original: original,
+        remaining: remaining,
+        paid: paid,
+        currency: currency,
+        status: status,
+      );
+
+      final created = _dateFromReport(debt["createdAt"]);
+      if (created != null) {
+        final key = _dayKey(created);
+        final day = debtDays.putIfAbsent(key, () => _DebtDayStat(date: key));
+        day.add(original, currency);
+      }
+
+      if (remaining > 0) {
+        largest.add(
+          _DebtSingleStat(
+            name: name,
+            type: type,
+            date: created == null ? "-" : _shortDate(created),
+            remaining: _MoneyTotals()..add(remaining, currency),
+          ),
+        );
+      }
+
+      final payments = debt["payments"];
+      if (payments is List) {
+        for (final payment in payments.whereType<Map>()) {
+          final amount = numFromDynamic(payment["amount"]);
+          final paymentCurrency =
+              (payment["currency"] ?? currency).toString() == "USD"
+              ? "USD"
+              : "LBP";
+          final paidAt =
+              _dateFromReport(payment["date"]) ??
+              _dateFromReport(payment["createdAt"]) ??
+              _dateFromReport(payment["updatedAt"]);
+          if (paidAt == null || amount <= 0) continue;
+          paymentCount++;
+          final key = _dayKey(paidAt);
+          final day = paymentDays.putIfAbsent(
+            key,
+            () => _DebtDayStat(date: key),
+          );
+          day.add(amount, paymentCurrency);
+        }
+      }
+    }
+
+    final receivableParties =
+        parties.values
+            .where((p) => p.type != "payable" && !p.remaining.isZero)
+            .toList()
+          ..sort((a, b) => b.remaining.score.compareTo(a.remaining.score));
+    final payableParties =
+        parties.values
+            .where((p) => p.type == "payable" && !p.remaining.isZero)
+            .toList()
+          ..sort((a, b) => b.remaining.score.compareTo(a.remaining.score));
+    final sortedDebtDays = debtDays.values.toList()
+      ..sort((a, b) {
+        final scoreCompare = b.totals.score.compareTo(a.totals.score);
+        if (scoreCompare != 0) return scoreCompare;
+        return b.count.compareTo(a.count);
+      });
+    final sortedPaymentDays = paymentDays.values.toList()
+      ..sort((a, b) {
+        final scoreCompare = b.totals.score.compareTo(a.totals.score);
+        if (scoreCompare != 0) return scoreCompare;
+        return b.count.compareTo(a.count);
+      });
+    largest.sort((a, b) => b.remaining.score.compareTo(a.remaining.score));
+
+    return _DebtReportData(
+      totalCount: debts.length,
+      openCount: openCount,
+      partialCount: partialCount,
+      paidCount: paidCount,
+      paymentCount: paymentCount,
+      originalReceivable: originalReceivable,
+      originalPayable: originalPayable,
+      remainingReceivable: remainingReceivable,
+      remainingPayable: remainingPayable,
+      paidTotal: paidTotal,
+      topReceivable: receivableParties,
+      topPayable: payableParties,
+      topDebtDays: sortedDebtDays,
+      topPaymentDays: sortedPaymentDays,
+      largestOpenDebts: largest,
+    );
+  }
+
+  String toMessage(bool isAr) {
+    final lines = <String>[
+      _label(isAr, "daftr - Total debt report", "daftr - تقرير الدين الكلي"),
+      "${_label(isAr, "Generated", "تاريخ التقرير")}: ${_shortDateTime(DateTime.now())}",
+      "",
+      _label(isAr, "Summary", "الملخص"),
+      "------------------------------",
+      "${_label(isAr, "Total debt invoices", "عدد فواتير الدين")}: ${number(totalCount)}",
+      "${_label(isAr, "Open", "مفتوح")}: ${number(openCount)} | ${_label(isAr, "Partial", "جزئي")}: ${number(partialCount)} | ${_label(isAr, "Paid", "مدفوع")}: ${number(paidCount)}",
+      "${_label(isAr, "Remaining for us", "المتبقي لنا")}: ${remainingReceivable.format()}",
+      "${_label(isAr, "Remaining on us", "المتبقي علينا")}: ${remainingPayable.format()}",
+      "${_label(isAr, "Original for us", "أصل الدين لنا")}: ${originalReceivable.format()}",
+      "${_label(isAr, "Original on us", "أصل الدين علينا")}: ${originalPayable.format()}",
+      "${_label(isAr, "Collected / paid", "المدفوع")}: ${paidTotal.format()}",
+      "${_label(isAr, "Payment records", "عدد الدفعات")}: ${number(paymentCount)}",
+      "",
+    ];
+
+    _appendPartySection(
+      lines,
+      isAr,
+      _label(isAr, "Who owes us the most", "أكثر الزبائن ديناً لنا"),
+      topReceivable,
+    );
+    _appendPartySection(
+      lines,
+      isAr,
+      _label(isAr, "Suppliers we owe the most", "أكثر الموردين ديناً علينا"),
+      topPayable,
+    );
+    _appendDaySection(
+      lines,
+      isAr,
+      _label(
+        isAr,
+        "Days with the most new debt",
+        "الأيام الأكثر تسجيلاً للديون",
+      ),
+      topDebtDays,
+    );
+    _appendDaySection(
+      lines,
+      isAr,
+      _label(isAr, "Strongest payment days", "أيام الدفع الأقوى"),
+      topPaymentDays,
+    );
+    _appendLargestSection(
+      lines,
+      isAr,
+      _label(isAr, "Largest open debts", "أكبر الديون المفتوحة"),
+      largestOpenDebts,
+    );
+    lines.add("");
+    lines.add(
+      _label(
+        isAr,
+        "Ranking uses both currencies separately for display and an internal approximate score only for ordering.",
+        "الترتيب يعرض اللبناني والدولار بشكل منفصل ويستخدم تقديراً داخلياً فقط لترتيب النتائج المختلطة.",
+      ),
+    );
+    return lines.join("\n");
+  }
+
+  void _appendPartySection(
+    List<String> lines,
+    bool isAr,
+    String title,
+    List<_DebtPartyStat> rows,
+  ) {
+    lines.add(title);
+    lines.add("------------------------------");
+    if (rows.isEmpty) {
+      lines.add(_label(isAr, "No open debt.", "لا يوجد دين مفتوح."));
+      lines.add("");
+      return;
+    }
+    for (var i = 0; i < rows.take(10).length; i++) {
+      final row = rows[i];
+      lines.add(
+        "${number(i + 1)}. ${row.name} - ${row.remaining.format()} (${number(row.debtCount)} ${_label(isAr, "invoices", "فواتير")})",
+      );
+    }
+    lines.add("");
+  }
+
+  void _appendDaySection(
+    List<String> lines,
+    bool isAr,
+    String title,
+    List<_DebtDayStat> rows,
+  ) {
+    lines.add(title);
+    lines.add("------------------------------");
+    if (rows.isEmpty) {
+      lines.add(_label(isAr, "No data.", "لا يوجد بيانات."));
+      lines.add("");
+      return;
+    }
+    for (var i = 0; i < rows.take(10).length; i++) {
+      final row = rows[i];
+      lines.add(
+        "${number(i + 1)}. ${row.date} - ${row.totals.format()} (${number(row.count)} ${_label(isAr, "records", "حركات")})",
+      );
+    }
+    lines.add("");
+  }
+
+  void _appendLargestSection(
+    List<String> lines,
+    bool isAr,
+    String title,
+    List<_DebtSingleStat> rows,
+  ) {
+    lines.add(title);
+    lines.add("------------------------------");
+    if (rows.isEmpty) {
+      lines.add(_label(isAr, "No open debt.", "لا يوجد دين مفتوح."));
+      lines.add("");
+      return;
+    }
+    for (var i = 0; i < rows.take(10).length; i++) {
+      final row = rows[i];
+      lines.add(
+        "${number(i + 1)}. ${row.name} - ${row.remaining.format()} - ${row.date}",
+      );
+    }
+    lines.add("");
+  }
+}
+
+class _MoneyTotals {
+  static const double _rankingRate = 90000;
+  double lbp = 0;
+  double usd = 0;
+
+  bool get isZero => lbp == 0 && usd == 0;
+
+  double get score => lbp + (usd * _rankingRate);
+
+  void add(num amount, String currency) {
+    final value = amount.toDouble();
+    if (currency == "USD") {
+      usd += value;
+    } else {
+      lbp += value;
+    }
+  }
+
+  String format() {
+    final parts = <String>[];
+    if (lbp != 0) parts.add(money(lbp, "LBP"));
+    if (usd != 0) parts.add(money(usd, "USD"));
+    return parts.isEmpty ? money(0, "LBP") : parts.join(" / ");
+  }
+}
+
+class _DebtPartyStat {
+  final String name;
+  final String type;
+  final _MoneyTotals original = _MoneyTotals();
+  final _MoneyTotals remaining = _MoneyTotals();
+  final _MoneyTotals paid = _MoneyTotals();
+  int debtCount = 0;
+  int openCount = 0;
+
+  _DebtPartyStat({required this.name, required this.type});
+
+  void add({
+    required num original,
+    required num remaining,
+    required num paid,
+    required String currency,
+    required String status,
+  }) {
+    debtCount++;
+    if (status != "paid") openCount++;
+    this.original.add(original, currency);
+    this.remaining.add(remaining, currency);
+    this.paid.add(paid, currency);
+  }
+}
+
+class _DebtDayStat {
+  final String date;
+  final _MoneyTotals totals = _MoneyTotals();
+  int count = 0;
+
+  _DebtDayStat({required this.date});
+
+  void add(num amount, String currency) {
+    count++;
+    totals.add(amount, currency);
+  }
+}
+
+class _DebtSingleStat {
+  final String name;
+  final String type;
+  final String date;
+  final _MoneyTotals remaining;
+
+  const _DebtSingleStat({
+    required this.name,
+    required this.type,
+    required this.date,
+    required this.remaining,
+  });
 }
 
 class _DebtDialog extends StatefulWidget {
@@ -1057,3 +1809,36 @@ class _PaymentDialogState extends State<_PaymentDialog> {
 }
 
 String _label(bool isAr, String en, String ar) => isAr ? ar : en;
+
+DateTime? _dateFromReport(dynamic value) {
+  if (value is DateTime) return value;
+  final text = (value ?? "").toString();
+  if (text.trim().isEmpty) return null;
+  return DateTime.tryParse(text)?.toLocal();
+}
+
+String _contactIdForReport(Map<String, dynamic> debt) {
+  final raw = debt["contact"];
+  if (raw is Map) return (raw["_id"] ?? raw["id"] ?? "").toString();
+  return (raw ?? "").toString();
+}
+
+String _dayKey(DateTime value) {
+  final local = value.toLocal();
+  return _shortDate(local);
+}
+
+String _shortDate(DateTime value) {
+  final local = value.toLocal();
+  final y = local.year.toString().padLeft(4, "0");
+  final m = local.month.toString().padLeft(2, "0");
+  final d = local.day.toString().padLeft(2, "0");
+  return "$y-$m-$d";
+}
+
+String _shortDateTime(DateTime value) {
+  final local = value.toLocal();
+  final h = local.hour.toString().padLeft(2, "0");
+  final min = local.minute.toString().padLeft(2, "0");
+  return "${_shortDate(local)} $h:$min";
+}
