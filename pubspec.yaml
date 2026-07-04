@@ -66,6 +66,7 @@ flutter:
 
   assets:
     - assets/brand/daftr_logo.jpeg
+    - assets/brand/daftr_store_icon_1024.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
