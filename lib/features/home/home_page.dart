@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "../../core/api_client.dart";
 import "../../core/session_store.dart";
 import "../../core/app_controller.dart";
@@ -11,6 +11,7 @@ import "../sales/sales_page.dart";
 import "../invoice_template/invoice_template_page.dart";
 import "../reports/reports_page.dart";
 import "../records/records_page.dart";
+import "../smart_import/smart_import_page.dart";
 import "../contacts/contacts_page.dart";
 import "../debts/debts_page.dart";
 import "../expenses/expenses_page.dart";
@@ -22,11 +23,7 @@ class HomePage extends StatefulWidget {
   final ApiClient api;
   final SessionStore sessionStore;
 
-  const HomePage({
-    super.key,
-    required this.api,
-    required this.sessionStore,
-  });
+  const HomePage({super.key, required this.api, required this.sessionStore});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -59,7 +56,8 @@ class _HomePageState extends State<HomePage> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => LoginPage(api: widget.api, sessionStore: widget.sessionStore),
+        builder: (_) =>
+            LoginPage(api: widget.api, sessionStore: widget.sessionStore),
       ),
     );
   }
@@ -75,6 +73,7 @@ class _HomePageState extends State<HomePage> {
       c.t("invoiceTemplate"),
       c.t("reports"),
       c.t("records"),
+      c.t("smartImport"),
       c.t("expenses"),
       c.t("debts"),
       c.t("contacts"),
@@ -90,6 +89,7 @@ class _HomePageState extends State<HomePage> {
       Icons.receipt_long,
       Icons.analytics,
       Icons.history,
+      Icons.auto_awesome_rounded,
       Icons.payments,
       Icons.account_balance,
       Icons.people_alt,
@@ -137,14 +137,21 @@ class _HomePageState extends State<HomePage> {
             Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                border: Border(right: BorderSide(color: theme.colorScheme.outlineVariant)),
+                border: Border(
+                  right: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
               ),
               child: NavigationRail(
                 extended: true,
                 minExtendedWidth: 250,
                 backgroundColor: Colors.transparent,
-                selectedIconTheme: IconThemeData(color: theme.colorScheme.onPrimary),
-                selectedLabelTextStyle: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w900),
+                selectedIconTheme: IconThemeData(
+                  color: theme.colorScheme.onPrimary,
+                ),
+                selectedLabelTextStyle: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w900,
+                ),
                 indicatorColor: theme.colorScheme.primary,
                 selectedIndex: selected,
                 onDestinationSelected: (i) => setState(() => selected = i),
@@ -162,8 +169,16 @@ class _HomePageState extends State<HomePage> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: Theme.of(context).brightness == Brightness.dark
-                      ? const [Color(0xFF10131A), Color(0xFF151B2D), Color(0xFF102622)]
-                      : const [Color(0xFFF4F7FB), Color(0xFFEFF6FF), Color(0xFFEAFBF8)],
+                      ? const [
+                          Color(0xFF10131A),
+                          Color(0xFF151B2D),
+                          Color(0xFF102622),
+                        ]
+                      : const [
+                          Color(0xFFF4F7FB),
+                          Color(0xFFEFF6FF),
+                          Color(0xFFEAFBF8),
+                        ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -179,13 +194,29 @@ class _HomePageState extends State<HomePage> {
               backgroundColor: theme.colorScheme.surface,
               indicatorColor: theme.colorScheme.primaryContainer,
               selectedIndex: _bottomSelectedIndex(),
-              onDestinationSelected: (i) => setState(() => selected = _pageIndexForBottom(i)),
+              onDestinationSelected: (i) =>
+                  setState(() => selected = _pageIndexForBottom(i)),
               destinations: [
-                NavigationDestination(icon: const Icon(Icons.inventory_2), label: c.t("inventory")),
-                NavigationDestination(icon: const Icon(Icons.report_problem_rounded), label: c.t("damagedGoods")),
-                NavigationDestination(icon: const Icon(Icons.point_of_sale), label: c.t("sales")),
-                NavigationDestination(icon: const Icon(Icons.analytics), label: c.t("reports")),
-                NavigationDestination(icon: const Icon(Icons.more_horiz), label: c.t("records")),
+                NavigationDestination(
+                  icon: const Icon(Icons.inventory_2),
+                  label: c.t("inventory"),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.report_problem_rounded),
+                  label: c.t("damagedGoods"),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.point_of_sale),
+                  label: c.t("sales"),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.analytics),
+                  label: c.t("reports"),
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.more_horiz),
+                  label: c.t("records"),
+                ),
               ],
             ),
     );
@@ -198,17 +229,18 @@ class _HomePageState extends State<HomePage> {
       2 => SalesPage(api: widget.api),
       3 => InvoiceTemplatePage(api: widget.api),
       4 => ReportsPage(
-          api: widget.api,
-          onOpenExpenses: () => setState(() => selected = 6),
-          onOpenRecords: () => setState(() => selected = 5),
-          onOpenDamages: () => setState(() => selected = 1),
-        ),
+        api: widget.api,
+        onOpenExpenses: () => setState(() => selected = 7),
+        onOpenRecords: () => setState(() => selected = 5),
+        onOpenDamages: () => setState(() => selected = 1),
+      ),
       5 => RecordsPage(api: widget.api),
-      6 => ExpensesPage(api: widget.api),
-      7 => DebtsPage(api: widget.api),
-      8 => ContactsPage(api: widget.api),
-      9 => const HelpPage(),
-      10 => AboutPage(api: widget.api),
+      6 => const SmartImportPage(),
+      7 => ExpensesPage(api: widget.api),
+      8 => DebtsPage(api: widget.api),
+      9 => ContactsPage(api: widget.api),
+      10 => const HelpPage(),
+      11 => AboutPage(api: widget.api),
       _ => SettingsPage(api: widget.api),
     };
   }

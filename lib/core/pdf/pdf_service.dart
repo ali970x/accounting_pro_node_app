@@ -672,6 +672,8 @@ class PdfService {
   }
 
   static pw.Widget _itemsTable(Sale sale, bool isArabic) {
+    final itemCount = sale.items.length;
+    final tableStyle = _invoiceTableStyle(itemCount);
     final headers = [
       isArabic ? "\u0627\u0644\u0645\u0646\u062a\u062c" : "Product",
       isArabic ? "\u0627\u0644\u0643\u0645\u064a\u0629" : "Qty",
@@ -685,55 +687,106 @@ class PdfService {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400),
       columnWidths: const {
-        0: pw.FlexColumnWidth(2.4),
+        0: pw.FlexColumnWidth(2.65),
         1: pw.FlexColumnWidth(0.85),
         2: pw.FlexColumnWidth(0.9),
-        3: pw.FlexColumnWidth(1.25),
-        4: pw.FlexColumnWidth(1.25),
+        3: pw.FlexColumnWidth(1.3),
+        4: pw.FlexColumnWidth(1.35),
       },
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
           children: headers
-              .map((h) => _cell(h, isArabic, true, size: 7.2, padding: 3))
+              .map(
+                (h) => _cell(
+                  h,
+                  isArabic,
+                  true,
+                  size: tableStyle.headerFont,
+                  padding: tableStyle.headerPadding,
+                ),
+              )
               .toList(),
         ),
         ...sale.items.map(
           (i) => pw.TableRow(
             children: [
-              _cell(i.productName, isArabic, false, size: 6.8, padding: 2.5),
+              _cell(
+                i.productName,
+                isArabic,
+                false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
+              ),
               _cell(
                 numberDecimal(i.quantity),
                 isArabic,
                 false,
-                size: 6.8,
-                padding: 2.5,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
               ),
               _cell(
                 i.weight > 0 ? numberDecimal(i.weight) : "-",
                 isArabic,
                 false,
-                size: 6.8,
-                padding: 2.5,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
               ),
               _cell(
                 money(i.unitPrice, i.currency),
                 isArabic,
                 false,
-                size: 6.8,
-                padding: 2.5,
+                size: tableStyle.moneyFont,
+                padding: tableStyle.bodyPadding,
               ),
               _cell(
                 money(i.total, i.currency),
                 isArabic,
                 false,
-                size: 6.8,
-                padding: 2.5,
+                size: tableStyle.moneyFont,
+                padding: tableStyle.bodyPadding,
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  static _InvoiceTableStyle _invoiceTableStyle(int itemCount) {
+    if (itemCount <= 16) {
+      return const _InvoiceTableStyle(
+        headerFont: 9.4,
+        bodyFont: 8.8,
+        moneyFont: 8.5,
+        headerPadding: 5,
+        bodyPadding: 4.5,
+      );
+    }
+    if (itemCount <= 24) {
+      return const _InvoiceTableStyle(
+        headerFont: 8.6,
+        bodyFont: 8,
+        moneyFont: 7.8,
+        headerPadding: 4.2,
+        bodyPadding: 3.6,
+      );
+    }
+    if (itemCount <= 34) {
+      return const _InvoiceTableStyle(
+        headerFont: 7.7,
+        bodyFont: 7.2,
+        moneyFont: 7,
+        headerPadding: 3.5,
+        bodyPadding: 2.9,
+      );
+    }
+    return const _InvoiceTableStyle(
+      headerFont: 7,
+      bodyFont: 6.5,
+      moneyFont: 6.3,
+      headerPadding: 2.8,
+      bodyPadding: 2.3,
     );
   }
 
@@ -903,4 +956,20 @@ class PdfService {
       ),
     );
   }
+}
+
+class _InvoiceTableStyle {
+  final double headerFont;
+  final double bodyFont;
+  final double moneyFont;
+  final double headerPadding;
+  final double bodyPadding;
+
+  const _InvoiceTableStyle({
+    required this.headerFont,
+    required this.bodyFont,
+    required this.moneyFont,
+    required this.headerPadding,
+    required this.bodyPadding,
+  });
 }

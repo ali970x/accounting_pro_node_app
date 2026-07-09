@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 class AppText {
   static final Map<String, Map<String, String>> data = {
@@ -17,6 +17,7 @@ class AppText {
       "settings": "Settings",
       "invoiceTemplate": "Invoice Template",
       "records": "Records",
+      "smartImport": "Smart Import",
       "expenses": "Expenses",
       "debts": "Debts",
       "contacts": "Names",
@@ -85,7 +86,7 @@ class AppText {
       "comingSoon": "Coming soon",
       "empty": "No data yet.",
       "error": "Error",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
     },
     "ar": {
       "app": "daftr",
@@ -102,6 +103,7 @@ class AppText {
       "settings": "الإعدادات",
       "invoiceTemplate": "نموذج الفاتورة",
       "records": "السجلات",
+      "smartImport": "الاستيراد الذكي",
       "expenses": "المصاريف",
       "debts": "الديون",
       "contacts": "الأسماء",
@@ -170,12 +172,11 @@ class AppText {
       "comingSoon": "قريباً",
       "empty": "لا يوجد بيانات بعد.",
       "error": "خطأ",
-      "refresh": "تحديث"
-    }
+      "refresh": "تحديث",
+    },
   };
 
   static String get(String lang, String key) {
     return data[lang]?[key] ?? data["en"]?[key] ?? key;
   }
 }
-
