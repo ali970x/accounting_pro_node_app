@@ -31,6 +31,7 @@ class _SmartImportPageState extends State<SmartImportPage> {
   List<Product> _products = [];
   _SmartPlan? _plan;
   final List<String> _results = [];
+  String _lastAutoAnalyzed = "";
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _SmartImportPageState extends State<SmartImportPage> {
       _results.clear();
       _error = null;
     });
+    _queueAutoAnalyze(incoming);
   }
 
   Future<void> _loadReferences() async {
@@ -80,7 +82,21 @@ class _SmartImportPageState extends State<SmartImportPage> {
     } catch (e) {
       _error = e.toString();
     }
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+      if (_script.text.trim().isNotEmpty) _queueAutoAnalyze(_script.text);
+    }
+  }
+
+  void _queueAutoAnalyze(String value) {
+    final cleaned = value.trim();
+    if (cleaned.isEmpty || cleaned == _lastAutoAnalyzed) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _loading || _analyzing) return;
+      if (_script.text.trim() != cleaned) return;
+      _lastAutoAnalyzed = cleaned;
+      _analyze();
+    });
   }
 
   Future<void> _analyze() async {
