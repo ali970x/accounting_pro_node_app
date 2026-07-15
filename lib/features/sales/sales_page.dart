@@ -491,8 +491,8 @@ class _SalesPageState extends State<SalesPage> {
   }
 
   String _saleMessage(Sale sale, bool isAr) {
-    final invoiceDebt = sale.paymentStatus == "debt"
-        ? money(sale.total, sale.currency)
+    final invoiceDebt = sale.invoiceDebtAmount > 0
+        ? money(sale.invoiceDebtAmount, sale.currency)
         : (isAr ? "مدفوع" : "Paid");
     final lines = <String>[
       isAr ? "فاتورة مبيع" : "Sales Invoice",

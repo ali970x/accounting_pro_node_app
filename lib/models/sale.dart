@@ -43,6 +43,8 @@ class Sale {
   final String paymentMethod;
   final double debtPaymentAmount;
   final String debtPaymentCurrency;
+  final double invoicePaidAmount;
+  final double invoiceDebtAmount;
   final double debtBalanceBeforeLbp;
   final double debtBalanceBeforeUsd;
   final double debtPreviousAfterPaymentLbp;
@@ -65,6 +67,8 @@ class Sale {
     required this.paymentMethod,
     required this.debtPaymentAmount,
     required this.debtPaymentCurrency,
+    required this.invoicePaidAmount,
+    required this.invoiceDebtAmount,
     required this.debtBalanceBeforeLbp,
     required this.debtBalanceBeforeUsd,
     required this.debtPreviousAfterPaymentLbp,
@@ -104,6 +108,10 @@ class Sale {
               .toString(),
       debtPaymentAmount: _num(json["debtPaymentAmount"]),
       debtPaymentCurrency: (json["debtPaymentCurrency"] ?? "LBP").toString(),
+      invoicePaidAmount: _num(json["invoicePaidAmount"]),
+      invoiceDebtAmount: json.containsKey("invoiceDebtAmount")
+          ? _num(json["invoiceDebtAmount"])
+          : (paymentStatus == "debt" ? total : 0),
       debtBalanceBeforeLbp: _num(json["debtBalanceBeforeLbp"]),
       debtBalanceBeforeUsd: _num(json["debtBalanceBeforeUsd"]),
       debtPreviousAfterPaymentLbp:

@@ -213,8 +213,8 @@ class PdfService {
   }
 
   static pw.Widget _invoiceTotalsBlock(Sale sale, bool isArabic) {
-    final invoiceDebt = sale.paymentStatus == "debt"
-        ? money(sale.total, sale.currency)
+    final invoiceDebt = sale.invoiceDebtAmount > 0
+        ? money(sale.invoiceDebtAmount, sale.currency)
         : (isArabic ? "\u0645\u062f\u0641\u0648\u0639" : "Paid");
     final hasDebtInfo =
         sale.debtBalanceBeforeLbp != 0 ||
@@ -249,7 +249,7 @@ class PdfService {
                   ),
                   if (sale.debtPaymentAmount > 0)
                     _text(
-                      "${isArabic ? "\u062f\u0641\u0639 \u0645\u0646 \u0627\u0644\u062f\u064a\u0648\u0646" : "Debt payment"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
+                      "${isArabic ? "\u062f\u0641\u0639\u0629 \u0627\u0644\u0622\u0646" : "Payment now"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
                       isArabic,
                       size: 8.5,
                       bold: true,
