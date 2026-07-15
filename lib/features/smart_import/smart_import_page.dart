@@ -6,6 +6,7 @@ import "package:flutter/services.dart";
 import "../../core/api_client.dart";
 import "../../core/app_controller.dart";
 import "../../core/money.dart";
+import "../../core/smart_import_inbox.dart";
 import "../../models/contact.dart";
 import "../../models/product.dart";
 import "../../widgets/modern_card.dart";
@@ -34,13 +35,28 @@ class _SmartImportPageState extends State<SmartImportPage> {
   @override
   void initState() {
     super.initState();
+    SmartImportInbox.text.addListener(_useInboxText);
     _loadReferences();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _useInboxText());
   }
 
   @override
   void dispose() {
+    SmartImportInbox.text.removeListener(_useInboxText);
     _script.dispose();
     super.dispose();
+  }
+
+  void _useInboxText() {
+    final incoming = SmartImportInbox.text.value;
+    if (!mounted || incoming == null || incoming.trim().isEmpty) return;
+    if (_script.text == incoming) return;
+    setState(() {
+      _script.text = incoming;
+      _plan = null;
+      _results.clear();
+      _error = null;
+    });
   }
 
   Future<void> _loadReferences() async {

@@ -14,10 +14,14 @@ import io.flutter.plugin.common.MethodChannel;
 
 public class MainActivity extends FlutterActivity {
     private static final String UPDATE_CHANNEL = "daftr/update";
+    private static final String SHARE_CHANNEL = "daftr/share";
+    private MethodChannel shareChannel;
+    private String pendingSharedText = "";
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
+        pendingSharedText = readSharedText(getIntent());
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), UPDATE_CHANNEL)
                 .setMethodCallHandler((call, result) -> {
                     if ("installApk".equals(call.method)) {
@@ -27,6 +31,40 @@ public class MainActivity extends FlutterActivity {
                         result.notImplemented();
                     }
                 });
+        shareChannel = new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), SHARE_CHANNEL);
+        shareChannel.setMethodCallHandler((call, result) -> {
+            if ("getInitialSharedText".equals(call.method)) {
+                result.success(pendingSharedText);
+                pendingSharedText = "";
+            } else {
+                result.notImplemented();
+            }
+        });
+    }
+
+    @Override
+    protected void onNewIntent(@NonNull Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String text = readSharedText(intent);
+        if (text.isEmpty()) return;
+        if (shareChannel == null) {
+            pendingSharedText = text;
+            return;
+        }
+        shareChannel.invokeMethod("sharedText", text);
+    }
+
+    private String readSharedText(Intent intent) {
+        if (intent == null || intent.getAction() == null) return "";
+        String action = intent.getAction();
+        CharSequence value = null;
+        if (Intent.ACTION_SEND.equals(action)) {
+            value = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+        } else if (Intent.ACTION_PROCESS_TEXT.equals(action)) {
+            value = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+        }
+        return value == null ? "" : value.toString();
     }
 
     private void installApk(String path, MethodChannel.Result result) {

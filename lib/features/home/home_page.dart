@@ -1,9 +1,11 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "../../core/api_client.dart";
 import "../../core/session_store.dart";
 import "../../core/app_controller.dart";
 import "../../core/local/local_store.dart";
 import "../../core/local/sync_service.dart";
+import "../../core/smart_import_inbox.dart";
 import "../auth/login_page.dart";
 import "../damaged/damaged_goods_page.dart";
 import "../inventory/inventory_page.dart";
@@ -35,11 +37,42 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    SmartImportInbox.text.addListener(_openSmartImportInbox);
     Future.microtask(() {
       if (!mounted) return;
       AppScope.of(context).loadSettings();
       _autoSync();
     });
+  }
+
+  @override
+  void dispose() {
+    SmartImportInbox.text.removeListener(_openSmartImportInbox);
+    super.dispose();
+  }
+
+  void _openSmartImportInbox() {
+    if (!mounted || SmartImportInbox.text.value == null) return;
+    setState(() => selected = 6);
+  }
+
+  Future<void> _pasteClipboardToSmartImport() async {
+    final c = AppScope.of(context);
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = (data?.text ?? "").trim();
+    if (text.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            c.isArabic ? "Clipboard is empty." : "Clipboard is empty.",
+          ),
+        ),
+      );
+      return;
+    }
+    SmartImportInbox.put(text);
+    if (mounted) setState(() => selected = 6);
   }
 
   Future<void> _autoSync() async {
@@ -219,6 +252,11 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _pasteClipboardToSmartImport,
+        icon: const Icon(Icons.content_paste_go_rounded),
+        label: const Text("Smart"),
+      ),
     );
   }
 
