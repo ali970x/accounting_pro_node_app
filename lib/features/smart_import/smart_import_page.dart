@@ -29,6 +29,10 @@ class _SmartImportPageState extends State<SmartImportPage> {
   String? _error;
   List<ContactModel> _contacts = [];
   List<Product> _products = [];
+  List<Map<String, dynamic>> _expenses = [];
+  List<Map<String, dynamic>> _debts = [];
+  List<Map<String, dynamic>> _sales = [];
+  List<Map<String, dynamic>> _movements = [];
   _SmartPlan? _plan;
   final List<String> _results = [];
   String _lastAutoAnalyzed = "";
@@ -70,6 +74,10 @@ class _SmartImportPageState extends State<SmartImportPage> {
       final data = await Future.wait([
         widget.api.get("/contacts"),
         widget.api.get("/products"),
+        widget.api.get("/expenses"),
+        widget.api.get("/debts"),
+        widget.api.get("/sales"),
+        widget.api.get("/records/stock-movements"),
       ]);
       _contacts = (data[0] as List)
           .map(
@@ -78,6 +86,18 @@ class _SmartImportPageState extends State<SmartImportPage> {
           .toList();
       _products = (data[1] as List)
           .map((e) => Product.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      _expenses = (data[2] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _debts = (data[3] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _sales = (data[4] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _movements = (data[5] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
     } catch (e) {
       _error = e.toString();
@@ -123,6 +143,10 @@ class _SmartImportPageState extends State<SmartImportPage> {
         Map<String, dynamic>.from(decoded),
         contacts: _contacts,
         products: _products,
+        expenses: _expenses,
+        debts: _debts,
+        sales: _sales,
+        movements: _movements,
         isAr: isAr,
       );
       setState(() => _plan = plan);
@@ -200,12 +224,24 @@ class _SmartImportPageState extends State<SmartImportPage> {
           forceCreate: true,
         );
         return;
+      case "update_contact":
+        await _updateContact(action);
+        return;
+      case "delete_contact":
+        await _deleteContact(action);
+        return;
       case "create_product":
         await _ensureProduct(
           action.stringValue("name"),
           action: action,
           forceCreate: true,
         );
+        return;
+      case "update_product":
+        await _updateProduct(action);
+        return;
+      case "delete_product":
+        await _deleteProduct(action);
         return;
       case "create_expense":
         await widget.api.post("/expenses", {
@@ -219,6 +255,12 @@ class _SmartImportPageState extends State<SmartImportPage> {
           "date": action.stringValue("date"),
           "note": action.stringValue("note"),
         });
+        return;
+      case "update_expense":
+        await _updateExpense(action);
+        return;
+      case "delete_expense":
+        await _deleteExpense(action);
         return;
       case "create_debt":
         final role = _roleFromAction(action, fallback: "customer");
@@ -237,6 +279,12 @@ class _SmartImportPageState extends State<SmartImportPage> {
           "note": action.stringValue("note"),
         });
         return;
+      case "update_debt":
+        await _updateDebt(action);
+        return;
+      case "delete_debt":
+        await _deleteDebt(action);
+        return;
       case "receive_stock":
         final supplier = await _ensureContact(
           action.contactName,
@@ -253,6 +301,12 @@ class _SmartImportPageState extends State<SmartImportPage> {
               await _stockItemBody(item, createIfMissing: true),
           ],
         });
+        return;
+      case "update_stock_receiving":
+        await _updateStockReceiving(action);
+        return;
+      case "delete_stock_receiving":
+        await _deleteStockReceiving(action);
         return;
       case "create_sale":
         final customerName = action.contactName;
@@ -281,6 +335,12 @@ class _SmartImportPageState extends State<SmartImportPage> {
           "items": [for (final item in action.items) await _saleItemBody(item)],
         });
         return;
+      case "update_sale":
+        await _updateSale(action);
+        return;
+      case "delete_sale":
+        await _deleteSale(action);
+        return;
       case "mark_damaged":
         await widget.api.post("/products/damage/bulk", {
           "invoiceNo": action.stringValue("invoiceNo"),
@@ -291,6 +351,12 @@ class _SmartImportPageState extends State<SmartImportPage> {
           ],
         });
         return;
+      case "update_damaged":
+        await _updateDamaged(action);
+        return;
+      case "delete_damaged":
+        await _deleteDamaged(action);
+        return;
       default:
         throw Exception(
           _label(
@@ -300,6 +366,218 @@ class _SmartImportPageState extends State<SmartImportPage> {
           ),
         );
     }
+  }
+
+  Future<void> _updateContact(_SmartAction action) async {
+    final role = _roleFromAction(action, fallback: "customer");
+    final contact = _findContactForAction(action, role);
+    if (contact == null)
+      throw Exception("Contact not found: ${action.targetName}");
+    final body = <String, dynamic>{"type": role};
+    final newName = action.stringValue("newName");
+    if (newName.isNotEmpty) body["name"] = newName;
+    for (final key in ["phone", "email", "address", "note", "customerKind"]) {
+      if (action.hasKey(key)) body[key] = action.stringValue(key);
+    }
+    if (body.length == 1) throw Exception("No contact fields to update.");
+    await widget.api.put("/contacts/${contact.id}", body);
+  }
+
+  Future<void> _deleteContact(_SmartAction action) async {
+    final role = _roleFromAction(action, fallback: "customer");
+    final contact = _findContactForAction(action, role);
+    if (contact == null)
+      throw Exception("Contact not found: ${action.targetName}");
+    await widget.api.delete("/contacts/${contact.id}");
+  }
+
+  Future<void> _updateProduct(_SmartAction action) async {
+    final product = _findProductForAction(action);
+    if (product == null)
+      throw Exception("Product not found: ${action.targetName}");
+    final body = <String, dynamic>{};
+    final newName = action.stringValue("newName");
+    if (newName.isNotEmpty) body["name"] = newName;
+    for (final key in ["category", "sku", "currency", "unit"]) {
+      if (action.hasKey(key)) body[key] = action.stringValue(key);
+    }
+    for (final key in [
+      "purchasePrice",
+      "sellingPrice",
+      "quantity",
+      "weight",
+      "minStock",
+    ]) {
+      if (action.hasKey(key)) body[key] = action.numberValue(key);
+    }
+    if (action.hasKey("unitCost"))
+      body["purchasePrice"] = action.numberValue("unitCost");
+    if (action.hasKey("unitPrice"))
+      body["sellingPrice"] = action.numberValue("unitPrice");
+    if (body.isEmpty) throw Exception("No product fields to update.");
+    await widget.api.put("/products/${product.id}", body);
+  }
+
+  Future<void> _deleteProduct(_SmartAction action) async {
+    final product = _findProductForAction(action);
+    if (product == null)
+      throw Exception("Product not found: ${action.targetName}");
+    await widget.api.delete("/products/${product.id}");
+  }
+
+  Future<void> _updateExpense(_SmartAction action) async {
+    final expense = _findExpenseForAction(action);
+    if (expense == null)
+      throw Exception("Expense not found: ${action.targetName}");
+    final body = <String, dynamic>{};
+    final title = action.stringValue(
+      "newTitle",
+      fallback: action.stringValue("title"),
+    );
+    if (title.isNotEmpty) body["title"] = title;
+    if (action.hasKey("amount")) body["amount"] = action.numberValue("amount");
+    for (final key in ["currency", "category", "date", "note"]) {
+      if (action.hasKey(key)) body[key] = action.stringValue(key);
+    }
+    if (body.isEmpty) throw Exception("No expense fields to update.");
+    await widget.api.put("/expenses/${_rowId(expense)}", body);
+  }
+
+  Future<void> _deleteExpense(_SmartAction action) async {
+    final expense = _findExpenseForAction(action);
+    if (expense == null)
+      throw Exception("Expense not found: ${action.targetName}");
+    await widget.api.delete("/expenses/${_rowId(expense)}");
+  }
+
+  Future<void> _updateDebt(_SmartAction action) async {
+    final debt = _findDebtForAction(action);
+    if (debt == null) throw Exception("Debt not found: ${action.targetName}");
+    final role = _roleFromAction(action, fallback: _debtRole(debt));
+    final body = <String, dynamic>{};
+    if (action.contactName.isNotEmpty || action.hasKey("role")) {
+      final contact = await _ensureContact(
+        action.contactName,
+        role,
+        action: action,
+      );
+      body["contact"] = contact.id;
+      body["personName"] = contact.name;
+      body["type"] = role == "supplier" ? "payable" : "receivable";
+    }
+    if (action.hasKey("amount"))
+      body["originalAmount"] = action.numberValue("amount");
+    if (action.hasKey("originalAmount"))
+      body["originalAmount"] = action.numberValue("originalAmount");
+    for (final key in ["currency", "dueDate", "note"]) {
+      if (action.hasKey(key)) body[key] = action.stringValue(key);
+    }
+    if (body.isEmpty) throw Exception("No debt fields to update.");
+    await widget.api.put("/debts/${_rowId(debt)}", body);
+  }
+
+  Future<void> _deleteDebt(_SmartAction action) async {
+    final debt = _findDebtForAction(action);
+    if (debt == null) throw Exception("Debt not found: ${action.targetName}");
+    await widget.api.delete("/debts/${_rowId(debt)}");
+  }
+
+  Future<void> _updateSale(_SmartAction action) async {
+    final sale = _findSaleForAction(action);
+    if (sale == null)
+      throw Exception("Sale invoice not found: ${action.targetName}");
+    if (action.items.isNotEmpty) {
+      await widget.api.delete("/sales/${_rowId(sale)}");
+      final createData = Map<String, dynamic>.from(action.data);
+      createData["type"] = "create_sale";
+      createData["customerName"] = action.contactName.isNotEmpty
+          ? action.contactName
+          : (sale["customerName"] ?? "").toString();
+      await _executeAction(
+        _SmartAction(type: "create_sale", data: createData),
+        false,
+      );
+      return;
+    }
+    final body = <String, dynamic>{};
+    if (action.contactName.isNotEmpty) {
+      final contact = await _ensureContact(
+        action.contactName,
+        "customer",
+        action: action,
+      );
+      body["customerName"] = contact.name;
+      body["contact"] = contact.id;
+    }
+    if (action.hasKey("paymentStatus"))
+      body["paymentStatus"] = action.paymentStatus;
+    if (action.hasKey("note")) body["note"] = action.stringValue("note");
+    if (body.isEmpty) throw Exception("No sale fields to update.");
+    await widget.api.put("/sales/${_rowId(sale)}", body);
+  }
+
+  Future<void> _deleteSale(_SmartAction action) async {
+    final sale = _findSaleForAction(action);
+    if (sale == null)
+      throw Exception("Sale invoice not found: ${action.targetName}");
+    await widget.api.delete("/sales/${_rowId(sale)}");
+  }
+
+  Future<void> _updateStockReceiving(_SmartAction action) async {
+    await _deleteMovementAction(
+      action,
+      "purchase",
+      "Stock receiving not found",
+    );
+    if (action.items.isEmpty) return;
+    final createData = Map<String, dynamic>.from(action.data);
+    createData["type"] = "receive_stock";
+    await _executeAction(
+      _SmartAction(type: "receive_stock", data: createData),
+      false,
+    );
+  }
+
+  Future<void> _deleteStockReceiving(_SmartAction action) async {
+    await _deleteMovementAction(
+      action,
+      "purchase",
+      "Stock receiving not found",
+    );
+  }
+
+  Future<void> _updateDamaged(_SmartAction action) async {
+    await _deleteMovementAction(
+      action,
+      "damage",
+      "Damaged goods record not found",
+    );
+    if (action.items.isEmpty) return;
+    final createData = Map<String, dynamic>.from(action.data);
+    createData["type"] = "mark_damaged";
+    await _executeAction(
+      _SmartAction(type: "mark_damaged", data: createData),
+      false,
+    );
+  }
+
+  Future<void> _deleteDamaged(_SmartAction action) async {
+    await _deleteMovementAction(
+      action,
+      "damage",
+      "Damaged goods record not found",
+    );
+  }
+
+  Future<void> _deleteMovementAction(
+    _SmartAction action,
+    String type,
+    String notFoundMessage,
+  ) async {
+    final movement = _findMovementForAction(action, type);
+    if (movement == null)
+      throw Exception("$notFoundMessage: ${action.targetName}");
+    await widget.api.delete("/records/stock-movements/${_rowId(movement)}");
   }
 
   Future<ContactModel> _ensureContact(
@@ -409,6 +687,171 @@ class _SmartImportPageState extends State<SmartImportPage> {
     }
     return null;
   }
+
+  ContactModel? _findContactForAction(_SmartAction action, String role) {
+    final id = action.stringValue(
+      "id",
+      fallback: action.stringValue("contactId"),
+    );
+    if (id.isNotEmpty) {
+      for (final contact in _contacts) {
+        if (contact.id == id && contact.type == role) return contact;
+      }
+    }
+    final names = [
+      action.stringValue("oldName"),
+      action.stringValue("targetName"),
+      action.stringValue("name"),
+      action.contactName,
+    ].where((e) => e.trim().isNotEmpty).map(_norm).toSet();
+    for (final contact in _contacts) {
+      if (contact.type == role && names.contains(_norm(contact.name))) {
+        return contact;
+      }
+    }
+    return null;
+  }
+
+  Product? _findProductForAction(_SmartAction action) {
+    final id = action.stringValue(
+      "id",
+      fallback: action.stringValue("productId"),
+    );
+    if (id.isNotEmpty) {
+      for (final product in _products) {
+        if (product.id == id) return product;
+      }
+    }
+    final names = [
+      action.stringValue("oldName"),
+      action.stringValue("targetName"),
+      action.stringValue("name"),
+      action.stringValue("productName"),
+    ].where((e) => e.trim().isNotEmpty).map(_norm).toSet();
+    for (final product in _products) {
+      if (names.contains(_norm(product.name))) return product;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findExpenseForAction(_SmartAction action) {
+    final id = action.stringValue(
+      "id",
+      fallback: action.stringValue("expenseId"),
+    );
+    if (id.isNotEmpty) return _findRowById(_expenses, id);
+    final titles = [
+      action.stringValue("oldTitle"),
+      action.stringValue("targetTitle"),
+      action.stringValue("title"),
+      action.stringValue("name"),
+      action.targetName,
+    ].where((e) => e.trim().isNotEmpty).map(_norm).toSet();
+    for (final expense in _expenses) {
+      if (titles.contains(_norm((expense["title"] ?? "").toString()))) {
+        return expense;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findDebtForAction(_SmartAction action) {
+    final id = action.stringValue("id", fallback: action.stringValue("debtId"));
+    if (id.isNotEmpty) return _findRowById(_debts, id);
+    final role = _roleFromAction(action, fallback: "customer");
+    final type = role == "supplier" ? "payable" : "receivable";
+    final names = [
+      action.stringValue("oldName"),
+      action.stringValue("targetName"),
+      action.contactName,
+      action.stringValue("personName"),
+    ].where((e) => e.trim().isNotEmpty).map(_norm).toSet();
+    for (final debt in _debts) {
+      if ((debt["type"] ?? "").toString() != type) continue;
+      if (names.contains(_norm((debt["personName"] ?? "").toString()))) {
+        return debt;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findSaleForAction(_SmartAction action) {
+    final id = action.stringValue("id", fallback: action.stringValue("saleId"));
+    if (id.isNotEmpty) return _findRowById(_sales, id);
+    final invoiceNo = action.stringValue("invoiceNo");
+    if (invoiceNo.isNotEmpty) {
+      for (final sale in _sales) {
+        if (_norm((sale["invoiceNo"] ?? "").toString()) == _norm(invoiceNo)) {
+          return sale;
+        }
+      }
+    }
+    final names = [
+      action.stringValue("oldName"),
+      action.stringValue("targetName"),
+      action.contactName,
+    ].where((e) => e.trim().isNotEmpty).map(_norm).toSet();
+    for (final sale in _sales) {
+      if (names.contains(_norm((sale["customerName"] ?? "").toString()))) {
+        return sale;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findMovementForAction(
+    _SmartAction action,
+    String type,
+  ) {
+    final id = action.stringValue(
+      "id",
+      fallback: action.stringValue("movementId"),
+    );
+    if (id.isNotEmpty) return _findRowById(_movements, id);
+    final invoiceNo = action.stringValue("invoiceNo");
+    final productName = action.stringValue("productName");
+    final contactName = action.contactName;
+    for (final movement in _movements) {
+      if ((movement["type"] ?? "").toString() != type) continue;
+      if (invoiceNo.isNotEmpty &&
+          _norm((movement["invoiceNo"] ?? "").toString()) != _norm(invoiceNo)) {
+        continue;
+      }
+      if (productName.isNotEmpty &&
+          _norm((movement["productName"] ?? "").toString()) !=
+              _norm(productName)) {
+        continue;
+      }
+      if (contactName.isNotEmpty) {
+        final supplier = _norm((movement["supplierName"] ?? "").toString());
+        final customer = _norm((movement["customerName"] ?? "").toString());
+        final wanted = _norm(contactName);
+        if (supplier != wanted && customer != wanted) continue;
+      }
+      if (invoiceNo.isNotEmpty ||
+          productName.isNotEmpty ||
+          contactName.isNotEmpty) {
+        return movement;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findRowById(
+    List<Map<String, dynamic>> rows,
+    String id,
+  ) {
+    for (final row in rows) {
+      if (_rowId(row) == id) return row;
+    }
+    return null;
+  }
+
+  String _rowId(Map<String, dynamic> row) =>
+      (row["_id"] ?? row["id"] ?? "").toString();
+
+  String _debtRole(Map<String, dynamic> debt) =>
+      (debt["type"] ?? "").toString() == "payable" ? "supplier" : "customer";
 
   Future<void> _copyAiGuide() async {
     await Clipboard.setData(ClipboardData(text: _aiGuide));
@@ -712,6 +1155,10 @@ class _SmartPlan {
     Map<String, dynamic> json, {
     required List<ContactModel> contacts,
     required List<Product> products,
+    required List<Map<String, dynamic>> expenses,
+    required List<Map<String, dynamic>> debts,
+    required List<Map<String, dynamic>> sales,
+    required List<Map<String, dynamic>> movements,
     required bool isAr,
   }) {
     final raw = json["actions"];
@@ -729,7 +1176,15 @@ class _SmartPlan {
         .map((e) => _SmartAction.fromJson(Map<String, dynamic>.from(e)))
         .toList();
     for (final action in actions) {
-      action.validate(contacts: contacts, products: products, isAr: isAr);
+      action.validate(
+        contacts: contacts,
+        products: products,
+        expenses: expenses,
+        debts: debts,
+        sales: sales,
+        movements: movements,
+        isAr: isAr,
+      );
     }
     return _SmartPlan(actions: actions);
   }
@@ -766,6 +1221,20 @@ class _SmartAction {
     ),
   );
 
+  String get targetName => stringValue(
+    "targetName",
+    fallback: stringValue(
+      "oldName",
+      fallback: stringValue(
+        "name",
+        fallback: stringValue(
+          "productName",
+          fallback: stringValue("title", fallback: contactName),
+        ),
+      ),
+    ),
+  );
+
   String get currency =>
       stringValue("currency", fallback: "LBP") == "USD" ? "USD" : "LBP";
 
@@ -777,6 +1246,8 @@ class _SmartAction {
   String stringValue(String key, {String fallback = ""}) =>
       (data[key] ?? fallback).toString().trim();
 
+  bool hasKey(String key) => data.containsKey(key) && data[key] != null;
+
   double numberValue(String key, {double fallback = 0}) {
     if (!data.containsKey(key)) return fallback;
     return numFromDynamic(data[key], fallback: fallback);
@@ -785,25 +1256,203 @@ class _SmartAction {
   void validate({
     required List<ContactModel> contacts,
     required List<Product> products,
+    required List<Map<String, dynamic>> expenses,
+    required List<Map<String, dynamic>> debts,
+    required List<Map<String, dynamic>> sales,
+    required List<Map<String, dynamic>> movements,
     required bool isAr,
   }) {
     messages.clear();
     const supported = {
       "create_contact",
+      "update_contact",
+      "delete_contact",
       "create_product",
+      "update_product",
+      "delete_product",
       "create_expense",
+      "update_expense",
+      "delete_expense",
       "create_debt",
+      "update_debt",
+      "delete_debt",
       "receive_stock",
+      "update_stock_receiving",
+      "delete_stock_receiving",
       "create_sale",
+      "update_sale",
+      "delete_sale",
       "mark_damaged",
+      "update_damaged",
+      "delete_damaged",
     };
     if (!supported.contains(type)) {
       messages.add(const _ActionMessage("Unsupported action type.", true));
       return;
     }
+    String rowId(Map<String, dynamic> row) =>
+        (row["_id"] ?? row["id"] ?? "").toString();
+    bool hasRowId(List<Map<String, dynamic>> rows, String id) =>
+        id.isNotEmpty && rows.any((row) => rowId(row) == id);
+    bool hasNamedRow(
+      List<Map<String, dynamic>> rows,
+      String key,
+      Set<String> names,
+    ) =>
+        names.isNotEmpty &&
+        rows.any((row) => names.contains(_norm((row[key] ?? "").toString())));
+    bool hasMovement(String movementType) {
+      final id = stringValue("id", fallback: stringValue("movementId"));
+      if (hasRowId(movements, id)) return true;
+      final invoiceNo = stringValue("invoiceNo");
+      final productName = stringValue("productName");
+      final wantedContact = _norm(contactName);
+      return movements.any((row) {
+        if ((row["type"] ?? "").toString() != movementType) return false;
+        if (invoiceNo.isNotEmpty &&
+            _norm((row["invoiceNo"] ?? "").toString()) != _norm(invoiceNo)) {
+          return false;
+        }
+        if (productName.isNotEmpty &&
+            _norm((row["productName"] ?? "").toString()) !=
+                _norm(productName)) {
+          return false;
+        }
+        if (wantedContact.isNotEmpty) {
+          final supplier = _norm((row["supplierName"] ?? "").toString());
+          final customer = _norm((row["customerName"] ?? "").toString());
+          if (supplier != wantedContact && customer != wantedContact) {
+            return false;
+          }
+        }
+        return invoiceNo.isNotEmpty ||
+            productName.isNotEmpty ||
+            wantedContact.isNotEmpty;
+      });
+    }
+
+    final targetNames = {
+      stringValue("oldName"),
+      stringValue("targetName"),
+      stringValue("name"),
+      stringValue("productName"),
+      stringValue("title"),
+      contactName,
+    }.where((e) => e.trim().isNotEmpty).map(_norm).toSet();
+    final targetId = stringValue(
+      "id",
+      fallback: stringValue(
+        "contactId",
+        fallback: stringValue(
+          "productId",
+          fallback: stringValue(
+            "expenseId",
+            fallback: stringValue(
+              "debtId",
+              fallback: stringValue(
+                "saleId",
+                fallback: stringValue("movementId"),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     if ((type == "create_contact" || type == "create_product") &&
         stringValue("name").isEmpty) {
       messages.add(const _ActionMessage("name is required.", true));
+    }
+    if (type.startsWith("update_") || type.startsWith("delete_")) {
+      if (targetName.isEmpty &&
+          stringValue("id").isEmpty &&
+          stringValue("invoiceNo").isEmpty &&
+          stringValue("movementId").isEmpty) {
+        messages.add(
+          const _ActionMessage(
+            "Target name, id, movementId, or invoiceNo is required.",
+            true,
+          ),
+        );
+      }
+      if (["update_contact", "delete_contact"].contains(type)) {
+        final role = _roleFromAction(this, fallback: "customer");
+        final exists = contacts.any(
+          (c) =>
+              (targetId.isNotEmpty && c.id == targetId) ||
+              (c.type == role && targetNames.contains(_norm(c.name))),
+        );
+        if (!exists)
+          messages.add(
+            const _ActionMessage("Contact target was not found.", true),
+          );
+      }
+      if (["update_product", "delete_product"].contains(type)) {
+        final exists = products.any(
+          (p) =>
+              (targetId.isNotEmpty && p.id == targetId) ||
+              targetNames.contains(_norm(p.name)),
+        );
+        if (!exists)
+          messages.add(
+            const _ActionMessage("Product target was not found.", true),
+          );
+      }
+      if (["update_expense", "delete_expense"].contains(type)) {
+        final exists =
+            hasRowId(expenses, targetId) ||
+            hasNamedRow(expenses, "title", targetNames);
+        if (!exists)
+          messages.add(
+            const _ActionMessage("Expense target was not found.", true),
+          );
+      }
+      if (["update_debt", "delete_debt"].contains(type)) {
+        final role = _roleFromAction(this, fallback: "customer");
+        final debtType = role == "supplier" ? "payable" : "receivable";
+        final exists =
+            hasRowId(debts, targetId) ||
+            debts.any(
+              (row) =>
+                  (row["type"] ?? "").toString() == debtType &&
+                  targetNames.contains(
+                    _norm((row["personName"] ?? "").toString()),
+                  ),
+            );
+        if (!exists)
+          messages.add(
+            const _ActionMessage("Debt target was not found.", true),
+          );
+      }
+      if (["update_sale", "delete_sale"].contains(type)) {
+        final invoiceNo = stringValue("invoiceNo");
+        final exists =
+            hasRowId(sales, targetId) ||
+            sales.any(
+              (row) =>
+                  (invoiceNo.isNotEmpty &&
+                      _norm((row["invoiceNo"] ?? "").toString()) ==
+                          _norm(invoiceNo)) ||
+                  targetNames.contains(
+                    _norm((row["customerName"] ?? "").toString()),
+                  ),
+            );
+        if (!exists)
+          messages.add(
+            const _ActionMessage("Sale invoice target was not found.", true),
+          );
+      }
+      if (["update_stock_receiving", "delete_stock_receiving"].contains(type) &&
+          !hasMovement("purchase")) {
+        messages.add(
+          const _ActionMessage("Stock receiving target was not found.", true),
+        );
+      }
+      if (["update_damaged", "delete_damaged"].contains(type) &&
+          !hasMovement("damage")) {
+        messages.add(
+          const _ActionMessage("Damaged goods target was not found.", true),
+        );
+      }
     }
     if (type == "create_expense" && numberValue("amount") <= 0) {
       messages.add(const _ActionMessage("Expense amount is required.", true));
@@ -819,6 +1468,15 @@ class _SmartAction {
     if (["receive_stock", "create_sale", "mark_damaged"].contains(type) &&
         items.isEmpty) {
       messages.add(const _ActionMessage("items are required.", true));
+    }
+    if (["update_stock_receiving", "update_damaged"].contains(type) &&
+        items.isEmpty) {
+      messages.add(
+        const _ActionMessage(
+          "Will only cancel the old record because no new items were provided.",
+          false,
+        ),
+      );
     }
     if (type == "receive_stock" && contactName.isEmpty) {
       messages.add(const _ActionMessage("Supplier name is required.", true));
@@ -842,12 +1500,15 @@ class _SmartAction {
       final exists = products.any(
         (p) => _norm(p.name) == _norm(item.productName),
       );
-      if (!exists && type != "receive_stock") {
+      if (!exists &&
+          type != "receive_stock" &&
+          type != "update_stock_receiving") {
         messages.add(
           _ActionMessage("Product not found: ${item.productName}", true),
         );
       }
-      if (!exists && type == "receive_stock") {
+      if (!exists &&
+          (type == "receive_stock" || type == "update_stock_receiving")) {
         messages.add(
           _ActionMessage(
             "Will create product if missing: ${item.productName}",
@@ -874,6 +1535,24 @@ class _SmartAction {
   }
 
   String title(bool isAr) {
+    const extraTitles = {
+      "update_contact": ["Update contact", "تعديل اسم"],
+      "delete_contact": ["Delete contact", "حذف اسم"],
+      "update_product": ["Update product", "تعديل منتج"],
+      "delete_product": ["Delete product", "حذف منتج"],
+      "update_expense": ["Update expense", "تعديل مصروف"],
+      "delete_expense": ["Delete expense", "حذف مصروف"],
+      "update_debt": ["Update debt", "تعديل دين"],
+      "delete_debt": ["Delete debt", "حذف دين"],
+      "update_stock_receiving": ["Update stock receiving", "تعديل توريد"],
+      "delete_stock_receiving": ["Delete stock receiving", "حذف توريد"],
+      "update_sale": ["Update sale invoice", "تعديل فاتورة مبيع"],
+      "delete_sale": ["Delete sale invoice", "حذف فاتورة مبيع"],
+      "update_damaged": ["Update damaged goods", "تعديل بضاعة تالفة"],
+      "delete_damaged": ["Delete damaged goods", "حذف بضاعة تالفة"],
+    };
+    final extraTitle = extraTitles[type];
+    if (extraTitle != null) return isAr ? extraTitle[1] : extraTitle[0];
     switch (type) {
       case "create_contact":
         return _label(isAr, "Create contact", "إضافة اسم");
@@ -895,6 +1574,30 @@ class _SmartAction {
   }
 
   String summary(bool isAr) {
+    if ([
+      "update_contact",
+      "delete_contact",
+      "update_product",
+      "delete_product",
+      "update_expense",
+      "delete_expense",
+      "update_debt",
+      "delete_debt",
+    ].contains(type)) {
+      return targetName;
+    }
+    if ([
+      "update_stock_receiving",
+      "delete_stock_receiving",
+      "update_sale",
+      "delete_sale",
+      "update_damaged",
+      "delete_damaged",
+    ].contains(type)) {
+      final invoice = stringValue("invoiceNo");
+      if (invoice.isNotEmpty) return invoice;
+      return targetName.isNotEmpty ? targetName : "${items.length} items";
+    }
     if (type == "create_contact") return stringValue("name");
     if (type == "create_product") return stringValue("name");
     if (type == "create_expense") {
@@ -1113,9 +1816,27 @@ Schema:
   ]
 }
 
+Update/delete actions:
+- update_contact, delete_contact:
+  role, targetName or id, optional newName, phone, email, address, note.
+- update_product, delete_product:
+  targetName or id, optional newName, category, purchasePrice, sellingPrice, quantity, weight, currency, unit.
+- update_expense, delete_expense:
+  targetTitle, targetName, or id, optional newTitle, amount, currency, category, date, note.
+- update_debt, delete_debt:
+  role, contactName or id, optional amount, currency, dueDate, note.
+- update_sale, delete_sale:
+  invoiceNo or id is best. customerName can be fallback. If update_sale has items, daftr cancels the old invoice and creates a new one.
+- update_stock_receiving, delete_stock_receiving:
+  invoiceNo or movementId is best. supplierName/productName can be fallback. If update has items, daftr cancels the old receiving and creates a new one.
+- update_damaged, delete_damaged:
+  invoiceNo or movementId is best. productName can be fallback. If update has items, daftr cancels the old damaged record and creates a new one.
+
 Rules:
 - Use numbers without commas.
 - Use LBP by default unless the user clearly says dollars.
+- For delete/update, do not guess the target. Use invoiceNo/id/movementId when available.
+- Delete sale, stock receiving, and damaged goods will reverse stock and linked invoice debts in daftr.
 - If user says "اشتريت" from a supplier, use receive_stock.
 - If user says "بعت" or "فاتورة مبيع", use create_sale.
 - If user says someone owes me, use create_debt with role customer.
