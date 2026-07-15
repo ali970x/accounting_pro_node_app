@@ -235,7 +235,7 @@ class _HomePageState extends State<HomePage> {
         onOpenDamages: () => setState(() => selected = 1),
       ),
       5 => RecordsPage(api: widget.api),
-      6 => const SmartImportPage(),
+      6 => SmartImportPage(api: widget.api),
       7 => ExpensesPage(api: widget.api),
       8 => DebtsPage(api: widget.api),
       9 => ContactsPage(api: widget.api),
