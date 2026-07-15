@@ -41,6 +41,8 @@ class _DaftrAppState extends State<DaftrApp> {
     _shareChannel.setMethodCallHandler((call) async {
       if (call.method == "sharedText") {
         SmartImportInbox.put((call.arguments ?? "").toString());
+      } else if (call.method == "openSmartImportClipboard") {
+        SmartImportInbox.requestClipboardPaste();
       }
     });
     try {
@@ -48,6 +50,10 @@ class _DaftrAppState extends State<DaftrApp> {
         "getInitialSharedText",
       );
       if (initial != null) SmartImportInbox.put(initial);
+      final openClipboard = await _shareChannel.invokeMethod<bool>(
+        "getInitialOpenClipboard",
+      );
+      if (openClipboard == true) SmartImportInbox.requestClipboardPaste();
     } catch (_) {
       // Sharing integration is Android-only; other platforms can ignore it.
     }

@@ -2,6 +2,8 @@ package com.example.accounting_pro_node_app;
 
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.FileProvider;
@@ -15,13 +17,17 @@ import io.flutter.plugin.common.MethodChannel;
 public class MainActivity extends FlutterActivity {
     private static final String UPDATE_CHANNEL = "daftr/update";
     private static final String SHARE_CHANNEL = "daftr/share";
+    private static final String OVERLAY_CHANNEL = "daftr/overlay";
+    private static final String SMART_CLIPBOARD_ACTION = "com.example.accounting_pro_node_app.SMART_IMPORT_CLIPBOARD";
     private MethodChannel shareChannel;
     private String pendingSharedText = "";
+    private boolean pendingOpenClipboard = false;
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
         pendingSharedText = readSharedText(getIntent());
+        pendingOpenClipboard = isSmartClipboardIntent(getIntent());
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), UPDATE_CHANNEL)
                 .setMethodCallHandler((call, result) -> {
                     if ("installApk".equals(call.method)) {
@@ -36,10 +42,40 @@ public class MainActivity extends FlutterActivity {
             if ("getInitialSharedText".equals(call.method)) {
                 result.success(pendingSharedText);
                 pendingSharedText = "";
+            } else if ("getInitialOpenClipboard".equals(call.method)) {
+                result.success(pendingOpenClipboard);
+                pendingOpenClipboard = false;
             } else {
                 result.notImplemented();
             }
         });
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), OVERLAY_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if ("hasPermission".equals(call.method)) {
+                        result.success(canDrawOverlay());
+                    } else if ("requestPermission".equals(call.method)) {
+                        Intent intent = new Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName())
+                        );
+                        startActivity(intent);
+                        result.success(true);
+                    } else if ("start".equals(call.method)) {
+                        if (!canDrawOverlay()) {
+                            result.success(false);
+                            return;
+                        }
+                        startService(new Intent(this, SmartBubbleService.class));
+                        result.success(true);
+                    } else if ("stop".equals(call.method)) {
+                        stopService(new Intent(this, SmartBubbleService.class));
+                        result.success(true);
+                    } else if ("isRunning".equals(call.method)) {
+                        result.success(SmartBubbleService.isRunning());
+                    } else {
+                        result.notImplemented();
+                    }
+                });
     }
 
     @Override
@@ -47,6 +83,14 @@ public class MainActivity extends FlutterActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         String text = readSharedText(intent);
+        if (isSmartClipboardIntent(intent)) {
+            if (shareChannel == null) {
+                pendingOpenClipboard = true;
+            } else {
+                shareChannel.invokeMethod("openSmartImportClipboard", true);
+            }
+            return;
+        }
         if (text.isEmpty()) return;
         if (shareChannel == null) {
             pendingSharedText = text;
@@ -65,6 +109,14 @@ public class MainActivity extends FlutterActivity {
             value = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
         }
         return value == null ? "" : value.toString();
+    }
+
+    private boolean isSmartClipboardIntent(Intent intent) {
+        return intent != null && SMART_CLIPBOARD_ACTION.equals(intent.getAction());
+    }
+
+    private boolean canDrawOverlay() {
+        return android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || Settings.canDrawOverlays(this);
     }
 
     private void installApk(String path, MethodChannel.Result result) {

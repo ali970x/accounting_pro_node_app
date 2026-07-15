@@ -38,6 +38,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     SmartImportInbox.text.addListener(_openSmartImportInbox);
+    SmartImportInbox.clipboardRequests.addListener(_handleClipboardRequest);
     Future.microtask(() {
       if (!mounted) return;
       AppScope.of(context).loadSettings();
@@ -48,6 +49,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     SmartImportInbox.text.removeListener(_openSmartImportInbox);
+    SmartImportInbox.clipboardRequests.removeListener(_handleClipboardRequest);
     super.dispose();
   }
 
@@ -56,19 +58,18 @@ class _HomePageState extends State<HomePage> {
     setState(() => selected = 6);
   }
 
+  void _handleClipboardRequest() {
+    _pasteClipboardToSmartImport();
+  }
+
   Future<void> _pasteClipboardToSmartImport() async {
-    final c = AppScope.of(context);
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = (data?.text ?? "").trim();
     if (text.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            c.isArabic ? "Clipboard is empty." : "Clipboard is empty.",
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Clipboard is empty.")));
       return;
     }
     SmartImportInbox.put(text);
@@ -252,12 +253,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: "smart_import_clipboard_fab",
-        onPressed: _pasteClipboardToSmartImport,
-        icon: const Icon(Icons.content_paste_go_rounded),
-        label: const Text("Smart"),
-      ),
     );
   }
 
