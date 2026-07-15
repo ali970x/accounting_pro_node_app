@@ -253,6 +253,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "smart_import_clipboard_fab",
         onPressed: _pasteClipboardToSmartImport,
         icon: const Icon(Icons.content_paste_go_rounded),
         label: const Text("Smart"),
