@@ -281,7 +281,7 @@ class _SalesPageState extends State<SalesPage> {
       return _showError(
         isAr
             ? "اختار الزبون من القائمة قبل تسجيل دفعة من الدين"
-            : "Select the customer before recording a debt payment",
+            : "Select the customer before recording a payment now",
       );
     }
 
@@ -502,7 +502,7 @@ class _SalesPageState extends State<SalesPage> {
       "${isAr ? "الحالة" : "Status"}: ${sale.paymentStatus == "debt" ? (isAr ? "دين" : "Debt") : (isAr ? "مدفوع" : "Paid")}",
       "${isAr ? "طريقة الدفع" : "Payment method"}: ${_paymentMethodLabel(sale.paymentMethod, isAr)}",
       if (sale.debtPaymentAmount > 0)
-        "${isAr ? "دفع من الدين" : "Debt payment"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
+        "${isAr ? "دفعة الآن" : "Payment now"}: ${money(sale.debtPaymentAmount, sale.debtPaymentCurrency)}",
       "${isAr ? "الرصيد السابق" : "Previous balance"}: ${_moneyPair(sale.debtBalanceBeforeLbp, sale.debtBalanceBeforeUsd)}",
       if (sale.debtPaymentAmount > 0)
         "${isAr ? "باقي الدين السابق" : "Previous debt remaining"}: ${_moneyPair(sale.debtPreviousAfterPaymentLbp, sale.debtPreviousAfterPaymentUsd)}",
@@ -883,7 +883,10 @@ class _SalesPageState extends State<SalesPage> {
               controller: _debtPayment,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: isAr ? "دفعة من الدين" : "Debt payment",
+                labelText: isAr ? "دفعة الآن" : "Payment now",
+                helperText: isAr
+                    ? "تسد الدين السابق، وأي زيادة تنخصم من هذه الفاتورة"
+                    : "Pays old debt first; extra reduces this invoice",
               ),
             ),
             DropdownButtonFormField<String>(
