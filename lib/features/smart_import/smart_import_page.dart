@@ -1,5 +1,6 @@
 import "dart:convert";
 
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 
@@ -40,6 +41,10 @@ class _SmartImportPageState extends State<SmartImportPage> {
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      _loading = false;
+      return;
+    }
     SmartImportInbox.text.addListener(_useInboxText);
     _loadReferences();
     WidgetsBinding.instance.addPostFrameCallback((_) => _useInboxText());
@@ -47,7 +52,7 @@ class _SmartImportPageState extends State<SmartImportPage> {
 
   @override
   void dispose() {
-    SmartImportInbox.text.removeListener(_useInboxText);
+    if (!kIsWeb) SmartImportInbox.text.removeListener(_useInboxText);
     _script.dispose();
     super.dispose();
   }
@@ -877,6 +882,8 @@ class _SmartImportPageState extends State<SmartImportPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) return const _SmartImportWebLocked();
+
     final isAr = AppScope.of(context).isArabic;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -997,6 +1004,73 @@ class _SmartImportPageState extends State<SmartImportPage> {
         const SizedBox(height: 14),
         _GuideCard(isAr: isAr),
       ],
+    );
+  }
+}
+
+class _SmartImportWebLocked extends StatelessWidget {
+  const _SmartImportWebLocked();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ModernCard(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.lock_clock_rounded,
+                    size: 36,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  "Smart Import",
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Coming soon on web",
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Smart Import is locked on the web version for now. It stays available on the mobile app while the web workflow is being finished.",
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
