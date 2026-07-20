@@ -359,10 +359,11 @@ class _SalesPageState extends State<SalesPage> {
       return false;
     }
 
-    final index = _saleItems.indexWhere((item) => item.id == choice.id);
-    final currentQty = index == -1 ? 0.0 : _saleItems[index].quantity;
-    final nextQty = currentQty + quantity;
-    if (nextQty > choice.quantity) {
+    final currentProductQty = _saleItems
+        .where((item) => item.id == choice.id)
+        .fold<double>(0, (sum, item) => sum + item.quantity);
+    final nextProductQty = currentProductQty + quantity;
+    if (nextProductQty > choice.quantity) {
       _showError(
         isAr
             ? "الكمية أكبر من المتوفر بالمخزون"
@@ -371,8 +372,12 @@ class _SalesPageState extends State<SalesPage> {
       return false;
     }
 
+    final mergeIndex = _saleItems.indexWhere(
+      (item) => item.id == choice.id && _samePrice(item.unitPrice, unitPrice),
+    );
+
     setState(() {
-      if (index == -1) {
+      if (mergeIndex == -1) {
         _saleItems.add(
           _SaleDraftItem.fromChoice(
             choice,
@@ -382,16 +387,17 @@ class _SalesPageState extends State<SalesPage> {
           ),
         );
       } else {
-        _saleItems[index] = _saleItems[index].copyWith(
-          quantity: nextQty,
-          weight: _saleItems[index].weight + weight,
-          unitPrice: unitPrice,
+        _saleItems[mergeIndex] = _saleItems[mergeIndex].copyWith(
+          quantity: _saleItems[mergeIndex].quantity + quantity,
+          weight: _saleItems[mergeIndex].weight + weight,
         );
       }
       _clearProductEntry();
     });
     return true;
   }
+
+  bool _samePrice(double a, double b) => (a - b).abs() < 0.0001;
 
   void _clearProductEntry() {
     _quantity.clear();
