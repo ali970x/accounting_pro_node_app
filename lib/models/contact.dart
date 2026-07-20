@@ -6,6 +6,7 @@
   final String imageUrl;
   final String address;
   final String type;
+  final String customerKind;
   final String note;
 
   const ContactModel({
@@ -16,6 +17,7 @@
     required this.imageUrl,
     required this.address,
     required this.type,
+    required this.customerKind,
     required this.note,
   });
 
@@ -28,9 +30,20 @@
       imageUrl: (json["imageUrl"] ?? "").toString(),
       address: (json["address"] ?? "").toString(),
       type: (json["type"] ?? "customer").toString(),
+      customerKind: (json["customerKind"] ?? "retail").toString() == "wholesale"
+          ? "wholesale"
+          : "retail",
       note: (json["note"] ?? "").toString(),
     );
   }
 
   String get fullPhone => "$countryCode$phone";
+
+  String customerKindLabel(bool isArabic) {
+    if (type != "customer") return isArabic ? "مورد" : "Supplier";
+    if (customerKind == "wholesale") {
+      return isArabic ? "عميل جملة" : "Wholesale customer";
+    }
+    return isArabic ? "زبون عادي" : "Retail customer";
+  }
 }

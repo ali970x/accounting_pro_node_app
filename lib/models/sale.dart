@@ -37,6 +37,7 @@ class Sale {
   final String invoiceNo;
   final String customerName;
   final String contactId;
+  final String customerKind;
   final double total;
   final String currency;
   final String paymentStatus;
@@ -61,6 +62,7 @@ class Sale {
     required this.invoiceNo,
     required this.customerName,
     required this.contactId,
+    required this.customerKind,
     required this.total,
     required this.currency,
     required this.paymentStatus,
@@ -99,6 +101,9 @@ class Sale {
       invoiceNo: (json["invoiceNo"] ?? "").toString(),
       customerName: (json["customerName"] ?? "").toString(),
       contactId: _id(json["contact"]),
+      customerKind: (json["customerKind"] ?? "retail").toString() == "wholesale"
+          ? "wholesale"
+          : "retail",
       total: total,
       currency: currency,
       paymentStatus: paymentStatus,
@@ -135,6 +140,13 @@ class Sale {
       createdAt: _date(json["createdAt"]),
       updatedAt: _date(json["updatedAt"]),
     );
+  }
+
+  String customerKindLabel(bool isArabic) {
+    if (customerKind == "wholesale") {
+      return isArabic ? "عميل جملة" : "Wholesale customer";
+    }
+    return isArabic ? "زبون عادي" : "Retail customer";
   }
 }
 
