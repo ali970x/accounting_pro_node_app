@@ -51,7 +51,7 @@ class _AboutPageState extends State<AboutPage> {
     final isAr = c.isArabic;
     final theme = Theme.of(context);
     final name = (_data["name"] ?? c.t("app")).toString();
-    final version = (_data["version"] ?? AppVersion.display).toString();
+    final version = AppVersion.display;
     final notes = _releaseNotes;
 
     return RefreshIndicator(
