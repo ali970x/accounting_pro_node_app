@@ -32,6 +32,8 @@ class _SalesPageState extends State<SalesPage> {
 
   String? _selectedCustomerId;
   String _productCategoryFilter = "";
+  final _productCategorySearch = TextEditingController();
+  final _productCategoryFocusNode = FocusNode();
   final _productSearch = TextEditingController();
   final _productFocusNode = FocusNode();
   final _manualCustomerName = TextEditingController();
@@ -60,6 +62,8 @@ class _SalesPageState extends State<SalesPage> {
 
   @override
   void dispose() {
+    _productCategorySearch.dispose();
+    _productCategoryFocusNode.dispose();
     _productSearch.dispose();
     _productFocusNode.dispose();
     _manualCustomerName.dispose();
@@ -672,9 +676,20 @@ class _SalesPageState extends State<SalesPage> {
                               return ListTile(
                                 leading: const Icon(Icons.person_rounded),
                                 title: Text(customer.name),
-                                subtitle: customer.phone.isEmpty
-                                    ? null
-                                    : PhoneText(customer.fullPhone),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      customer.customerKindLabel(isAr),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    if (customer.phone.isNotEmpty)
+                                      PhoneText(customer.fullPhone),
+                                  ],
+                                ),
                                 onTap: () => onSelected(customer),
                               );
                             },
@@ -1204,29 +1219,31 @@ class _SalesPageState extends State<SalesPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _responsiveFields([
-          DropdownButtonFormField<String>(
-            value: _productCategoryFilter,
-            decoration: InputDecoration(
-              labelText: isAr ? "الصنف" : "Category",
-              prefixIcon: const Icon(Icons.folder_rounded),
+        _responsiveFields([_categoryPicker(categories, isAr)]),
+        if (_showLegacyCategoryPicker)
+          _responsiveFields([
+            DropdownButtonFormField<String>(
+              value: _productCategoryFilter,
+              decoration: InputDecoration(
+                labelText: isAr ? "الصنف" : "Category",
+                prefixIcon: const Icon(Icons.folder_rounded),
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: "",
+                  child: Text(isAr ? "اختر الصنف" : "Choose category"),
+                ),
+                ...categories.map(
+                  (x) => DropdownMenuItem(value: x, child: Text(x)),
+                ),
+              ],
+              onChanged: (value) => setState(() {
+                _productCategoryFilter = value ?? "";
+                _productSearch.clear();
+                _clearSelectedProductIfHidden();
+              }),
             ),
-            items: [
-              DropdownMenuItem(
-                value: "",
-                child: Text(isAr ? "اختر الصنف" : "Choose category"),
-              ),
-              ...categories.map(
-                (x) => DropdownMenuItem(value: x, child: Text(x)),
-              ),
-            ],
-            onChanged: (value) => setState(() {
-              _productCategoryFilter = value ?? "";
-              _productSearch.clear();
-              _clearSelectedProductIfHidden();
-            }),
-          ),
-        ]),
+          ]),
         const SizedBox(height: 12),
         RawAutocomplete<_SaleProductChoice>(
           textEditingController: _productSearch,
@@ -1345,6 +1362,111 @@ class _SalesPageState extends State<SalesPage> {
     );
   }
 
+  Widget _categoryPicker(List<String> categories, bool isAr) {
+    return RawAutocomplete<String>(
+      textEditingController: _productCategorySearch,
+      focusNode: _productCategoryFocusNode,
+      displayStringForOption: (category) => category,
+      optionsBuilder: (value) {
+        final q = value.text.trim().toLowerCase();
+        if (q.isEmpty) return categories.take(12);
+        return categories
+            .where((category) => category.toLowerCase().startsWith(q))
+            .take(12);
+      },
+      onSelected: _selectProductCategory,
+      fieldViewBuilder: (context, controller, focusNode, _) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: isAr ? "الصنف" : "Category",
+            hintText: isAr
+                ? "اكتب أول حرف واختر الصنف"
+                : "Type and choose category",
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: controller.text.isEmpty
+                ? null
+                : IconButton(
+                    onPressed: () => setState(() {
+                      controller.clear();
+                      _productCategoryFilter = "";
+                      _productSearch.clear();
+                      _clearSelectedProductIfHidden();
+                    }),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+          ),
+          onChanged: (value) {
+            final exact = _exactProductCategory(value, categories);
+            setState(() {
+              _productCategoryFilter = exact ?? "";
+              _productSearch.clear();
+              _clearSelectedProductIfHidden();
+            });
+          },
+          onTap: () {
+            controller.selection = TextSelection.collapsed(
+              offset: controller.text.length,
+            );
+          },
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final rows = options.toList();
+        return Align(
+          alignment: AlignmentDirectional.topStart,
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 260, maxWidth: 520),
+              child: rows.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Text(
+                        isAr
+                            ? "لا يوجد صنف يبدأ بهذا النص."
+                            : "No category starts with this text.",
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: rows.length,
+                      itemBuilder: (_, i) {
+                        final category = rows[i];
+                        return ListTile(
+                          leading: const Icon(Icons.folder_rounded),
+                          title: Text(category),
+                          onTap: () => onSelected(category),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _selectProductCategory(String category) {
+    setState(() {
+      _productCategoryFilter = category;
+      _productCategorySearch.text = category;
+      _productSearch.clear();
+      _clearSelectedProductIfHidden();
+    });
+  }
+
+  String? _exactProductCategory(String value, List<String> categories) {
+    final q = value.trim().toLowerCase();
+    if (q.isEmpty) return null;
+    for (final category in categories) {
+      if (category.toLowerCase() == q) return category;
+    }
+    return null;
+  }
+
   Widget _quickProductChoices(List<_SaleProductChoice> choices, bool isAr) {
     final shown = choices.take(8).toList();
     if (shown.isEmpty) {
@@ -1375,9 +1497,22 @@ class _SalesPageState extends State<SalesPage> {
       child: ModernCard(
         child: ListTile(
           leading: const CircleAvatar(child: Icon(Icons.receipt_long)),
-          title: Text(
-            s.invoiceNo,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                s.invoiceNo,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                s.customerKindLabel(isAr),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
           subtitle: Text(
             "${s.customerName}\n${_formatTime(s.createdAt)}${s.paymentStatus == "debt" ? (isAr ? "\nدين" : "\nDebt") : ""}",
@@ -1557,6 +1692,8 @@ class _SalesPageState extends State<SalesPage> {
         return unit.trim().isEmpty ? "الوحدة" : unit;
     }
   }
+
+  bool get _showLegacyCategoryPicker => false;
 
   Widget _responsiveFields(List<Widget> children) {
     return LayoutBuilder(
@@ -1747,9 +1884,23 @@ class _SaleEditDialogState extends State<_SaleEditDialog> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                customer.name,
-                                overflow: TextOverflow.ellipsis,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    customer.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    customer.customerKindLabel(isAr),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             if (customer.phone.trim().isNotEmpty)
