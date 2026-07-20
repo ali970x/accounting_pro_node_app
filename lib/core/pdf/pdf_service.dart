@@ -93,6 +93,12 @@ class PdfService {
                   size: 10.5,
                   bold: true,
                 ),
+                pw.SizedBox(height: 2),
+                _text(
+                  "${isArabic ? "\u0646\u0648\u0639 \u0627\u0644\u0639\u0645\u064a\u0644" : "Customer type"}: ${sale.customerKindLabel(isArabic)}",
+                  isArabic,
+                  size: 9,
+                ),
                 pw.SizedBox(height: 5),
                 _itemsTable(sale, isArabic),
                 pw.SizedBox(height: 8),
@@ -794,6 +800,7 @@ class PdfService {
     List<Map<String, dynamic>> movements,
     bool isArabic,
   ) {
+    final tableStyle = _movementTableStyle(movements.length);
     final headers = [
       isArabic ? "التاريخ" : "Date",
       isArabic ? "الحركة" : "Movement",
@@ -833,27 +840,59 @@ class PdfService {
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-          children: headers.map((h) => _cell(h, isArabic, true)).toList(),
+          children: headers
+              .map(
+                (h) => _cell(
+                  h,
+                  isArabic,
+                  true,
+                  size: tableStyle.headerFont,
+                  padding: tableStyle.headerPadding,
+                ),
+              )
+              .toList(),
         ),
         ...movements.map((row) {
           final currency = (row["currency"] ?? "LBP").toString();
           final total = _num(row["totalCost"]);
           return pw.TableRow(
             children: [
-              _cell(_shortDate(row["createdAt"]), isArabic, false),
+              _cell(
+                _shortDate(row["createdAt"]),
+                isArabic,
+                false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
+              ),
               _cell(
                 _movementTypeLabel((row["type"] ?? "").toString(), isArabic),
                 isArabic,
                 false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
               ),
-              _cell((row["productName"] ?? "").toString(), isArabic, false),
-              _cell(number(_num(row["difference"]).abs()), isArabic, false),
+              _cell(
+                (row["productName"] ?? "").toString(),
+                isArabic,
+                false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
+              ),
+              _cell(
+                number(_num(row["difference"]).abs()),
+                isArabic,
+                false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
+              ),
               _cell(
                 _num(row["packageCount"]) > 0
                     ? numberDecimal(_num(row["packageCount"]))
                     : "-",
                 isArabic,
                 false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
               ),
               _cell(
                 _num(row["weight"]) > 0
@@ -861,13 +900,55 @@ class PdfService {
                     : "-",
                 isArabic,
                 false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
               ),
-              _cell((row["invoiceNo"] ?? "").toString(), isArabic, false),
-              _cell(total > 0 ? money(total, currency) : "-", isArabic, false),
+              _cell(
+                (row["invoiceNo"] ?? "").toString(),
+                isArabic,
+                false,
+                size: tableStyle.bodyFont,
+                padding: tableStyle.bodyPadding,
+              ),
+              _cell(
+                total > 0 ? money(total, currency) : "-",
+                isArabic,
+                false,
+                size: tableStyle.moneyFont,
+                padding: tableStyle.bodyPadding,
+              ),
             ],
           );
         }),
       ],
+    );
+  }
+
+  static _InvoiceTableStyle _movementTableStyle(int itemCount) {
+    if (itemCount <= 22) {
+      return const _InvoiceTableStyle(
+        headerFont: 8.2,
+        bodyFont: 7.8,
+        moneyFont: 7.5,
+        headerPadding: 4,
+        bodyPadding: 3.4,
+      );
+    }
+    if (itemCount <= 40) {
+      return const _InvoiceTableStyle(
+        headerFont: 7.3,
+        bodyFont: 6.8,
+        moneyFont: 6.5,
+        headerPadding: 3,
+        bodyPadding: 2.4,
+      );
+    }
+    return const _InvoiceTableStyle(
+      headerFont: 6.4,
+      bodyFont: 5.9,
+      moneyFont: 5.7,
+      headerPadding: 2.2,
+      bodyPadding: 1.8,
     );
   }
 

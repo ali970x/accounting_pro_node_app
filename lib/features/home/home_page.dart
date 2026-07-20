@@ -1,5 +1,4 @@
 import "package:flutter/material.dart";
-import "package:flutter/foundation.dart";
 import "package:flutter/services.dart";
 import "../../core/api_client.dart";
 import "../../core/session_store.dart";
@@ -56,12 +55,6 @@ class _HomePageState extends State<HomePage> {
 
   void _openSmartImportInbox() {
     if (!mounted || SmartImportInbox.text.value == null) return;
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Smart Import is coming soon on web.")),
-      );
-      return;
-    }
     setState(() => selected = 6);
   }
 
@@ -80,13 +73,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     SmartImportInbox.put(text);
-    if (kIsWeb) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Smart Import is coming soon on web.")),
-      );
-      return;
-    }
     if (mounted) setState(() => selected = 6);
   }
 
@@ -283,10 +269,7 @@ class _HomePageState extends State<HomePage> {
         onOpenDamages: () => setState(() => selected = 1),
       ),
       5 => RecordsPage(api: widget.api),
-      6 =>
-        kIsWeb
-            ? const _SmartImportLockedPage()
-            : SmartImportPage(api: widget.api),
+      6 => SmartImportPage(api: widget.api),
       7 => ExpensesPage(api: widget.api),
       8 => DebtsPage(api: widget.api),
       9 => ContactsPage(api: widget.api),
@@ -314,86 +297,5 @@ class _HomePageState extends State<HomePage> {
       3 => 4,
       _ => 5,
     };
-  }
-}
-
-class _SmartImportLockedPage extends StatelessWidget {
-  const _SmartImportLockedPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: theme.brightness == Brightness.dark
-                  ? scheme.surfaceContainerLow
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: scheme.outlineVariant),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.lock_clock_rounded,
-                    size: 36,
-                    color: scheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  "Smart Import",
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Coming soon on web",
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "This feature is locked here for now. Use the mobile app for Smart Import while the web version is being finished.",
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

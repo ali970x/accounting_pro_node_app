@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:url_launcher/url_launcher.dart";
@@ -67,7 +69,11 @@ class _ContactsPageState extends State<ContactsPage> {
           q.isEmpty ||
           c.name.toLowerCase().contains(q) ||
           c.phone.contains(q) ||
-          c.address.toLowerCase().contains(q);
+          c.address.toLowerCase().contains(q) ||
+          c
+              .customerKindLabel(AppScope.of(context).isArabic)
+              .toLowerCase()
+              .contains(q);
       return matchType && matchSearch;
     }).toList();
   }
@@ -265,13 +271,16 @@ class _ContactsPageState extends State<ContactsPage> {
           ),
           OutlinedButton.icon(
             onPressed: () async {
+              final languageCode = c.languageCode;
               Navigator.pop(ctx);
-              await PdfService.printGoodsMovementInvoice(
-                languageCode: c.languageCode,
-                contactName: contact.name,
-                contactType: contact.type,
-                movements: movements,
-                template: template,
+              await _runGoodsInvoiceAction(
+                () => PdfService.printGoodsMovementInvoice(
+                  languageCode: languageCode,
+                  contactName: contact.name,
+                  contactType: contact.type,
+                  movements: movements,
+                  template: template,
+                ),
               );
             },
             icon: const Icon(Icons.print_rounded),
@@ -279,13 +288,16 @@ class _ContactsPageState extends State<ContactsPage> {
           ),
           FilledButton.icon(
             onPressed: () async {
+              final languageCode = c.languageCode;
               Navigator.pop(ctx);
-              await PdfService.shareGoodsMovementInvoice(
-                languageCode: c.languageCode,
-                contactName: contact.name,
-                contactType: contact.type,
-                movements: movements,
-                template: template,
+              await _runGoodsInvoiceAction(
+                () => PdfService.shareGoodsMovementInvoice(
+                  languageCode: languageCode,
+                  contactName: contact.name,
+                  contactType: contact.type,
+                  movements: movements,
+                  template: template,
+                ),
               );
             },
             icon: const Icon(Icons.share_rounded),
@@ -294,6 +306,57 @@ class _ContactsPageState extends State<ContactsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _runGoodsInvoiceAction(Future<void> Function() action) async {
+    final isAr = AppScope.of(context).isArabic;
+    var loadingOpen = false;
+
+    if (mounted) {
+      loadingOpen = true;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  isAr ? "جاري تجهيز الفاتورة..." : "Preparing invoice...",
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+    }
+
+    Object? failure;
+    try {
+      await action().timeout(const Duration(seconds: 60));
+    } on TimeoutException {
+      failure = isAr
+          ? "تجهيز الفاتورة أخذ وقت طويل. جرّب مشاركة PDF أو قلّل الفترة المعروضة."
+          : "Preparing the invoice took too long. Try sharing PDF or narrowing the period.";
+    } catch (e) {
+      failure = e;
+    } finally {
+      if (mounted && loadingOpen) {
+        final nav = Navigator.of(context, rootNavigator: true);
+        if (nav.canPop()) nav.pop();
+      }
+    }
+
+    if (failure != null && mounted) {
+      _showError(failure);
+    }
   }
 
   Future<void> _showFinancialLedger(ContactModel contact) async {
@@ -573,6 +636,10 @@ class _ContactListView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      if (m.type == "customer") ...[
+                        _kindChip(context, m),
+                        const SizedBox(height: 6),
+                      ],
                       Row(
                         children: [
                           const Icon(
@@ -656,6 +723,30 @@ class _ContactListView extends StatelessWidget {
       },
     );
   }
+
+  Widget _kindChip(BuildContext context, ContactModel contact) {
+    final isWholesale = contact.customerKind == "wholesale";
+    final color = isWholesale ? Colors.indigo : Colors.teal;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Text(
+          contact.customerKindLabel(AppScope.of(context).isArabic),
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ContactDialog extends StatefulWidget {
@@ -674,6 +765,7 @@ class _ContactDialogState extends State<ContactDialog> {
   late final TextEditingController address;
   late final TextEditingController note;
   String countryCode = "+961";
+  String customerKind = "retail";
 
   @override
   void initState() {
@@ -684,6 +776,7 @@ class _ContactDialogState extends State<ContactDialog> {
     address = TextEditingController(text: x?.address ?? "");
     note = TextEditingController(text: x?.note ?? "");
     countryCode = x?.countryCode ?? "+961";
+    customerKind = x?.customerKind ?? "retail";
   }
 
   @override
@@ -733,6 +826,26 @@ class _ContactDialogState extends State<ContactDialog> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (widget.type == "customer") ...[
+                SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(
+                      value: "retail",
+                      icon: const Icon(Icons.person_rounded),
+                      label: Text(isAr ? "زبون عادي" : "Retail"),
+                    ),
+                    ButtonSegment(
+                      value: "wholesale",
+                      icon: const Icon(Icons.groups_rounded),
+                      label: Text(isAr ? "عميل جملة" : "Wholesale"),
+                    ),
+                  ],
+                  selected: {customerKind},
+                  onSelectionChanged: (value) =>
+                      setState(() => customerKind = value.first),
+                ),
+                const SizedBox(height: 16),
+              ],
               _field(isAr ? "الاسم" : "Name", name, icon: Icons.person_rounded),
               const SizedBox(height: 12),
               Row(
@@ -804,6 +917,9 @@ class _ContactDialogState extends State<ContactDialog> {
                           "address": address.text.trim(),
                           "note": note.text.trim(),
                           "type": widget.type,
+                          "customerKind": widget.type == "customer"
+                              ? customerKind
+                              : "retail",
                         });
                       },
                       child: Text(c.t("save")),
