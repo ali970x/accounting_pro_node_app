@@ -1164,28 +1164,17 @@ class _BulkSupplyDialogState extends State<_BulkSupplyDialog> {
     if (unitCost < 0)
       return _showError(isAr ? "سعر الشراء غير صحيح" : "Invalid unit cost");
 
-    final index = _items.indexWhere((item) => item.id == choice.id);
     setState(() {
-      if (index == -1) {
-        _items.add(
-          _SupplyDraftItem.fromChoice(
-            choice,
-            quantity: quantity,
-            packageCount: packageCount,
-            weight: weight,
-            unitCost: unitCost,
-            currency: _currency,
-          ),
-        );
-      } else {
-        _items[index] = _items[index].copyWith(
-          quantity: _items[index].quantity + quantity,
-          packageCount: _items[index].packageCount + packageCount,
-          weight: _items[index].weight + weight,
+      _items.add(
+        _SupplyDraftItem.fromChoice(
+          choice,
+          quantity: quantity,
+          packageCount: packageCount,
+          weight: weight,
           unitCost: unitCost,
           currency: _currency,
-        );
-      }
+        ),
+      );
       _clearChoice();
     });
   }
