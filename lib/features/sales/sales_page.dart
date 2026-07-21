@@ -372,32 +372,19 @@ class _SalesPageState extends State<SalesPage> {
       return false;
     }
 
-    final mergeIndex = _saleItems.indexWhere(
-      (item) => item.id == choice.id && _samePrice(item.unitPrice, unitPrice),
-    );
-
     setState(() {
-      if (mergeIndex == -1) {
-        _saleItems.add(
-          _SaleDraftItem.fromChoice(
-            choice,
-            quantity: quantity,
-            weight: weight,
-            unitPrice: unitPrice,
-          ),
-        );
-      } else {
-        _saleItems[mergeIndex] = _saleItems[mergeIndex].copyWith(
-          quantity: _saleItems[mergeIndex].quantity + quantity,
-          weight: _saleItems[mergeIndex].weight + weight,
-        );
-      }
+      _saleItems.add(
+        _SaleDraftItem.fromChoice(
+          choice,
+          quantity: quantity,
+          weight: weight,
+          unitPrice: unitPrice,
+        ),
+      );
       _clearProductEntry();
     });
     return true;
   }
-
-  bool _samePrice(double a, double b) => (a - b).abs() < 0.0001;
 
   void _clearProductEntry() {
     _quantity.clear();

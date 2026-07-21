@@ -68,7 +68,6 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final isAr = c.isArabic;
-    final theme = Theme.of(context);
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -262,6 +261,8 @@ class _ReportsPageState extends State<ReportsPage> {
                 Colors.red,
               ),
             ]),
+            const SizedBox(height: 22),
+            _customerKindSection(isAr),
             const SizedBox(height: 22),
             _sectionTitle(
               _label(
@@ -476,6 +477,71 @@ class _ReportsPageState extends State<ReportsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _customerKindSection(bool isAr) {
+    final salesByKind = _map(_data["salesByCustomerKind"]);
+    final receivableByKind = _map(_data["receivableByCustomerKind"]);
+    final retailSales = _map(salesByKind["retail"]);
+    final wholesaleSales = _map(salesByKind["wholesale"]);
+    final retailDebt = _map(receivableByKind["retail"]);
+    final wholesaleDebt = _map(receivableByKind["wholesale"]);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle(
+          _label(
+            isAr,
+            "Customer Types",
+            "\u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0632\u0628\u0627\u0626\u0646",
+          ),
+        ),
+        const SizedBox(height: 12),
+        _metricGrid([
+          _Metric(
+            _label(
+              isAr,
+              "Retail sales",
+              "\u0645\u0628\u064a\u0639 \u0627\u0644\u0632\u0628\u0648\u0646 \u0627\u0644\u0639\u0627\u062f\u064a",
+            ),
+            _moneyBreakdown(retailSales),
+            Icons.person_rounded,
+            Colors.teal,
+          ),
+          _Metric(
+            _label(
+              isAr,
+              "Wholesale sales",
+              "\u0645\u0628\u064a\u0639 \u0639\u0645\u0644\u0627\u0621 \u0627\u0644\u062c\u0645\u0644\u0629",
+            ),
+            _moneyBreakdown(wholesaleSales),
+            Icons.groups_rounded,
+            Colors.indigo,
+          ),
+          _Metric(
+            _label(
+              isAr,
+              "Retail debts",
+              "\u062f\u064a\u0648\u0646 \u0627\u0644\u0632\u0628\u0648\u0646 \u0627\u0644\u0639\u0627\u062f\u064a",
+            ),
+            _moneyBreakdown(retailDebt),
+            Icons.account_balance_wallet_rounded,
+            Colors.green,
+          ),
+          _Metric(
+            _label(
+              isAr,
+              "Wholesale debts",
+              "\u062f\u064a\u0648\u0646 \u0639\u0645\u0644\u0627\u0621 \u0627\u0644\u062c\u0645\u0644\u0629",
+            ),
+            _moneyBreakdown(wholesaleDebt),
+            Icons.account_balance_rounded,
+            Colors.deepPurple,
+          ),
+        ]),
+      ],
     );
   }
 
@@ -969,8 +1035,8 @@ class _MonthlyChartPainter extends CustomPainter {
 
   double _height(double value, double maxValue, double chartHeight) {
     if (maxValue <= 0) return 0;
-    return ((value / maxValue * (chartHeight - 12)).clamp(0, chartHeight - 12)
-            as num)
+    return (value / maxValue * (chartHeight - 12))
+        .clamp(0, chartHeight - 12)
         .toDouble();
   }
 

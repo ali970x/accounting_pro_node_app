@@ -943,11 +943,17 @@ class _DebtsPageState extends State<DebtsPage> {
       if (!_debtMatchesDateFilter(debt)) return false;
       if (query.isEmpty && queryDigits.isEmpty) return true;
       final contact = _contactForDebt(debt);
+      final kind = _customerKindForDebt(
+        debt,
+        contact,
+        AppScope.of(context).isArabic,
+      );
       final text = [
         (debt["personName"] ?? "").toString(),
         contact?.name ?? "",
         contact?.phone ?? "",
         contact?.fullPhone ?? "",
+        kind,
       ].join(" ").toLowerCase();
       final digits = text.replaceAll(RegExp(r"[^0-9+]"), "");
       return text.contains(query) ||
@@ -992,6 +998,28 @@ class _DebtsPageState extends State<DebtsPage> {
       if (name.isNotEmpty && contact.name == name) return contact;
     }
     return null;
+  }
+
+  String _customerKindForDebt(
+    Map<String, dynamic> debt,
+    ContactModel? contact,
+    bool isAr,
+  ) {
+    if ((debt["type"] ?? "").toString() != "receivable") {
+      return _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f");
+    }
+    if (contact != null) return contact.customerKindLabel(isAr);
+    return (debt["customerKind"] ?? "").toString() == "wholesale"
+        ? _label(
+            isAr,
+            "Wholesale customer",
+            "\u0639\u0645\u064a\u0644 \u062c\u0645\u0644\u0629",
+          )
+        : _label(
+            isAr,
+            "Retail customer",
+            "\u0632\u0628\u0648\u0646 \u0639\u0627\u062f\u064a",
+          );
   }
 
   Map<String, List<Map<String, dynamic>>> _groupDebts(
@@ -1109,6 +1137,8 @@ class _DebtsPageState extends State<DebtsPage> {
     final type = (first["type"] ?? "").toString();
     final color = type == "receivable" ? Colors.green : Colors.red;
     final name = (first["personName"] ?? "").toString();
+    final contact = _contactForDebt(first);
+    final kindLabel = _customerKindForDebt(first, contact, isAr);
     final openCount = rows
         .where((d) => (d["status"] ?? "").toString() != "paid")
         .length;
@@ -1152,7 +1182,7 @@ class _DebtsPageState extends State<DebtsPage> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        "$role - ${number(rows.length)} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} - ${number(openCount)} ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}",
+                        "$role - $kindLabel - ${number(rows.length)} ${_label(isAr, "invoices", "\u0641\u0648\u0627\u062a\u064a\u0631")} - ${number(openCount)} ${_label(isAr, "open", "\u0645\u0641\u062a\u0648\u062d")}",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1215,6 +1245,7 @@ class _DebtsPageState extends State<DebtsPage> {
     final currency = (debt["currency"] ?? "LBP").toString();
     final status = (debt["status"] ?? "-").toString();
     final note = (debt["note"] ?? "").toString();
+    final kindLabel = _customerKindForDebt(debt, _contactForDebt(debt), isAr);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -1251,6 +1282,16 @@ class _DebtsPageState extends State<DebtsPage> {
                           note.isEmpty ? status : "$status - $note",
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                      if (type == "receivable")
+                        Text(
+                          kindLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                     ],
                   ),
@@ -1948,7 +1989,7 @@ class _DebtDialogState extends State<_DebtDialog> {
                     (contact) => DropdownMenuItem(
                       value: contact.id,
                       child: Text(
-                        "${contact.name} - ${contact.type == "supplier" ? _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f") : _label(isAr, "Customer", "\u0632\u0628\u0648\u0646")}",
+                        "${contact.name} - ${contact.type == "supplier" ? _label(isAr, "Supplier", "\u0645\u0648\u0631\u062f") : contact.customerKindLabel(isAr)}",
                       ),
                     ),
                   )
